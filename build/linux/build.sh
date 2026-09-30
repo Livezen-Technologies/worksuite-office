@@ -3,13 +3,13 @@ set -euo pipefail
 
 NEXTCLOUD_USER=""
 NEXTCLOUD_PASS=""
-REGISTRY="ghcr.io/euro-office"
+REGISTRY="ghcr.io/worksuite"
 TAG="latest"
 PRODUCT_VERSION=$(cat ../../VERSION.txt)
 BUILD_NUMBER="dev.0"
 BRANDING_DIR="../"
-COMPANY_NAME="Euro-Office"
-PRODUCT_NAME="Desktop Editors"
+COMPANY_NAME="WorkSuite"
+PRODUCT_NAME="Office"
 GIT_COMMIT=$(git rev-parse --short HEAD)
 
 export NEXTCLOUD_USER NEXTCLOUD_PASS REGISTRY TAG PRODUCT_VERSION \

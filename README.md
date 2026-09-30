@@ -1,3 +1,16 @@
+# WorkSuite Office
+
+WorkSuite Office is the desktop office suite for [WorkSuite](https://worksuite.lk): text, spreadsheet,
+presentation and PDF editors for Windows and Linux. It is a rebranded build of
+[Euro-Office DesktopEditors](https://github.com/Euro-Office/DesktopEditors), itself a fork of
+ONLYOFFICE Desktop Editors, and is distributed under the GNU AGPL v3. See [ATTRIBUTION](./ATTRIBUTION).
+
+Installers are produced by the **Build WorkSuite Office** workflow in the Actions tab.
+The branding changes live in the `desktop-apps` submodule and in `build/`; every other
+submodule is the unmodified Euro-Office source.
+
+---
+
 [![License](https://img.shields.io/badge/License-GNU%20AGPL%20V3-green.svg?style=flat)](https://www.gnu.org/licenses/agpl-3.0.en.html)
 ![Platforms Windows | macOS | Linux](https://img.shields.io/badge/Platforms-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg?style=flat)
 

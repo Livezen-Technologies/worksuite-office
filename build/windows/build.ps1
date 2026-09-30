@@ -1,7 +1,7 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-    Local Windows build for Euro-Office DesktopEditors.
+    Local Windows build for WorkSuite DesktopEditors.
 
     This mirrors the "build-windows" job of the "Build (Windows/Linux)" GitHub
     Actions workflow, step for step, so a developer can reproduce a CI build on
@@ -74,7 +74,7 @@ param(
     [string]$BuildNumber    = 'dev.1',
     [string]$Arch           = 'x64',
     [string]$Target         = 'standalone',
-    [string]$CompanyName    = 'Euro-Office',
+    [string]$CompanyName    = 'WorkSuite',
     [string]$ProductName    = 'DesktopEditors',
     [string]$WinSdkVersion  = '10.0.19041.0',
 
@@ -304,7 +304,7 @@ try {
         if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
             throw "-BuildCommon requires Docker Desktop on PATH (Linux containers)."
         }
-        # The bake graph reads these (euro-office brand needs no Nextcloud creds).
+        # The bake graph reads these (worksuite brand needs no Nextcloud creds).
         $env:PRODUCT_VERSION = $ProductVersion
         $env:BUILD_NUMBER    = $BuildNumber
         $env:BUILD_ROOT      = '/package'
@@ -426,7 +426,7 @@ Either download the 'common-files' CI artifact and pass -CommonDir, or rerun wit
         "-DCMAKE_TOOLCHAIN_FILE=$($env:VCPKG_ROOT)\scripts\buildsystems\vcpkg.cmake",
         '-DVCPKG_MANIFEST_MODE=ON',
         '-DVCPKG_MANIFEST_DIR=core',
-        '-DABOUT_PAGE_APP_NAME=Desktop Editors'
+        '-DABOUT_PAGE_APP_NAME=WorkSuite Office'
     )
     # sccache caches MSVC object files by content hash and (with
     # SCCACHE_GHA_ENABLED=true) persists them in the GitHub Actions cache, so a

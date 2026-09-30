@@ -5,7 +5,7 @@ variable "GIT_COMMIT" {
 } 
 
 variable "REGISTRY" {
-  default = "ghcr.io/euro-office"
+  default = "ghcr.io/worksuite"
 }
 
 variable "TAG" {
@@ -46,7 +46,7 @@ variable "BRANDING_DIR" {
 }
 
 variable "COMPANY_NAME" {
-  default = "Euro-Office"
+  default = "WorkSuite"
 }
 
 variable "COMPANY_NAME_LOW" {
@@ -54,7 +54,7 @@ variable "COMPANY_NAME_LOW" {
 }
 
 variable "PRODUCT_NAME" {
-  default = "Desktop Editors"
+  default = "Office"
 }
 
 # ──────────────────────────────────────────────

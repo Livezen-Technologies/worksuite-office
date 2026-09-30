@@ -1,9 +1,17 @@
-Euro-Office is based on ONLYOFFICE DocumentServer, originally developed
-by Ascensio System SIA (https://www.onlyoffice.com/).
+WorkSuite Office is a rebranded build of Euro-Office DesktopEditors
+(https://github.com/Euro-Office/DesktopEditors), which is based on
+ONLYOFFICE Desktop Editors and DocumentServer, originally developed by
+Ascensio System SIA (https://www.onlyoffice.com/).
 
 The original source code is available at:
 https://github.com/ONLYOFFICE
+https://github.com/Euro-Office
 
-ONLYOFFICE DocumentServer is licensed under the GNU Affero General
-Public License v3.0 (AGPL-3.0). See the LICENSE file for the full
-license text.
+WorkSuite Office is not affiliated with, endorsed by, or supported by
+Ascensio System SIA or the Euro-Office project. ONLYOFFICE is a trademark
+of Ascensio System SIA.
+
+The software is licensed under the GNU Affero General Public License v3.0
+(AGPL-3.0). See the LICENSE file for the full license text. The complete
+corresponding source of WorkSuite Office is this repository and its
+submodules.
