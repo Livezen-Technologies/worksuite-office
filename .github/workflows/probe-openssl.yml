@@ -1,7 +1,7 @@
 name: Probe OpenSSL 1.1.1w on Windows
 
-# Diagnostic only: finds which toolchain combination builds OpenSSL 1.1.1w,
-# which the Windows desktop build compiles from source.
+# Diagnostic only: reproduces the OpenSSL step of the Windows desktop build
+# with and without Cygwin on PATH.
 
 on:
   workflow_dispatch:
@@ -13,40 +13,47 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        variant: [baseline, perl532, toolset1429, toolset143x]
+        variant: [cygwin, nocygwin]
     steps:
-      - name: Older Strawberry Perl
-        if: matrix.variant == 'perl532'
-        shell: pwsh
-        run: choco install strawberryperl --version=5.32.1.1 --allow-downgrade -y --no-progress --force
+      - uses: actions/checkout@v4
+      - name: Fetch core only
+        run: git submodule update --init --depth 1 core
+
+      - name: Install Cygwin
+        if: matrix.variant == 'cygwin'
+        uses: cygwin/cygwin-install-action@v4
+        with:
+          install-dir: 'C:\cygwin64'
+          add-to-path: false
+          packages: automake cmake make git python3 python3-devel
 
       - uses: ilammy/msvc-dev-cmd@v1
-        if: matrix.variant == 'baseline' || matrix.variant == 'perl532'
         with:
           arch: amd64
-      - uses: ilammy/msvc-dev-cmd@v1
-        if: matrix.variant == 'toolset1429'
-        with:
-          arch: amd64
-          toolset: '14.29'
-      - uses: ilammy/msvc-dev-cmd@v1
-        if: matrix.variant == 'toolset143x'
-        with:
-          arch: amd64
-          toolset: '14.3'
+          sdk: 10.0.19041.0
 
-      - name: Configure and start the build
+      - name: Build OpenSSL the way the desktop build does
         shell: pwsh
+        env:
+          PYTHONUTF8: "1"
         run: |
-          $env:PATH = "C:\Strawberry\perl\bin;" + $env:PATH
-          (Get-Command perl).Source; perl -v | Select-String "This is"
-          (Get-Command nmake).Source; (Get-Command cl).Source
-          git -c core.autocrlf=false -c core.eol=lf clone --depth 1 --branch OpenSSL_1_1_1w https://github.com/openssl/openssl.git ossl
-          cd ossl
-          Test-Path apps\apps.c
-          perl Configure VC-WIN64A "--prefix=$PWD\..\inst" "--openssldir=$PWD\..\inst" enable-md2 no-shared no-asm
-          Select-String -Path makefile -Pattern 'apps\\apps\.c' | Select-Object -First 3
-          nmake build_generated
-          nmake apps\apps.obj
-          "RESULT ${{ matrix.variant }}: exit $LASTEXITCODE"
-          exit $LASTEXITCODE
+          $native = @()
+          foreach ($tool in 'perl','python','git','cmake') {
+            $dir = Split-Path (Get-Command $tool).Source
+            if ($tool -eq 'git' -and $dir -like '*\Git\bin') { $dir = Join-Path (Split-Path $dir) 'cmd' }
+            if ($native -notcontains $dir) { $native += $dir }
+          }
+          if ('${{ matrix.variant }}' -eq 'cygwin') { $env:PATH = ($native + 'C:\cygwin64\bin' + $env:PATH) -join ';'; $env:CYGWIN_ROOT = 'C:\cygwin64' }
+          foreach ($t in 'perl','python','git','nmake','sh','make','cp','rm') { $c = Get-Command $t -ErrorAction SilentlyContinue; "{0,-6} -> {1}" -f $t, $c.Source }
+          python core\Common\3dParty\build_3rdparty.py --only=openssl "$PWD\w" "$PWD\i"
+          $rc = $LASTEXITCODE
+          "RESULT ${{ matrix.variant }}: exit $rc"
+          $src = Get-ChildItem -Path "$PWD\w" -Recurse -Filter makefile -Depth 2 | Select-Object -First 1
+          if ($src) {
+            $d = $src.DirectoryName; "makefile in $d"
+            Test-Path "$d\apps\apps.c"
+            Select-String -Path $src.FullName -Pattern 'apps\\apps\.c' | Select-Object -First 4 | ForEach-Object { $_.Line }
+            Select-String -Path $src.FullName -Pattern '^(SRCDIR|BLDDIR|PERL|PLATFORM)=' | ForEach-Object { $_.Line }
+            Push-Location $d; nmake apps\apps.obj 2>&1 | Select-Object -Last 15; Pop-Location
+          }
+          exit $rc
