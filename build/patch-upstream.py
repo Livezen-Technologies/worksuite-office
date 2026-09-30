@@ -52,33 +52,3 @@ edit("core/Common/3dParty/openssl/nc-build.py", [
      '        os.environ[ "PATH" ] = os.pathsep.join(\n'
      '            p for p in os.environ[ "PATH" ].split( os.pathsep ) if "cygwin" not in p.lower() )\n'),
 ])
-
-
-# Diagnostic mode (probe workflow only): build just OpenSSL and print what nmake sees.
-import os
-if os.environ.get("WS_PROBE_OPENSSL") == "1":
-    edit("core/common.cmake", [
-        ('"--except=openssl-hash,icu-wasm${NO_DESKTOP_EXCLUDE}" # cef and qt need old build environment, cannot be built here',
-         '"--only=openssl"'),
-    ])
-    edit("core/Common/3dParty/openssl/nc-build.py", [
-        ('        nc.run_command(\n            [ "nmake" ],\n',
-         '        import subprocess\n'
-         '        def _diag( cmd ):\n'
-         '            r = subprocess.run( cmd, cwd = nc.work_dir, capture_output = True, text = True, shell = isinstance( cmd, str ) )\n'
-         '            print( f"DIAG $ {cmd}\\n{r.stdout[-6000:]}\\n{r.stderr[-1500:]}", flush = True )\n'
-         '        print( "DIAG python", sys.version, "cwd", os.getcwd(), "work_dir", repr( str( nc.work_dir ) ) )\n'
-         '        print( "DIAG exists", ( nc.work_dir / "apps" / "apps.c" ).exists(), sorted( os.listdir( nc.work_dir ) )[:60] )\n'
-         '        _names = sorted( os.environ.keys() )\n'
-         '        for _i in range( 0, len( _names ), 12 ):\n'
-         '            print( "DIAG envnames", " ".join( _names[ _i:_i + 12 ] ) )\n'
-         '        for k in ( "MAKEFLAGS", "CL", "_CL_", "LINK", "PLATFORM", "CC", "CXX", "CFLAGS", "CXXFLAGS", "CPPFLAGS", "LDFLAGS", "RC", "RCFLAGS", "CPP", "AS", "MT", "AR", "APPS", "PASSWD", "VCPKG_KEEP_ENV_VARS", "PATHEXT" ):\n'
-         '            print( "DIAG env", k, "=", os.environ.get( k ) )\n'
-         '        _diag( "dir apps\\\\apps.c" )\n'
-         '        _diag( "findstr /n /c:apps\\\\apps.c makefile" )\n'
-         '        _diag( [ "nmake", "/N", "apps\\\\apps.obj" ] )\n'
-         '        _diag( [ "nmake", "build_generated" ] )\n'
-         '        _diag( [ "nmake", "/D", "/N", "_all" ] )\n'
-         '        _diag( "findstr /n /c:passwd makefile" )\n'
-         '        nc.run_command(\n            [ "nmake" ],\n'),
-    ])
