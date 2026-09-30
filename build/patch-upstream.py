@@ -36,3 +36,14 @@ edit("core/Common/3dParty/v8/nc-build.py", [
      '        gclient_paths.write_text( "".join( kept ) )\n'
      '\n'),
 ])
+
+
+# OpenSSL on Windows: the desktop build puts Cygwin's bin ahead of MSVC on PATH
+# (other steps need Cygwin's sh/make), so Cygwin's /usr/bin/link shadows MSVC's
+# link.exe and nmake fails. Build OpenSSL with Cygwin off PATH.
+edit("core/Common/3dParty/openssl/nc-build.py", [
+    ('        ossl_target = openssl_windows_target()\n',
+     '        ossl_target = openssl_windows_target()\n'
+     '        os.environ[ "PATH" ] = os.pathsep.join(\n'
+     '            p for p in os.environ[ "PATH" ].split( os.pathsep ) if "cygwin" not in p.lower() )\n'),
+])

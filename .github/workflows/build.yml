@@ -2,6 +2,12 @@ name: Build WorkSuite Office (Windows/Linux)
 
 on:
   workflow_dispatch:
+    inputs:
+      only:
+        description: Which desktop build to run
+        type: choice
+        default: all
+        options: [all, windows, linux]
   push:
     tags:
       - 'v*'
@@ -81,6 +87,7 @@ jobs:
           compression-level: 0
 
   build-windows:
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.only == 'all' || inputs.only == 'windows' }}
     runs-on: windows-2022
     needs: build-common
     timeout-minutes: 360
@@ -165,6 +172,7 @@ jobs:
             desktop-apps/package/inno/WorkSuite-Office*.exe
 
   build-linux:
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.only == 'all' || inputs.only == 'linux' }}
     runs-on: ubuntu-latest
     needs: build-common
     timeout-minutes: 360
