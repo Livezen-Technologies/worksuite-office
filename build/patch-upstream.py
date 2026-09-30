@@ -39,15 +39,15 @@ edit("core/Common/3dParty/v8/nc-build.py", [
 
 
 # OpenSSL on Windows, two problems in the desktop build's environment:
-#  - CMake exports CC/CXX as full paths containing a space ("C:/Program Files/...").
+#  - CMake exports CC, CXX and RC as full paths containing a space ("C:/Program Files/...").
 #    OpenSSL's Configure copies CC into its makefile unquoted and nmake then fails
-#    (U1073: don't know how to make '"apps\\apps.c"'). Let Configure pick plain "cl".
+#    (U1073: don't know how to make '"apps\\apps.c"'). Let Configure pick the plain tool names.
 #  - Cygwin's bin is on PATH for other steps; its /usr/bin/link must not shadow
 #    MSVC's link.exe.
 edit("core/Common/3dParty/openssl/nc-build.py", [
     ('        ossl_target = openssl_windows_target()\n',
      '        ossl_target = openssl_windows_target()\n'
-     '        for var in ( "CC", "CXX" ):\n'
+     '        for var in ( "CC", "CXX", "RC", "AS", "AR", "LD", "MT" ):\n'
      '            os.environ.pop( var, None )\n'
      '        os.environ[ "PATH" ] = os.pathsep.join(\n'
      '            p for p in os.environ[ "PATH" ].split( os.pathsep ) if "cygwin" not in p.lower() )\n'),
