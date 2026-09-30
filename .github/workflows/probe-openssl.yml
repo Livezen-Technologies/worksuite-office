@@ -1,0 +1,52 @@
+name: Probe OpenSSL 1.1.1w on Windows
+
+# Diagnostic only: finds which toolchain combination builds OpenSSL 1.1.1w,
+# which the Windows desktop build compiles from source.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  probe:
+    runs-on: windows-2022
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: [baseline, perl532, toolset1429, toolset143x]
+    steps:
+      - name: Older Strawberry Perl
+        if: matrix.variant == 'perl532'
+        shell: pwsh
+        run: choco install strawberryperl --version=5.32.1.1 --allow-downgrade -y --no-progress --force
+
+      - uses: ilammy/msvc-dev-cmd@v1
+        if: matrix.variant == 'baseline' || matrix.variant == 'perl532'
+        with:
+          arch: amd64
+      - uses: ilammy/msvc-dev-cmd@v1
+        if: matrix.variant == 'toolset1429'
+        with:
+          arch: amd64
+          toolset: '14.29'
+      - uses: ilammy/msvc-dev-cmd@v1
+        if: matrix.variant == 'toolset143x'
+        with:
+          arch: amd64
+          toolset: '14.3'
+
+      - name: Configure and start the build
+        shell: pwsh
+        run: |
+          $env:PATH = "C:\Strawberry\perl\bin;" + $env:PATH
+          (Get-Command perl).Source; perl -v | Select-String "This is"
+          (Get-Command nmake).Source; (Get-Command cl).Source
+          git -c core.autocrlf=false -c core.eol=lf clone --depth 1 --branch OpenSSL_1_1_1w https://github.com/openssl/openssl.git ossl
+          cd ossl
+          Test-Path apps\apps.c
+          perl Configure VC-WIN64A "--prefix=$PWD\..\inst" "--openssldir=$PWD\..\inst" enable-md2 no-shared no-asm
+          Select-String -Path makefile -Pattern 'apps\\apps\.c' | Select-Object -First 3
+          nmake build_generated
+          nmake apps\apps.obj
+          "RESULT ${{ matrix.variant }}: exit $LASTEXITCODE"
+          exit $LASTEXITCODE
