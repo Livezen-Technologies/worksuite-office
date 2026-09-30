@@ -1,6 +1,6 @@
 [submodule "desktop-apps"]
 	path = desktop-apps
-	url = https://github.com/Euro-Office/desktop-apps.git
+	url = https://github.com/Livezen-Technologies/worksuite-office-desktop-apps.git
 [submodule "desktop-sdk"]
 	path = desktop-sdk
 	url = https://github.com/Euro-Office/desktop-sdk.git
