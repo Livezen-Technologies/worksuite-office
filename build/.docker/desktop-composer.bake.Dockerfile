@@ -16,7 +16,8 @@ FROM scratch AS desktop-common
     COPY web-apps/apps/api/documents/index.html.desktop /editors/web-apps/apps/api/documents/index.html
     
     COPY desktop-apps/common/converter/* /converter/
-    # Support only Nextcloud for now
+    # Cloud providers offered in "Connect to cloud": WorkSuite Drive and Nextcloud
+    COPY desktop-apps/common/loginpage/providers/worksuite /providers/worksuite
     COPY desktop-apps/common/loginpage/providers/nextcloud /providers/nextcloud
     COPY desktop-apps/common/templates /converter/templates
 
