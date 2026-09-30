@@ -144,6 +144,22 @@ jobs:
       - name: Set up vcpkg
         uses: lukka/run-vcpkg@v11
 
+      # Third-party libraries (V8, ICU, boost, OpenSSL, Qt, CEF) build from source
+      # and take over an hour. Keep what was built, even when a later step fails.
+      - name: Third-party cache key
+        id: tp
+        shell: pwsh
+        run: |
+          "key=win-x64-3rdparty-$(git rev-parse HEAD:core)-${{ hashFiles('build/patch-upstream.py') }}" >> $env:GITHUB_OUTPUT
+
+      - name: Restore third-party libraries
+        uses: actions/cache/restore@v4
+        with:
+          path: third_party/install
+          key: ${{ steps.tp.outputs.key }}-${{ github.run_id }}
+          restore-keys: |
+            ${{ steps.tp.outputs.key }}-
+
       # ProductName stays DesktopEditors: it is the internal install/registry
       # path, not what the user sees. The shown name is "WorkSuite Office".
       - name: Build & package
@@ -156,6 +172,13 @@ jobs:
             -Target         standalone `
             -CompanyName    WorkSuite `
             -ProductName    DesktopEditors
+
+      - name: Save third-party libraries
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: third_party/install
+          key: ${{ steps.tp.outputs.key }}-${{ github.run_id }}
 
       - name: Name the installers WorkSuite-Office
         shell: pwsh

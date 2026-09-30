@@ -428,6 +428,11 @@ Either download the 'common-files' CI artifact and pass -CommonDir, or rerun wit
         '-DVCPKG_MANIFEST_DIR=core',
         '-DABOUT_PAGE_APP_NAME=WorkSuite Office'
     )
+    # Pin the interpreter the third-party builder runs under to the `python` on
+    # PATH (the one aqtinstall was installed into). Left to itself CMake picks the
+    # newest Python on the machine, which has no aqt and fails the Qt download.
+    $pythonBin = (Get-Command python).Source -replace '\\', '/'
+    $cmakeArgs += "-DPYTHON_BIN=$pythonBin"
     # sccache caches MSVC object files by content hash and (with
     # SCCACHE_GHA_ENABLED=true) persists them in the GitHub Actions cache, so a
     # re-run recompiles only what changed. /Z7 embedded debug info is REQUIRED -
