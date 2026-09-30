@@ -42,6 +42,10 @@ edit("core/Common/3dParty/v8/nc-build.py", [
 # (other steps need Cygwin's sh/make), so Cygwin's /usr/bin/link shadows MSVC's
 # link.exe and nmake fails. Build OpenSSL with Cygwin off PATH.
 edit("core/Common/3dParty/openssl/nc-build.py", [
+    # The generated header-dependency rules fail under the desktop build's
+    # environment (nmake: don't know how to make '"apps\\apps.c"'). They only
+    # matter for incremental rebuilds, so turn them off for this one-shot build.
+    ('                ossl_target,\n', '                ossl_target,\n                "no-makedepend",\n'),
     ('        ossl_target = openssl_windows_target()\n',
      '        ossl_target = openssl_windows_target()\n'
      '        os.environ[ "PATH" ] = os.pathsep.join(\n'
