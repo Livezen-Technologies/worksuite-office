@@ -1,0 +1,104 @@
+name: Build WorkSuite Office (macOS arm64)
+
+# Euro-Office has no macOS build. The macOS app is the ONLYOFFICE Xcode project
+# (desktop-apps/macos, rebranded in our fork) linked against the ONLYOFFICE core,
+# editors and SDK of the same version, built with ONLYOFFICE build_tools.
+
+on:
+  workflow_dispatch:
+
+env:
+  OO_TAG: v9.3.1.8
+  PRODUCT_VERSION: 9.3.1
+  BUILD_NUMBER: "1"
+  COMPANY_NAME: WorkSuite
+
+jobs:
+  build-mac-arm64:
+    runs-on: macos-14
+    timeout-minutes: 360
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Install build tools
+        run: |
+          softwareupdate --install-rosetta --agree-to-license || true
+          python -m pip install aqtinstall
+          python -m aqt install-qt mac desktop 5.15.2 clang_64 -O "$HOME/Qt"
+          "$HOME/Qt/5.15.2/clang_64/bin/qmake" --version
+          npm install -g grunt-cli
+          brew install p7zip || true
+          xcodebuild -version
+          df -h /
+
+      - name: Fetch sources
+        run: |
+          mkdir oo && cd oo
+          git clone --depth 1 -b "$OO_TAG" https://github.com/ONLYOFFICE/build_tools.git
+          for r in core sdkjs sdkjs-forms web-apps dictionaries core-fonts desktop-sdk document-templates; do
+            git clone --depth 1 -b "$OO_TAG" --recurse-submodules --shallow-submodules "https://github.com/ONLYOFFICE/$r.git"
+          done
+          git clone --depth 1 https://github.com/ONLYOFFICE/onlyoffice.github.io.git
+          git clone --depth 1 https://github.com/Livezen-Technologies/worksuite-office-desktop-apps.git desktop-apps
+          git -C desktop-apps log --oneline -1
+
+      - name: Build core, editors and SDK (build_tools)
+        working-directory: oo/build_tools
+        run: |
+          python configure.py --module desktop --platform mac_arm64 --update 0 --clean 0 --qt-dir "$HOME/Qt/5.15.2"
+          cat config
+          python make.py
+          ls -la out/mac_arm64/onlyoffice/desktopeditors
+
+      - name: Build the app (Xcode)
+        working-directory: oo/desktop-apps/macos
+        run: |
+          mkdir -p Vendor/ONLYOFFICE/license
+          cp -fv ../package/common/license/opensource/LICENSE.html Vendor/ONLYOFFICE/license/LICENSE.html
+          /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $PRODUCT_VERSION" ONLYOFFICE/Resources/ONLYOFFICE-arm/Info.plist
+          /usr/libexec/PlistBuddy -c "Set :ASCBundleBuildNumber $BUILD_NUMBER" ONLYOFFICE/Resources/ONLYOFFICE-arm/Info.plist
+          set -o pipefail
+          xcodebuild -project ONLYOFFICE.xcodeproj -scheme ONLYOFFICE-arm -configuration Release \
+            -derivedDataPath "$PWD/build/dd" \
+            CODE_SIGN_IDENTITY="-" DEVELOPMENT_TEAM="" \
+            URL_WEBAPPS_HELP="https://download.onlyoffice.com/install/desktop/editors/help/v$PRODUCT_VERSION/apps" \
+            build | tee build/xcodebuild.log | grep -E "^(=== |\*\* |error|.*: error|.*warning: unable|Code Signing|CodeSign )" || true
+          test -d build/dd/Build/Products/Release/ONLYOFFICE.app || { tail -200 build/xcodebuild.log; exit 1; }
+
+      - name: Package the DMG
+        working-directory: oo/desktop-apps/macos
+        run: |
+          mkdir -p build/stage
+          ditto build/dd/Build/Products/Release/ONLYOFFICE.app "build/stage/WorkSuite Office.app"
+          codesign --verify --deep --strict --verbose=2 "build/stage/WorkSuite Office.app" || true
+          /usr/libexec/PlistBuddy -c "Print :CFBundleName" -c "Print :CFBundleIdentifier" -c "Print :CFBundleShortVersionString" "build/stage/WorkSuite Office.app/Contents/Info.plist"
+          lipo -archs "build/stage/WorkSuite Office.app/Contents/MacOS/ONLYOFFICE"
+          ln -s /Applications build/stage/Applications
+          hdiutil create -volname "WorkSuite Office" -srcfolder build/stage -ov -format UDZO \
+            "build/WorkSuite-Office-$PRODUCT_VERSION-arm64.dmg"
+          ls -la build/*.dmg
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-arm64-dmg
+          path: oo/desktop-apps/macos/build/*.dmg
+          compression-level: 0
+
+      - name: Keep the Xcode log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: xcodebuild-log
+          path: oo/desktop-apps/macos/build/xcodebuild.log
+          if-no-files-found: ignore
