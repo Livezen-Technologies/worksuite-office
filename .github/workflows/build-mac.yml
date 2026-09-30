@@ -34,7 +34,9 @@ jobs:
       - name: Install build tools
         run: |
           softwareupdate --install-rosetta --agree-to-license || true
-          python -m pip install aqtinstall
+          # heif and friends need CMake >= 3.21 and < 4; the runner ships CMake 4
+          python -m pip install aqtinstall "cmake==3.31.6"
+          cmake --version
           python -m aqt install-qt mac desktop 5.15.2 clang_64 -O "$HOME/Qt"
           "$HOME/Qt/5.15.2/clang_64/bin/qmake" --version
           npm install -g grunt-cli
