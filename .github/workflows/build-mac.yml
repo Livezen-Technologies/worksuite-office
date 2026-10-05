@@ -44,6 +44,10 @@ jobs:
           xcodebuild -version
           df -h /
 
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          path: worksuite-office
+
       - name: Fetch sources
         run: |
           mkdir oo && cd oo
@@ -54,6 +58,9 @@ jobs:
           git clone --depth 1 https://github.com/ONLYOFFICE/onlyoffice.github.io.git
           git clone --depth 1 https://github.com/Livezen-Technologies/worksuite-office-desktop-apps.git desktop-apps
           git -C desktop-apps log --oneline -1
+
+      - name: Remove ONLYOFFICE Help and Suggest a Feature from the editors
+        run: python worksuite-office/build/patch-editor-menu.py oo/web-apps
 
       - name: Build core, editors and SDK (build_tools)
         working-directory: oo/build_tools

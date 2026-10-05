@@ -60,6 +60,9 @@ jobs:
             }
           skip-extraction: ${{ steps.wasm-cache.outputs.cache-hit }}
 
+      - name: Remove ONLYOFFICE Help and Suggest a Feature from the editors
+        run: python3 build/patch-editor-menu.py web-apps
+
       - name: Build the common payload
         uses: docker/bake-action@4a9a8d494466d37134e2bfca2d3a8de8fb2681ad # v5.13.0
         with:
