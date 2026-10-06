@@ -1,5 +1,23 @@
 # Change log
 
+## 9.3.3
+
+### New features
+
+#### PDF Editor
+
+* Added the Convert tab. It converts the PDF to Word (DOCX, DOTX, ODT, OTT or
+  RTF), to images (PNG or JPEG, every page in a ZIP file), to text (TXT or
+  Markdown), to a web page (HTML) or to an e-book (EPUB or FB2). All formats
+  opens the Save as dialog with every format
+
+### Fixes
+
+#### All Editors
+
+* Fixed Feedback & Support opening the ONLYOFFICE support site: it opens
+  worksuitecloud.com
+
 ## 9.3.2
 
 ### New features

@@ -13,7 +13,7 @@ on:
       - 'v*'
 
 env:
-  PRODUCT_VERSION: 9.3.2
+  PRODUCT_VERSION: 9.3.3
   BUILD_NUMBER: dev.1
   BUILD_ROOT: /package
   COMPANY_NAME: WorkSuite
@@ -60,8 +60,10 @@ jobs:
             }
           skip-extraction: ${{ steps.wasm-cache.outputs.cache-hit }}
 
-      - name: Remove ONLYOFFICE Help and Suggest a Feature from the editors
-        run: python3 build/patch-editor-menu.py web-apps
+      - name: WorkSuite's changes to the editors
+        run: |
+          python3 build/patch-editor-menu.py web-apps
+          python3 build/patch-pdf-convert.py web-apps
 
       - name: Build the common payload
         uses: docker/bake-action@4a9a8d494466d37134e2bfca2d3a8de8fb2681ad # v5.13.0
