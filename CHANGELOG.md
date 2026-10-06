@@ -1,5 +1,37 @@
 # Change log
 
+## 9.3.2
+
+### New features
+
+#### WorkSuite
+
+* Added signing in with a WorkSuite account, in the browser or with one click
+  through WorkSuite Desktop when it is signed in on the same computer. Several
+  accounts can be signed in
+* Added WorkSuite Drive to the start page: Recent, Shared with me, Starred,
+  My Drive and search, with a picture of each document
+* Added opening WorkSuite Drive documents in the editors. Every save is a new
+  version of the Drive file
+* Added creating documents, spreadsheets and presentations in a WorkSuite Drive
+  folder
+* Added the WorkSuite item to the start page sidebar. It opens WorkSuite
+  Desktop, or WorkSuite in the browser when WorkSuite Desktop is not installed
+* Added `worksuiteoffice://` links, which open a WorkSuite Drive document in
+  the app
+* Replaced the WorkSuite Drive cloud provider with the WorkSuite Drive section
+  of the start page
+
+#### All Editors
+
+* Added Save as to any WorkSuite Drive folder for WorkSuite Drive documents
+* Added the save status of WorkSuite Drive documents, such as Saved to
+  WorkSuite Drive and Offline
+
+#### macOS
+
+* Added updates from the WorkSuite Update Center
+
 ## 9.3.1
 
 ### Fixes
