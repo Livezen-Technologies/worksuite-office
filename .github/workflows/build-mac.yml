@@ -4,14 +4,31 @@ name: Build WorkSuite Office (macOS arm64)
 # (desktop-apps/macos, rebranded in our fork) linked against the ONLYOFFICE core,
 # editors and SDK of the same version, built with ONLYOFFICE build_tools.
 
+# Updates: the app's Sparkle reads its feed from the Update Center (download.worksuitecloud.com,
+# worksite-download docs/sparkle.md). This build stamps the feed's channel, a rising CFBundleVersion and
+# WorkSuite's Sparkle public key (repository variable SPARKLE_PUBLIC_ED_KEY) into the app, and signs the
+# DMG with the private key (secret SPARKLE_ED_PRIVATE_KEY) into <dmg>.edsig, which
+# scripts/publish-release.mjs in worksite-download puts into the release's attestation.
+
 on:
   workflow_dispatch:
+    inputs:
+      channel:
+        description: Update channel the app follows. Beta until builds are Developer ID signed and notarised, which Stable requires.
+        type: choice
+        options: [beta, stable]
+        default: beta
+      build_number:
+        description: Build number, the app's CFBundleVersion. It must rise with every release on a channel; empty means 1000 + this workflow's run number.
+        required: false
+        default: ''
 
 env:
   OO_TAG: v9.3.1.8
   PRODUCT_VERSION: 9.3.1
-  BUILD_NUMBER: "1"
   COMPANY_NAME: WorkSuite
+  UPDATE_CENTER: https://download.worksuitecloud.com
+  UPDATE_APP_ID: lk.worksuite.office
 
 jobs:
   build-mac-arm64:
@@ -48,6 +65,27 @@ jobs:
         with:
           path: worksuite-office
 
+      - name: Version and updates
+        id: updates
+        env:
+          INPUT_BUILD: ${{ inputs.build_number }}
+          INPUT_CHANNEL: ${{ inputs.channel || 'beta' }}
+          SPARKLE_PUBLIC_ED_KEY: ${{ vars.SPARKLE_PUBLIC_ED_KEY }}
+          HAS_PRIVATE_KEY: ${{ secrets.SPARKLE_ED_PRIVATE_KEY != '' }}
+        run: |
+          build="${INPUT_BUILD:-$((1000 + GITHUB_RUN_NUMBER))}"
+          # Installed copies report CFBundleVersion 537: a lower number would never be offered to them.
+          [[ "$build" =~ ^[0-9]+$ ]] && (( build > 537 )) || { echo "::error::build_number must be a whole number above 537"; exit 1; }
+          echo "BUILD_NUMBER=$build" >> "$GITHUB_ENV"
+          echo "UPDATE_CHANNEL=$INPUT_CHANNEL" >> "$GITHUB_ENV"
+          if [ -z "$SPARKLE_PUBLIC_ED_KEY" ]; then
+            echo "::warning::No SPARKLE_PUBLIC_ED_KEY repository variable: this build cannot verify updates, so it will not install any."
+          fi
+          if [ "$HAS_PRIVATE_KEY" = true ] && [ -z "$SPARKLE_PUBLIC_ED_KEY" ]; then
+            echo "::error::SPARKLE_ED_PRIVATE_KEY is set but SPARKLE_PUBLIC_ED_KEY is not: the app would not trust its own updates"; exit 1
+          fi
+          echo "sign=$HAS_PRIVATE_KEY" >> "$GITHUB_OUTPUT"
+
       - name: Fetch sources
         run: |
           mkdir oo && cd oo
@@ -76,11 +114,21 @@ jobs:
 
       - name: Build the app (Xcode)
         working-directory: oo/desktop-apps/macos
+        env:
+          SPARKLE_PUBLIC_ED_KEY: ${{ vars.SPARKLE_PUBLIC_ED_KEY }}
         run: |
           mkdir -p Vendor/ONLYOFFICE/license
           cp -fv ../package/common/license/opensource/LICENSE.html Vendor/ONLYOFFICE/license/LICENSE.html
-          /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $PRODUCT_VERSION" ONLYOFFICE/Resources/ONLYOFFICE-arm/Info.plist
-          /usr/libexec/PlistBuddy -c "Set :ASCBundleBuildNumber $BUILD_NUMBER" ONLYOFFICE/Resources/ONLYOFFICE-arm/Info.plist
+          plist=ONLYOFFICE/Resources/ONLYOFFICE-arm/Info.plist
+          /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $PRODUCT_VERSION" "$plist"
+          /usr/libexec/PlistBuddy -c "Set :ASCBundleBuildNumber $BUILD_NUMBER" "$plist"
+          # Sparkle compares the feed's sparkle:version (the release's build number) with CFBundleVersion.
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD_NUMBER" "$plist"
+          /usr/libexec/PlistBuddy -c "Set :SUFeedURL $UPDATE_CENTER/api/v1/apps/$UPDATE_APP_ID/channels/$UPDATE_CHANNEL/appcast.xml?arch=arm64" "$plist"
+          /usr/libexec/PlistBuddy -c "Delete :SUPublicEDKey" "$plist" 2>/dev/null || true
+          if [ -n "$SPARKLE_PUBLIC_ED_KEY" ]; then
+            /usr/libexec/PlistBuddy -c "Add :SUPublicEDKey string $SPARKLE_PUBLIC_ED_KEY" "$plist"
+          fi
           set -o pipefail
           xcodebuild -project ONLYOFFICE.xcodeproj -scheme ONLYOFFICE-arm -configuration Release \
             -derivedDataPath "$PWD/build/dd" \
@@ -95,17 +143,64 @@ jobs:
           mkdir -p build/stage
           ditto build/dd/Build/Products/Release/ONLYOFFICE.app "build/stage/WorkSuite Office.app"
           codesign --verify --deep --strict --verbose=2 "build/stage/WorkSuite Office.app" || true
-          /usr/libexec/PlistBuddy -c "Print :CFBundleName" -c "Print :CFBundleIdentifier" -c "Print :CFBundleShortVersionString" "build/stage/WorkSuite Office.app/Contents/Info.plist"
+          /usr/libexec/PlistBuddy -c "Print :CFBundleName" -c "Print :CFBundleIdentifier" -c "Print :CFBundleShortVersionString" -c "Print :SUFeedURL" "build/stage/WorkSuite Office.app/Contents/Info.plist"
+          built=$(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "build/stage/WorkSuite Office.app/Contents/Info.plist")
+          [ "$built" = "$BUILD_NUMBER" ] || { echo "::error::the app's CFBundleVersion is $built, not $BUILD_NUMBER"; exit 1; }
           lipo -archs "build/stage/WorkSuite Office.app/Contents/MacOS/ONLYOFFICE"
           ln -s /Applications build/stage/Applications
           hdiutil create -volname "WorkSuite Office" -srcfolder build/stage -ov -format UDZO \
             "build/WorkSuite-Office-$PRODUCT_VERSION-arm64.dmg"
           ls -la build/*.dmg
 
+      - name: Sign the DMG for Sparkle
+        if: steps.updates.outputs.sign == 'true'
+        working-directory: oo/desktop-apps/macos
+        env:
+          SPARKLE_ED_PRIVATE_KEY: ${{ secrets.SPARKLE_ED_PRIVATE_KEY }}
+          SPARKLE_PUBLIC_ED_KEY: ${{ vars.SPARKLE_PUBLIC_ED_KEY }}
+        run: |
+          key="$RUNNER_TEMP/sparkle.key"
+          trap 'rm -f "$key"' EXIT
+          printf '%s' "$SPARKLE_ED_PRIVATE_KEY" > "$key"
+          dmg="build/WorkSuite-Office-$PRODUCT_VERSION-arm64.dmg"
+          # Sparkle's own tool, for the key format generate_keys -x exports.
+          sig=$(Vendor/Sparkle/bin/sign_update -f "$key" "$dmg" | sed -n 's/.*sparkle:edSignature="\([^"]*\)".*/\1/p')
+          [ -n "$sig" ] || { echo "::error::sign_update gave no signature"; exit 1; }
+          printf '%s\n' "$sig" > "$dmg.edsig"
+          # As Sparkle will check it: Ed25519 over the whole DMG, against the key the app carries.
+          node -e '
+            const [file, sigFile, pub] = process.argv.slice(1);
+            const { createPublicKey, verify } = require("crypto"), fs = require("fs");
+            const key = createPublicKey({ key: { kty: "OKP", crv: "Ed25519", x: Buffer.from(pub, "base64").toString("base64url") }, format: "jwk" });
+            if (!verify(null, fs.readFileSync(file), key, Buffer.from(fs.readFileSync(sigFile, "utf8").trim(), "base64"))) {
+              console.error("::error::the Sparkle signature does not match SPARKLE_PUBLIC_ED_KEY"); process.exit(1);
+            }' "$dmg" "$dmg.edsig" "$SPARKLE_PUBLIC_ED_KEY"
+          echo "Sparkle signature checked against SPARKLE_PUBLIC_ED_KEY"
+
+      - name: Summary
+        working-directory: oo/desktop-apps/macos
+        run: |
+          {
+            echo "### WorkSuite Office $PRODUCT_VERSION ($BUILD_NUMBER), macOS arm64"
+            echo "- Updates from: \`$UPDATE_CENTER/api/v1/apps/$UPDATE_APP_ID/channels/$UPDATE_CHANNEL/appcast.xml?arch=arm64\`"
+            if ls build/*.edsig >/dev/null 2>&1; then
+              echo "- Signed for Sparkle (\`.edsig\` beside the DMG). Publish from a worksite-download checkout:"
+              echo '```'
+              echo "UC_SPARKLE_PUBLIC_KEY=<SUPublicEDKey> node scripts/publish-release.mjs --app office --app-id $UPDATE_APP_ID \\"
+              echo "  --channel $(printf '%s' "$UPDATE_CHANNEL" | tr '[:lower:]' '[:upper:]') --version $PRODUCT_VERSION --build $BUILD_NUMBER --commit $GITHUB_SHA \\"
+              echo "  --file macos:arm64:dmg:WorkSuite-Office-$PRODUCT_VERSION-arm64.dmg"
+              echo '```'
+            else
+              echo "- Not signed for Sparkle (no SPARKLE_ED_PRIVATE_KEY secret): sign it with sign_update before publishing."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - uses: actions/upload-artifact@v4
         with:
           name: macos-arm64-dmg
-          path: oo/desktop-apps/macos/build/*.dmg
+          path: |
+            oo/desktop-apps/macos/build/*.dmg
+            oo/desktop-apps/macos/build/*.dmg.edsig
           compression-level: 0
 
       - name: Keep the Xcode log on failure
