@@ -23,11 +23,32 @@ The setup is described in worksite-download's `docs/sparkle.md`.
   - stamps the chosen channel into the app (`beta` until builds are Developer ID signed and notarised);
   - sets a rising build number as `CFBundleVersion`, which Sparkle compares;
   - signs the DMG into `<dmg>.edsig`.
-- **Publishing** happens from worksite-download with `scripts/publish-release.mjs`. The command is in the
-  run's summary.
+- **Publishing:** see below.
 
 **Windows and Linux** do not update themselves yet. The Windows update service is not built, and the Windows
 installers are not code signed, which the service requires.
+
+### Publishing
+
+The **Publish to the WorkSuite Update Center** workflow puts finished builds on download.worksuitecloud.com.
+
+- **Inputs:**
+  - the run ID of a macOS build, of a Windows/Linux build, or both, built from the same commit;
+  - the version and build number. With a Mac build, the build number is its `CFBundleVersion`: 1000 + that
+    run's number, unless `build_number` was given.
+- **What it uploads:** the DMG, the Windows installer and zip, and the Linux deb and rpm.
+- **What it does** with `build/publish-release.mjs`, a copy of worksite-download's `scripts/publish-release.mjs`:
+  - creates the release, with the notes in `build/release-notes/<version>.md`;
+  - posts the signed CI build attestation;
+  - uploads the files and waits for the Update Center's checks;
+  - submits the release for testing.
+- **After the workflow,** QA, release-manager approval and publishing happen in the Update Center's `/admin`.
+- **Dry run:** downloads and lists the installers only.
+- **Settings:**
+  - the secret `UC_CI_TOKEN`: `<client_id>.<secret>` of a CI API client, made with `php spark uc:create-ci-client`;
+  - the secret `UC_CI_KEY`: the base64 libsodium Ed25519 secret key whose public half is pinned in the Update
+    Center as a CI attestation key;
+  - the variable `UC_CI_KEY_ID`, if that key's ID is not `ws-ci-1`.
 
 ---
 

@@ -1,0 +1,177 @@
+name: Publish to the WorkSuite Update Center
+
+# Uploads finished builds to download.worksuitecloud.com with the Update Center's publish script
+# (build/publish-release.mjs, a copy of worksite-download's scripts/publish-release.mjs). It creates the
+# release, writes its notes (build/release-notes/<version>.md), signs and posts the CI build attestation,
+# uploads the installers, waits for the Update Center's checks and submits the release for testing. QA,
+# release-manager approval and publishing stay with people, in the Update Center's /admin.
+#
+# Settings: the secrets UC_CI_TOKEN ("<client_id>.<secret>" of a CI API client) and UC_CI_KEY (the base64
+# libsodium Ed25519 secret key whose public half is pinned as a CI attestation key), and the variable
+# UC_CI_KEY_ID when that key is not ws-ci-1. With the variable SPARKLE_PUBLIC_ED_KEY set, the script checks
+# the DMG's Sparkle signature and refuses a DMG without one.
+
+on:
+  workflow_dispatch:
+    inputs:
+      mac_run:
+        description: Run ID of a "Build WorkSuite Office (macOS arm64)" run whose DMG to publish (empty for none)
+        default: ''
+      desktop_run:
+        description: Run ID of a "Build WorkSuite Office (Windows/Linux)" run whose installers to publish (empty for none)
+        default: ''
+      version:
+        description: Version
+        required: true
+        default: 9.3.1
+      build:
+        description: Build number. With a Mac build it must be the app's CFBundleVersion, 1000 + that run's number unless build_number was given
+        required: true
+      channel:
+        description: Channel
+        type: choice
+        options: [BETA, STABLE]
+        default: BETA
+      summary:
+        description: One line for the release (empty for "WorkSuite Office <version> (<build>)")
+        default: ''
+      dry_run:
+        description: Only download and list the installers; upload nothing
+        type: boolean
+        default: false
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: publish-${{ inputs.version }}-${{ inputs.build }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: The builds
+        id: runs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MAC_RUN: ${{ inputs.mac_run }}
+          DESKTOP_RUN: ${{ inputs.desktop_run }}
+          VERSION: ${{ inputs.version }}
+          BUILD: ${{ inputs.build }}
+          DRY_RUN: ${{ inputs.dry_run }}
+          HAS_SECRETS: ${{ secrets.UC_CI_TOKEN != '' && secrets.UC_CI_KEY != '' }}
+        run: |
+          fail() { echo "::error::$*"; exit 1; }
+          [ -n "$MAC_RUN$DESKTOP_RUN" ] || fail "Give mac_run, desktop_run or both"
+          [[ "$VERSION" =~ ^[0-9]+(\.[0-9]+){1,3}$ ]] || fail "version must look like 9.3.1"
+          # Installed copies report CFBundleVersion 537: a lower number would never be offered to them.
+          if ! [[ "$BUILD" =~ ^[0-9]+$ ]] || (( BUILD <= 537 )); then fail "build must be a whole number above 537"; fi
+          [ "$DRY_RUN" = true ] || [ "$HAS_SECRETS" = true ] || fail "Add the repository secrets UC_CI_TOKEN and UC_CI_KEY (README, Publishing)"
+
+          # Successful runs of the build workflows, of one commit: the release's attestation names it.
+          commits=()
+          check() {
+            [[ "$1" =~ ^[0-9]+$ ]] || fail "$1 is not a run ID"
+            read -r path conclusion sha < <(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$1" --jq '"\(.path) \(.conclusion) \(.head_sha)"') || fail "There is no run $1"
+            [ "$path" = ".github/workflows/$2" ] || fail "Run $1 is $path, not $2"
+            [ "$conclusion" = success ] || fail "Run $1 did not succeed ($conclusion)"
+            commits+=("$sha")
+          }
+          [ -z "$MAC_RUN" ] || check "$MAC_RUN" build-mac.yml
+          [ -z "$DESKTOP_RUN" ] || check "$DESKTOP_RUN" build.yml
+          [ "${#commits[@]}" -lt 2 ] || [ "${commits[0]}" = "${commits[1]}" ] ||
+            fail "The two builds are of different commits (${commits[0]} and ${commits[1]}); one release attests one commit"
+          echo "commit=${commits[0]}" >> "$GITHUB_OUTPUT"
+
+      - name: Download the Mac build
+        if: inputs.mac_run != ''
+        uses: actions/download-artifact@v4
+        with:
+          name: macos-arm64-dmg
+          path: dist/macos
+          run-id: ${{ inputs.mac_run }}
+          github-token: ${{ github.token }}
+
+      - name: Download the Windows build
+        if: inputs.desktop_run != ''
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-packages-x64
+          path: dist/windows
+          run-id: ${{ inputs.desktop_run }}
+          github-token: ${{ github.token }}
+
+      - name: Download the Linux build
+        if: inputs.desktop_run != ''
+        uses: actions/download-artifact@v4
+        with:
+          name: linux-packages-amd64
+          path: dist/linux
+          run-id: ${{ inputs.desktop_run }}
+          github-token: ${{ github.token }}
+
+      - name: The installers
+        env:
+          MAC_RUN: ${{ inputs.mac_run }}
+          DESKTOP_RUN: ${{ inputs.desktop_run }}
+        run: |
+          fail() { echo "::error::$*"; exit 1; }
+          files=()
+          # One file for each platform and package type WorkSuite Office has in the Update Center.
+          add() { # required|optional platform architecture type directory pattern
+            mapfile -t found < <(find "$5" -type f -name "$6" 2>/dev/null | sort)
+            [ "${#found[@]}" -le 1 ] || fail "More than one $2 $4 in $5: ${found[*]}"
+            if [ "${#found[@]}" -eq 0 ]; then
+              [ "$1" = optional ] || fail "No $2 $4 in $5"
+              return 0
+            fi
+            files+=(--file "$2:$3:$4:${found[0]}")
+            echo "- $2 $3 $4: \`$(basename "${found[0]}")\`, $(du -h "${found[0]}" | cut -f1)" >> "$GITHUB_STEP_SUMMARY"
+          }
+          echo "### Installers" >> "$GITHUB_STEP_SUMMARY"
+          if [ -n "$MAC_RUN" ]; then
+            add required macos arm64 dmg dist/macos '*.dmg'
+          fi
+          if [ -n "$DESKTOP_RUN" ]; then
+            add required windows x64 exe dist/windows '*.exe'
+            add optional windows x64 zip dist/windows '*.zip'
+            add required linux x64 deb dist/linux '*.deb'
+            add optional linux x64 rpm dist/linux '*.rpm'
+          fi
+          printf '%s\n' "${files[@]}" > installers.args
+          cat installers.args
+
+      - name: Publish
+        if: ${{ !inputs.dry_run }}
+        env:
+          UC_URL: https://download.worksuitecloud.com
+          UC_CI_TOKEN: ${{ secrets.UC_CI_TOKEN }}
+          UC_CI_KEY: ${{ secrets.UC_CI_KEY }}
+          UC_CI_KEY_ID: ${{ vars.UC_CI_KEY_ID || 'ws-ci-1' }}
+          UC_SPARKLE_PUBLIC_KEY: ${{ vars.SPARKLE_PUBLIC_ED_KEY }}
+          VERSION: ${{ inputs.version }}
+          BUILD: ${{ inputs.build }}
+          CHANNEL: ${{ inputs.channel }}
+          SUMMARY: ${{ inputs.summary }}
+          COMMIT: ${{ steps.runs.outputs.commit }}
+        run: |
+          mapfile -t files < installers.args
+          notes=()
+          [ ! -f "build/release-notes/$VERSION.md" ] || notes=(--notes "build/release-notes/$VERSION.md")
+          node build/publish-release.mjs --app office --app-id lk.worksuite.office --channel "$CHANNEL" \
+            --version "$VERSION" --build "$BUILD" --commit "$COMMIT" \
+            --pipeline "GitHub Actions $GITHUB_REPOSITORY run $GITHUB_RUN_ID" \
+            --summary "${SUMMARY:-WorkSuite Office $VERSION ($BUILD)}" "${notes[@]}" "${files[@]}" | tee publish.log
+          {
+            echo "### Update Center"
+            grep -o 'submitted for testing.*' publish.log || true
+          } >> "$GITHUB_STEP_SUMMARY"

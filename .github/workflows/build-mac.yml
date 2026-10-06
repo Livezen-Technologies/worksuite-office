@@ -75,7 +75,7 @@ jobs:
         run: |
           build="${INPUT_BUILD:-$((1000 + GITHUB_RUN_NUMBER))}"
           # Installed copies report CFBundleVersion 537: a lower number would never be offered to them.
-          [[ "$build" =~ ^[0-9]+$ ]] && (( build > 537 )) || { echo "::error::build_number must be a whole number above 537"; exit 1; }
+          if ! [[ "$build" =~ ^[0-9]+$ ]] || (( build <= 537 )); then echo "::error::build_number must be a whole number above 537"; exit 1; fi
           echo "BUILD_NUMBER=$build" >> "$GITHUB_ENV"
           echo "UPDATE_CHANNEL=$INPUT_CHANNEL" >> "$GITHUB_ENV"
           if [ -z "$SPARKLE_PUBLIC_ED_KEY" ]; then
@@ -184,15 +184,11 @@ jobs:
             echo "### WorkSuite Office $PRODUCT_VERSION ($BUILD_NUMBER), macOS arm64"
             echo "- Updates from: \`$UPDATE_CENTER/api/v1/apps/$UPDATE_APP_ID/channels/$UPDATE_CHANNEL/appcast.xml?arch=arm64\`"
             if ls build/*.edsig >/dev/null 2>&1; then
-              echo "- Signed for Sparkle (\`.edsig\` beside the DMG). Publish from a worksite-download checkout:"
-              echo '```'
-              echo "UC_SPARKLE_PUBLIC_KEY=<SUPublicEDKey> node scripts/publish-release.mjs --app office --app-id $UPDATE_APP_ID \\"
-              echo "  --channel $(printf '%s' "$UPDATE_CHANNEL" | tr '[:lower:]' '[:upper:]') --version $PRODUCT_VERSION --build $BUILD_NUMBER --commit $GITHUB_SHA \\"
-              echo "  --file macos:arm64:dmg:WorkSuite-Office-$PRODUCT_VERSION-arm64.dmg"
-              echo '```'
+              echo "- Signed for Sparkle (\`.edsig\` beside the DMG)."
             else
-              echo "- Not signed for Sparkle (no SPARKLE_ED_PRIVATE_KEY secret): sign it with sign_update before publishing."
+              echo "- Not signed for Sparkle (no SPARKLE_ED_PRIVATE_KEY secret): installed copies will not take it as an update."
             fi
+            echo "- Publish it with **Publish to the WorkSuite Update Center**: mac_run \`$GITHUB_RUN_ID\`, version \`$PRODUCT_VERSION\`, build \`$BUILD_NUMBER\`, channel \`$(printf '%s' "$UPDATE_CHANNEL" | tr '[:lower:]' '[:upper:]')\`."
           } >> "$GITHUB_STEP_SUMMARY"
 
       - uses: actions/upload-artifact@v4
