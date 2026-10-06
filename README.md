@@ -9,6 +9,26 @@ Installers are produced by the **Build WorkSuite Office** workflow in the Action
 The branding changes live in the `desktop-apps` submodule and in `build/`; every other
 submodule is the unmodified Euro-Office source.
 
+### Updates
+
+**macOS.** The app updates through Sparkle. It reads its feed from the WorkSuite Update Center:
+`https://download.worksuitecloud.com/api/v1/apps/lk.worksuite.office/channels/<channel>/appcast.xml?arch=arm64`.
+The setup is described in worksite-download's `docs/sparkle.md`.
+
+- **Settings** for **Build WorkSuite Office (macOS arm64)**:
+  - the repository variable `SPARKLE_PUBLIC_ED_KEY`, which becomes the app's `SUPublicEDKey`;
+  - the secret `SPARKLE_ED_PRIVATE_KEY`, made with Sparkle's `generate_keys -x` from
+    `desktop-apps/macos/Vendor/Sparkle/bin`.
+- **What each build does:**
+  - stamps the chosen channel into the app (`beta` until builds are Developer ID signed and notarised);
+  - sets a rising build number as `CFBundleVersion`, which Sparkle compares;
+  - signs the DMG into `<dmg>.edsig`.
+- **Publishing** happens from worksite-download with `scripts/publish-release.mjs`. The command is in the
+  run's summary.
+
+**Windows and Linux** do not update themselves yet. The Windows update service is not built, and the Windows
+installers are not code signed, which the service requires.
+
 ---
 
 [![License](https://img.shields.io/badge/License-GNU%20AGPL%20V3-green.svg?style=flat)](https://www.gnu.org/licenses/agpl-3.0.en.html)
