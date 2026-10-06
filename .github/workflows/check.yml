@@ -6,24 +6,33 @@ on:
     paths:
       - 'CHANGELOG.md'
       - '.aspell.*.pws'
+      - 'VERSION'
+      - 'build/**'
+      - '.github/workflows/**'
 
 jobs:
+  # The version in VERSION is the one every build and publish uses, with its changelog section and
+  # release notes (build/set-version.sh sets it).
+  version:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - run: build/check-version.sh
   markdownlint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - uses: DavidAnson/markdownlint-cli2-action@v9
         with:
           globs: 'CHANGELOG.md'
   spellchecker:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: Setup aspell
         run: sudo apt-get -y update && sudo apt-get -y install aspell aspell-en
       - name: Run spellchecker
         run: |
-          SPELLCHECK_OUT=$(cat CHANGELOG.md \
-            | aspell --lang=en --encoding=utf-8 --personal=./.aspell.en.pws list)
-          echo $SPELLCHECK_OUT
-          test $(echo -n $SPELLCHECK_OUT | wc -c) -eq 0
+          unknown="$(aspell --lang=en --encoding=utf-8 --personal=./.aspell.en.pws list < CHANGELOG.md)"
+          echo "$unknown"
+          test -z "$unknown"

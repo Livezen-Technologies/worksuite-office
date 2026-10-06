@@ -1,4 +1,4 @@
-personal_ws-1.1 en 218 utf-8
+personal_ws-1.1 en 418 utf-8
 ACOT
 ACOTH
 ASC
@@ -397,3 +397,23 @@ checkboxes
 websocket
 textarea
 RCE
+ASLR
+COUNTIF
+CRN
+DOM
+FilePass
+HLink
+REGEXEXTRACT
+REGEXREPLACE
+REGEXTEST
+ShapePropsStream
+TSV
+WorkSuite
+cbBufInCtlStm
+cce
+colLast
+dereference
+itabLast
+pictFmla
+rgXTI
+untrusted
