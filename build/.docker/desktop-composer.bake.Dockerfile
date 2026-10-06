@@ -16,8 +16,8 @@ FROM scratch AS desktop-common
     COPY web-apps/apps/api/documents/index.html.desktop /editors/web-apps/apps/api/documents/index.html
     
     COPY desktop-apps/common/converter/* /converter/
-    # Cloud providers offered in "Connect to cloud": WorkSuite Drive and Nextcloud
-    COPY desktop-apps/common/loginpage/providers/worksuite /providers/worksuite
+    # Cloud providers offered in "Connect to cloud": Nextcloud. WorkSuite signs in
+    # from the home screen instead (desktop-apps common/loginpage/src/worksuite.js).
     COPY desktop-apps/common/loginpage/providers/nextcloud /providers/nextcloud
     COPY desktop-apps/common/templates /converter/templates
 

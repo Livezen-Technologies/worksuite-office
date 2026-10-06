@@ -57,6 +57,10 @@ jobs:
           done
           git clone --depth 1 https://github.com/ONLYOFFICE/onlyoffice.github.io.git
           git clone --depth 1 https://github.com/Livezen-Technologies/worksuite-office-desktop-apps.git desktop-apps
+          # the commit this repository pins, as the Windows and Linux builds use
+          pinned=$(git -C ../worksuite-office rev-parse HEAD:desktop-apps)
+          git -C desktop-apps fetch --depth 1 origin "$pinned"
+          git -C desktop-apps checkout --detach "$pinned"
           git -C desktop-apps log --oneline -1
 
       - name: Remove ONLYOFFICE Help and Suggest a Feature from the editors
