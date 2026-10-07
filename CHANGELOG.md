@@ -18,6 +18,15 @@
 * Fixed Feedback & Support opening the ONLYOFFICE support site: it opens
   worksuitecloud.com
 
+#### WorkSuite
+
+* Fixed the Sign in to WorkSuite dialog and button being unreadable in the
+  dark themes
+* Fixed signing in through WorkSuite Desktop or the browser waiting forever
+  when nothing opened: the app opens the sign-in itself, says when WorkSuite
+  Desktop is not installed or does not answer, and offers to try again or use
+  the browser. Cancel, the close button and Esc end the sign-in
+
 ## 9.3.2
 
 ### New features
