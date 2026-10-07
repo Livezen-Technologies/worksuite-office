@@ -90,9 +90,12 @@ jobs:
           [ -z "$DESKTOP_RUN" ] || check "$DESKTOP_RUN" build.yml
           [ "${#commits[@]}" -lt 2 ] || [ "${commits[0]}" = "${commits[1]}" ] ||
             fail "The two builds are of different commits (${commits[0]} and ${commits[1]}); one release attests one commit"
-          # The version they were built as (builds older than the VERSION file are taken at their word).
-          built="$(gh api "repos/$GITHUB_REPOSITORY/contents/VERSION?ref=${commits[0]}" --jq .content 2>/dev/null | base64 -d 2>/dev/null | tr -d '[:space:]' || true)"
-          [ -z "$built" ] || [ "$built" = "$VERSION" ] || fail "The builds are version $built (VERSION at ${commits[0]}), not $VERSION"
+          # The version they were built as (VERSION.txt; older builds' VERSION file; else taken at their word).
+          built=""
+          for f in VERSION.txt VERSION; do
+            [ -n "$built" ] || built="$(gh api "repos/$GITHUB_REPOSITORY/contents/$f?ref=${commits[0]}" --jq .content 2>/dev/null | base64 -d 2>/dev/null | tr -d '[:space:]' || true)"
+          done
+          [ -z "$built" ] || [ "$built" = "$VERSION" ] || fail "The builds are version $built (VERSION.txt at ${commits[0]}), not $VERSION"
           echo "commit=${commits[0]}" >> "$GITHUB_OUTPUT"
 
       - name: Download the Mac build

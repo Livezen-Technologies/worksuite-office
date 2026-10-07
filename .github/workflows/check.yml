@@ -6,12 +6,12 @@ on:
     paths:
       - 'CHANGELOG.md'
       - '.aspell.*.pws'
-      - 'VERSION'
+      - 'VERSION.txt'
       - 'build/**'
       - '.github/workflows/**'
 
 jobs:
-  # The version in VERSION is the one every build and publish uses, with its changelog section and
+  # The version in VERSION.txt is the one every build and publish uses, with its changelog section and
   # release notes (build/set-version.sh sets it).
   version:
     runs-on: ubuntu-latest
