@@ -13,6 +13,7 @@ expect() { # what, found
   fi
 }
 
+expect "VERSION.txt (build/linux/build.sh)" "$(tr -d '[:space:]' < VERSION.txt)"
 expect ".github/workflows/build.yml PRODUCT_VERSION" "$(sed -n -E 's/^  PRODUCT_VERSION: (.*)$/\1/p' .github/workflows/build.yml)"
 expect ".github/workflows/build-mac.yml PRODUCT_VERSION" "$(sed -n -E 's/^  PRODUCT_VERSION: (.*)$/\1/p' .github/workflows/build-mac.yml)"
 expect ".github/workflows/publish.yml default version" "$(sed -n -E '/^      version:$/,/^        default:/ s/^        default: (.*)$/\1/p' .github/workflows/publish.yml)"

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Sets the WorkSuite Office version everywhere it is written down: VERSION, the build and publish
+# Sets the WorkSuite Office version everywhere it is written down: VERSION, VERSION.txt, the build and publish
 # workflows, the Linux bake files, the Windows build script and the build README.
 #
 #   build/set-version.sh 9.3.3
@@ -13,6 +13,7 @@ version="${1:-}"
 cd "$(dirname "$0")/.."
 
 printf '%s\n' "$version" > VERSION
+printf '%s' "$version" > VERSION.txt   # read by build/linux/build.sh
 sed -i -E "s/^  PRODUCT_VERSION: .*/  PRODUCT_VERSION: $version/" .github/workflows/build.yml .github/workflows/build-mac.yml
 sed -i -E "/^      version:$/,/^        default:/ s/^        default: .*/        default: $version/" .github/workflows/publish.yml
 sed -i -E "/^variable \"PRODUCT_VERSION\"/,/^\}/ s/default = \".*\"/default = \"$version\"/" build/docker-bake.hcl build/linux/docker-bake.hcl
