@@ -25,7 +25,7 @@ on:
 
 env:
   OO_TAG: v9.3.1.8
-  PRODUCT_VERSION: 9.3.2
+  PRODUCT_VERSION: 9.3.3
   COMPANY_NAME: WorkSuite
   UPDATE_CENTER: https://download.worksuitecloud.com
   UPDATE_APP_ID: lk.worksuite.office
@@ -101,8 +101,10 @@ jobs:
           git -C desktop-apps checkout --detach "$pinned"
           git -C desktop-apps log --oneline -1
 
-      - name: Remove ONLYOFFICE Help and Suggest a Feature from the editors
-        run: python worksuite-office/build/patch-editor-menu.py oo/web-apps
+      - name: WorkSuite's changes to the editors
+        run: |
+          python worksuite-office/build/patch-editor-menu.py oo/web-apps
+          python worksuite-office/build/patch-pdf-convert.py oo/web-apps
 
       - name: Build core, editors and SDK (build_tools)
         working-directory: oo/build_tools
