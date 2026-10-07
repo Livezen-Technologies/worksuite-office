@@ -4,7 +4,7 @@
 
 Every change that ships gets a new version, in the same pull request:
 
-1. Run `build/set-version.sh <major.minor.patch>`. It writes the version to `VERSION`, the build and publish
+1. Run `build/set-version.sh <major.minor.patch>`. It writes the version to `VERSION.txt`, the build and publish
    workflows, the Linux bake files, the Windows build script and the build README.
    - WorkSuite changes on the same upstream base take the next patch version: 9.3.2, 9.3.3, …
    - On a move to a new Euro-Office / ONLYOFFICE release, take that release's version (say 9.4.0) and go on

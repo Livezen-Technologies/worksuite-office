@@ -30,7 +30,7 @@ installers are not code signed, which the service requires.
 
 ### Versions
 
-The version is in `VERSION`. Every change that ships gets a new one, set with `build/set-version.sh`, with its
+The version is in `VERSION.txt`. Every change that ships gets a new one, set with `build/set-version.sh`, with its
 section in `CHANGELOG.md` and its release notes in `build/release-notes/<version>.md`. `build/check-version.sh`,
 which the Check workflow runs, makes sure they agree. See `CLAUDE.md`.
 

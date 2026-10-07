@@ -1,14 +1,20 @@
 #!/usr/bin/env bash
-# Checks that every place the WorkSuite Office version is written down says what VERSION says, and that
+# Checks that every place the WorkSuite Office version is written down says what VERSION.txt says, and that
 # the version has its CHANGELOG.md section (the first one) and release notes. build/set-version.sh sets it.
 set -uo pipefail
 cd "$(dirname "$0")/.." || exit 1
 
-version="$(tr -d '[:space:]' < VERSION)"
+version="$(tr -d '[:space:]' < VERSION.txt)"
 status=0
+# No top-level file may be named "version" in any case: Windows' case-insensitive includes take it for
+# the C++ <version> header and the Windows build fails ("version(1): error C2059").
+if git ls-files | grep -qix 'version'; then
+  echo "A top-level file named like 'version' breaks the Windows build; the version lives in VERSION.txt"
+  status=1
+fi
 expect() { # what, found
   if [ "$2" != "$version" ]; then
-    echo "$1 says '${2:-nothing}', VERSION says '$version'"
+    echo "$1 says '${2:-nothing}', VERSION.txt says '$version'"
     status=1
   fi
 }
