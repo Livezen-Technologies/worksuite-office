@@ -1,5 +1,25 @@
 # Change log
 
+## 9.3.4
+
+### New features
+
+#### WorkSuite
+
+* Added Paste the sign-in code to the Sign in to WorkSuite dialog. When the
+  browser does not hand the sign-in back to WorkSuite Office, copy the code
+  the browser page shows and paste it to finish signing in
+* Changed Continue as to an account card with the account's initials, name,
+  organisation and server; Sign in to WorkSuite beside it is an outlined
+  button of the same height
+
+### Fixes
+
+#### WorkSuite
+
+* Fixed signing in through the browser waiting forever when the browser
+  ignored the link back to WorkSuite Office
+
 ## 9.3.3
 
 ### New features
