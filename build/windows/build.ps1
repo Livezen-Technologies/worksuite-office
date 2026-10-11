@@ -70,7 +70,7 @@ param(
     [switch]$BuildCommon,
 
     # Values that the workflow takes from its top-level env block.
-    [string]$ProductVersion = '9.3.4',
+    [string]$ProductVersion = '9.3.5',
     [string]$BuildNumber    = 'dev.1',
     [string]$Arch           = 'x64',
     [string]$Target         = 'standalone',

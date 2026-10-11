@@ -13,7 +13,7 @@ on:
       - 'v*'
 
 env:
-  PRODUCT_VERSION: 9.3.4
+  PRODUCT_VERSION: 9.3.5
   BUILD_NUMBER: dev.1
   BUILD_ROOT: /package
   COMPANY_NAME: WorkSuite

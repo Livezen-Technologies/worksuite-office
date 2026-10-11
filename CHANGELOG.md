@@ -1,5 +1,19 @@
 # Change log
 
+## 9.3.5
+
+### Fixes
+
+#### WorkSuite
+
+* Fixed signing in through the browser, or with Continue as through WorkSuite
+  Desktop, waiting until it gave up when the link back to WorkSuite Office did
+  not arrive. WorkSuite Office now collects the sign-in from the server while
+  it waits, so it continues by itself
+* Fixed the account switcher and New beside WorkSuite Drive showing white
+  with light text. The switcher is an outlined chip and New the accent button,
+  as tall as the search box
+
 ## 9.3.4
 
 ### New features
