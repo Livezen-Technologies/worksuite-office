@@ -25,7 +25,7 @@ on:
 
 env:
   OO_TAG: v9.3.1.8
-  PRODUCT_VERSION: 9.3.3
+  PRODUCT_VERSION: 9.3.4
   COMPANY_NAME: WorkSuite
   UPDATE_CENTER: https://download.worksuitecloud.com
   UPDATE_APP_ID: lk.worksuite.office
