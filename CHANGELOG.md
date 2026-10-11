@@ -1,5 +1,16 @@
 # Change log
 
+## 9.3.6
+
+### Fixes
+
+#### WorkSuite
+
+* Fixed WorkSuite Drive files showing under On this computer on the start
+  page. They are listed in WorkSuite Drive's Recent
+* Fixed two scrollbars on the start page: the WorkSuite Drive list no longer
+  scrolls on its own. It shows ten files, then Show all
+
 ## 9.3.5
 
 ### Fixes
