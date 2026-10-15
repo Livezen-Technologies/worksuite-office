@@ -1,5 +1,15 @@
 # Change log
 
+## 9.3.7
+
+### New features
+
+#### WorkSuite
+
+* On WorkSuite OS, WorkSuite Office signs in to WorkSuite with the account
+  WorkSuite OS is signed in to, through its sign-in service. It never asks
+  for a password, and other systems sign in as before
+
 ## 9.3.6
 
 ### Fixes
