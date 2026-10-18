@@ -125,6 +125,8 @@ jobs:
       - name: Build core, editors and SDK (build_tools)
         working-directory: oo/build_tools
         run: |
+          # v10 core fetches libxml2 itself (Common/3dParty/libxml/fetch.py); build_tools 9.4 does not call it
+          (cd ../core/Common/3dParty/libxml && python fetch.py && test -f libxml2/HTMLparser.c)
           python configure.py --module desktop --platform mac_arm64 --update 0 --clean 0 --qt-dir "$HOME/Qt/5.15.2"
           cat config
           python make.py
