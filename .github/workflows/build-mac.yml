@@ -127,6 +127,15 @@ jobs:
         run: |
           # v10 core fetches libxml2 itself (Common/3dParty/libxml/fetch.py); build_tools 9.4 does not call it
           (cd ../core/Common/3dParty/libxml && python fetch.py && test -f libxml2/HTMLparser.c)
+          # v10's desktop core uses socket.io's asio (WebSocket/localipc); build_tools 9.4 fetches it for mobile only
+          python - <<'PY'
+          p = "scripts/core_common/make_common.py"
+          s = open(p).read()
+          old = "    websocket_all.make()\n  return"
+          assert old in s, "make_common.py changed"
+          s = s.replace(old, "    websocket_all.make()\n  if not config.check_option(\"module\", \"mobile\"):\n    websocket_all.make()\n  return")
+          open(p, "w").write(s)
+          PY
           python configure.py --module desktop --platform mac_arm64 --update 0 --clean 0 --qt-dir "$HOME/Qt/5.15.2"
           cat config
           python make.py
