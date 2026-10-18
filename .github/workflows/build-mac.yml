@@ -3,6 +3,10 @@ name: Build WorkSuite Office (macOS arm64)
 # Euro-Office has no macOS build. The macOS app is the ONLYOFFICE Xcode project
 # (desktop-apps/macos, rebranded in our fork) linked against the ONLYOFFICE core,
 # editors and SDK of the same version, built with ONLYOFFICE build_tools.
+#
+# 10.0: the editors are ONLYOFFICE's v10 tags. ONLYOFFICE's public build_tools stops at 9.4
+# (BUILD_TOOLS_REF), and its start page build still runs Grunt, which the v10 start page (Vite)
+# no longer has: the start page is built here first, so build_tools finds deploy/index.html.
 
 # Updates: the app's Sparkle reads its feed from the Update Center (download.worksuitecloud.com,
 # worksite-download docs/sparkle.md). This build stamps the feed's channel, a rising CFBundleVersion and
@@ -24,8 +28,11 @@ on:
         default: ''
 
 env:
-  OO_TAG: v9.3.1.8
-  PRODUCT_VERSION: 9.3.7
+  OO_TAG: v10.0.0.176
+  BUILD_TOOLS_REF: master
+  # desktop-apps' v10 branch: the Windows and Linux builds keep the 9.3 desktop-apps this repository pins
+  DESKTOP_APPS_REF: 6f5073a5bcf7535d83554fd8e8d06f7c94a5e0d2
+  PRODUCT_VERSION: 10.0.0
   COMPANY_NAME: WorkSuite
   UPDATE_CENTER: https://download.worksuitecloud.com
   UPDATE_APP_ID: lk.worksuite.office
@@ -89,16 +96,15 @@ jobs:
       - name: Fetch sources
         run: |
           mkdir oo && cd oo
-          git clone --depth 1 -b "$OO_TAG" https://github.com/ONLYOFFICE/build_tools.git
+          git clone --depth 1 -b "$BUILD_TOOLS_REF" https://github.com/ONLYOFFICE/build_tools.git
+          git -C build_tools log --oneline -1
           for r in core sdkjs sdkjs-forms web-apps dictionaries core-fonts desktop-sdk document-templates; do
             git clone --depth 1 -b "$OO_TAG" --recurse-submodules --shallow-submodules "https://github.com/ONLYOFFICE/$r.git"
           done
           git clone --depth 1 https://github.com/ONLYOFFICE/onlyoffice.github.io.git
           git clone --depth 1 https://github.com/Livezen-Technologies/worksuite-office-desktop-apps.git desktop-apps
-          # the commit this repository pins, as the Windows and Linux builds use
-          pinned=$(git -C ../worksuite-office rev-parse HEAD:desktop-apps)
-          git -C desktop-apps fetch --depth 1 origin "$pinned"
-          git -C desktop-apps checkout --detach "$pinned"
+          git -C desktop-apps fetch --depth 1 origin "$DESKTOP_APPS_REF"
+          git -C desktop-apps checkout --detach "$DESKTOP_APPS_REF"
           git -C desktop-apps log --oneline -1
 
       - name: WorkSuite's changes to the editors
@@ -106,13 +112,29 @@ jobs:
           python worksuite-office/build/patch-editor-menu.py oo/web-apps
           python worksuite-office/build/patch-pdf-convert.py oo/web-apps
 
+      - name: Build the start page (Vite)
+        working-directory: oo/desktop-apps/common/loginpage
+        run: |
+          # an optional peer of a dev tool (jsdom's canvas) stops npm's resolver without this
+          npm config set legacy-peer-deps true
+          for d in addondialog noconnect .; do
+            (cd "$d" && npm install --no-audit --no-fund && npm run build)
+          done
+          ls -la deploy addondialog/deploy 2>/dev/null || ls -la deploy
+
       - name: Build core, editors and SDK (build_tools)
         working-directory: oo/build_tools
         run: |
           python configure.py --module desktop --platform mac_arm64 --update 0 --clean 0 --qt-dir "$HOME/Qt/5.15.2"
           cat config
           python make.py
-          ls -la out/mac_arm64/onlyoffice/desktopeditors
+          out=out/mac_arm64/onlyoffice/desktopeditors
+          # build_tools 9.4 does not know the v10 start page's add-on dialog: put it beside index.html
+          for f in ../desktop-apps/common/loginpage/deploy/*.html ../desktop-apps/common/loginpage/addondialog/deploy/*.html; do
+            [ -f "$f" ] || continue
+            case "$(basename "$f")" in index.html) cp -fv "$f" "$out/index.html" ;; noconnect.html) ;; *) cp -fv "$f" "$out/" ;; esac
+          done
+          ls -la "$out"
 
       - name: Build the app (Xcode)
         working-directory: oo/desktop-apps/macos

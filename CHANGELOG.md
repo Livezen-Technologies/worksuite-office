@@ -1,5 +1,25 @@
 # Change log
 
+## 10.0.0
+
+### New features
+
+#### All Editors
+
+* WorkSuite Office is now built on ONLYOFFICE Desktop Editors 10.0 (macOS):
+  the new editors' look and dark themes, AI Tools, Reading View and new print
+  modes in presentations, saving to XLS, PDF redaction and form roles, OFD
+  files, and the security fixes of 10.0
+* The start page is the new 10.0 one. WorkSuite Drive (sign-in, Recent,
+  Shared with me, Starred, My Drive, search, New) is a section of its Home
+  page, in light and dark themes, and WorkSuite has its own sidebar item
+
+### Known issues
+
+* After updating, sign in to WorkSuite and to other clouds again: 10.0
+  keeps its settings anew
+* Windows and Linux stay on the 9.3 editors for now
+
 ## 9.3.7
 
 ### New features
