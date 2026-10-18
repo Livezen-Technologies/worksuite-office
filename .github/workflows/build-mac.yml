@@ -127,6 +127,8 @@ jobs:
         run: |
           # v10 core fetches libxml2 itself (Common/3dParty/libxml/fetch.py); build_tools 9.4 does not call it
           (cd ../core/Common/3dParty/libxml && python fetch.py && test -f libxml2/HTMLparser.c)
+          # build_tools 9.4 builds x265 into heif/x265_git; v10's heif.pri links it from heif/x265
+          ln -sfn x265_git ../core/Common/3dParty/heif/x265
           # v10's desktop core uses socket.io's asio (WebSocket/localipc); build_tools 9.4 fetches it for mobile only
           python - <<'PY'
           p = "scripts/core_common/make_common.py"
