@@ -78,6 +78,11 @@ jobs:
         working-directory: C:/oo
         run: bash "$GITHUB_WORKSPACE/worksuite-office/build/v10/prepare.sh" "$GITHUB_WORKSPACE/worksuite-office"
 
+      # Boost's bootstrap and the qmake builds expect cl.exe and the SDK on PATH
+      - uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
+        with:
+          arch: x64
+
       - name: Build core, editors and app (build_tools)
         working-directory: C:/oo/build_tools
         shell: pwsh

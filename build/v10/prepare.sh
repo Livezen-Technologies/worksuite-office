@@ -36,4 +36,13 @@ p = "core/Common/3dParty/heif/heif.pri"
 s = open(p).read()
 assert "$$PWD/x265/build" in s, "heif.pri changed"
 open(p, "w").write(s.replace("$$PWD/x265/build", "$$PWD/x265_git/build"))
+# V8 (Linux/Windows) is built with depot_tools cloned at its moving HEAD, which build_tools 9.4's
+# bootstrap edits no longer fit ("no pinned SHA256 ... in the *.digests file"): pin depot_tools to
+# its state when build_tools 9.4 was current
+p = "build_tools/scripts/core_common/modules/v8_89.py"
+s = open(p).read()
+old = '    base.cmd("git", ["clone", "https://chromium.googlesource.com/chromium/tools/depot_tools.git"])\n'
+assert old in s, "v8_89.py changed"
+s = s.replace(old, old + '    base.cmd_in_dir("depot_tools", "git", ["checkout", "-q", base.run_command("git -C depot_tools rev-list -1 --before=2026-05-20 HEAD")["stdout"].strip()])\n', 1)
+open(p, "w").write(s)
 PY
