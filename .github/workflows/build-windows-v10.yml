@@ -124,6 +124,23 @@ jobs:
           $v = "$env:PRODUCT_VERSION.$env:BUILD_NUMBER"
           .\make.ps1 -Version $v -Arch x64 -Target standalone -CompanyName WorkSuite -ProductName DesktopEditors
           $env:INNOPATH = "${env:ProgramFiles(x86)}\Inno Setup 6"
+          # common.iss lists languages whose .isl files Inno Setup ships only as "unofficial" translations
+          $langs = "$env:INNOPATH\Languages"
+          $list = Invoke-RestMethod https://api.github.com/repos/jrsoftware/issrc/contents/Files/Languages/Unofficial
+          foreach ($f in $list) {
+            if ($f.name -like '*.isl' -and -not (Test-Path "$langs\$($f.name)")) {
+              Invoke-WebRequest $f.download_url -OutFile "$langs\$($f.name)"
+            }
+          }
+          # any still missing falls back to English, rather than stopping the installer build
+          Select-String -Path inno\common.iss -Pattern 'Languages\\([A-Za-z]+\.isl)' -AllMatches |
+            ForEach-Object { $_.Matches } | ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique |
+            ForEach-Object {
+              if (-not (Test-Path "$langs\$_")) {
+                Write-Host "::warning::no Inno Setup translation $_; using English"
+                Copy-Item "$env:INNOPATH\Default.isl" "$langs\$_"
+              }
+            }
           .\make_inno.ps1 -Version $v -Arch x64 -Target standalone -CompanyName WorkSuite -ProductName DesktopEditors
           New-Item -ItemType Directory -Force out | Out-Null
           Get-ChildItem inno\*.exe | ForEach-Object {
