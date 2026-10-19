@@ -31,9 +31,9 @@ old = '    build_interface(base_dir + "/../desktop-apps/common/loginpage/build")
 assert old in s, "build_js.py changed"
 open(p, "w").write(s.replace(old, ""))
 # build_tools 9.4 builds x265 into heif/x265_git; v10's heif.pri links it from heif/x265
-# (a patch rather than a symlink: Git Bash on Windows copies instead of linking)
-p = "build_tools/scripts/core_common/modules/heif.py"
+# (patched here rather than symlinked: Git Bash on Windows copies instead of linking)
+p = "core/Common/3dParty/heif/heif.pri"
 s = open(p).read()
-assert '"x265_git"' in s, "heif.py changed"
-open(p, "w").write(s.replace("x265_git", "x265"))
+assert "$$PWD/x265/build" in s, "heif.pri changed"
+open(p, "w").write(s.replace("$$PWD/x265/build", "$$PWD/x265_git/build"))
 PY
