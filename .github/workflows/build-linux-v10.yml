@@ -66,6 +66,11 @@ jobs:
         working-directory: oo/build_tools/tools/linux
         run: |
           ./python.sh
+          # the runner image already has a global grunt (deps.py's npm install -g stops on it) and
+          # libunwind-14-dev, which keeps libgstreamer1.0-dev's libunwind-dev out
+          sudo rm -f /usr/local/bin/grunt
+          sudo apt-get remove -y libunwind-14-dev || true
+          sudo apt-get install -y libunwind-dev
           ./python3/bin/python3 ./deps.py
           sudo ./cmake.sh
           ./python3/bin/python3 ./qt_binary_fetch.py all
