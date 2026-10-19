@@ -100,17 +100,25 @@ jobs:
         working-directory: oo/desktop-apps/package
         run: |
           sudo apt-get install -y rpm m4 fakeroot dpkg-dev debhelper
+          # dpkg-deb on Ubuntu 22.04 has no --threads-max (debian/rules passes it)
+          grep -rl -- '--threads-max' deb rpm rpm-suse 2>/dev/null | xargs -r sed -i 's/ --threads-max=[^ ]*//'
           make clean
-          make deb rpm tar \
-            COMPANY_NAME=WorkSuite PRODUCT_NAME=Office \
-            PUBLISHER_NAME="Livezen Technologies LLC" PUBLISHER_URL=https://worksuitecloud.com \
-            SUPPORT_URL=https://worksuitecloud.com SUPPORT_MAIL=support@worksuitecloud.com \
-            PRODUCT_VERSION="$PRODUCT_VERSION" BUILD_NUMBER="$BUILD_NUMBER"
+          vars=(COMPANY_NAME=WorkSuite PRODUCT_NAME=Office
+                PUBLISHER_NAME="Livezen Technologies LLC" PUBLISHER_URL=https://worksuitecloud.com
+                SUPPORT_URL=https://worksuitecloud.com SUPPORT_MAIL=support@worksuitecloud.com
+                PRODUCT_VERSION="$PRODUCT_VERSION" BUILD_NUMBER="$BUILD_NUMBER")
+          # each package type on its own, so one that fails does not take the others with it
+          failed=""
+          for t in deb rpm tar; do make "$t" "${vars[@]}" || failed="$failed $t"; done
           find deb rpm tar -maxdepth 4 -type f \( -name '*.deb' -o -name '*.rpm' -o -name '*.tar.xz' \) -exec ls -la {} +
+          [ -z "$failed" ] || echo "::warning::package types that failed:$failed"
+          ls deb/*.deb >/dev/null 2>&1 || { echo "::error::no .deb was made"; exit 1; }
 
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: linux-packages-amd64
+          if-no-files-found: ignore
           path: |
             oo/desktop-apps/package/deb/*.deb
             oo/desktop-apps/package/rpm/build/RPMS/*/*.rpm
