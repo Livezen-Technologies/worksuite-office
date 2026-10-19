@@ -1,0 +1,111 @@
+name: Build WorkSuite Office 10 (Windows x64)
+
+# The 10.0 Windows build: ONLYOFFICE's v10 sources built with ONLYOFFICE's public build_tools (9.4),
+# patched by build/v10/prepare.sh, and packaged with desktop-apps/package (Inno Setup) under
+# WorkSuite's names. The 9.3 Windows build (Euro-Office) is build.yml.
+
+on:
+  # a new workflow can only be dispatched once it is on the default branch: until then, pushes to office-v10 run it
+  push:
+    branches: [office-v10]
+    paths: ['.github/workflows/build-windows-v10.yml', 'build/v10/**']
+  workflow_dispatch:
+    inputs:
+      build_number:
+        description: Build number; empty means 1000 + this workflow's run number.
+        required: false
+        default: ''
+
+env:
+  OO_TAG: v10.0.0.176
+  BUILD_TOOLS_REF: master
+  DESKTOP_APPS_REF: 02818fab1ae88d28dbe692455e50bc5b844d9369
+  PRODUCT_VERSION: 10.0.0
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  build-windows-x64:
+    runs-on: windows-2022
+    timeout-minutes: 360
+    steps:
+      - name: Short paths
+        shell: pwsh
+        run: |
+          git config --system core.longpaths true
+          New-Item -ItemType Directory -Force C:\oo | Out-Null
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          path: worksuite-office
+
+      - name: Build number
+        env:
+          INPUT_BUILD: ${{ inputs.build_number }}
+        run: echo "BUILD_NUMBER=${INPUT_BUILD:-$((1000 + GITHUB_RUN_NUMBER))}" >> "$GITHUB_ENV"
+
+      - name: Tools (Qt 5.15, Inno Setup, grunt)
+        run: |
+          python -m pip install aqtinstall
+          python -m aqt install-qt windows desktop 5.15.2 win64_msvc2019_64 -O C:/Qt
+          ls C:/Qt/5.15.2
+          choco install innosetup -y --no-progress
+          npm install -g grunt-cli
+
+      - name: Fetch sources
+        working-directory: C:/oo
+        run: |
+          git clone --depth 1 -b "$BUILD_TOOLS_REF" https://github.com/ONLYOFFICE/build_tools.git
+          for r in core sdkjs sdkjs-forms web-apps dictionaries core-fonts desktop-sdk document-templates; do
+            git clone --depth 1 -b "$OO_TAG" --recurse-submodules --shallow-submodules "https://github.com/ONLYOFFICE/$r.git"
+          done
+          git clone --depth 1 https://github.com/ONLYOFFICE/onlyoffice.github.io.git
+          git clone --depth 1 https://github.com/Livezen-Technologies/worksuite-office-desktop-apps.git desktop-apps
+          git -C desktop-apps fetch --depth 1 origin "$DESKTOP_APPS_REF"
+          git -C desktop-apps checkout --detach "$DESKTOP_APPS_REF"
+
+      - name: Prepare v10 sources for build_tools 9.4
+        working-directory: C:/oo
+        run: bash "$GITHUB_WORKSPACE/worksuite-office/build/v10/prepare.sh" "$GITHUB_WORKSPACE/worksuite-office"
+
+      - name: Build core, editors and app (build_tools)
+        working-directory: C:/oo/build_tools
+        shell: pwsh
+        run: |
+          $vs = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath
+          python configure.py --module desktop --platform win_64 --update 0 --clean 0 `
+            --qt-dir C:/Qt/5.15.2 --vs-version 2019 --vs-path "$vs\VC\Auxiliary\Build"
+          Get-Content config
+          python make.py
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          Get-ChildItem out\win_64\onlyoffice\DesktopEditors | Select-Object -First 30
+
+      - name: Package (Inno Setup, standalone)
+        working-directory: C:/oo/desktop-apps/package
+        shell: pwsh
+        run: |
+          $v = "$env:PRODUCT_VERSION.$env:BUILD_NUMBER"
+          .\make.ps1 -Version $v -Arch x64 -Target standalone -CompanyName WorkSuite -ProductName DesktopEditors
+          $env:INNOPATH = "${env:ProgramFiles(x86)}\Inno Setup 6"
+          .\make_inno.ps1 -Version $v -Arch x64 -Target standalone -CompanyName WorkSuite -ProductName DesktopEditors
+          New-Item -ItemType Directory -Force out | Out-Null
+          Get-ChildItem inno\*.exe | ForEach-Object {
+            Copy-Item $_.FullName "out\WorkSuite-Office-Standalone-$env:PRODUCT_VERSION-x64.exe"
+          }
+          Get-ChildItem out
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-packages-x64
+          path: C:/oo/desktop-apps/package/out/*.exe
+          compression-level: 0

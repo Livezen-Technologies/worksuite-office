@@ -16,8 +16,6 @@ python "$repo/build/patch-pdf-convert.py" web-apps
 
 # v10 core fetches libxml2 itself; build_tools 9.4 does not call it
 ( cd core/Common/3dParty/libxml && python fetch.py && test -f libxml2/HTMLparser.c )
-# build_tools 9.4 builds x265 into heif/x265_git; v10's heif.pri links it from heif/x265
-ln -sfn x265_git core/Common/3dParty/heif/x265
 
 python - <<'PY'
 p = "build_tools/scripts/core_common/make_common.py"
@@ -32,4 +30,10 @@ s = open(p).read()
 old = '    build_interface(base_dir + "/../desktop-apps/common/loginpage/build")\n'
 assert old in s, "build_js.py changed"
 open(p, "w").write(s.replace(old, ""))
+# build_tools 9.4 builds x265 into heif/x265_git; v10's heif.pri links it from heif/x265
+# (a patch rather than a symlink: Git Bash on Windows copies instead of linking)
+p = "build_tools/scripts/core_common/modules/heif.py"
+s = open(p).read()
+assert '"x265_git"' in s, "heif.py changed"
+open(p, "w").write(s.replace("x265_git", "x265"))
 PY
