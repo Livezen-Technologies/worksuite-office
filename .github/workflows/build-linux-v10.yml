@@ -99,7 +99,7 @@ jobs:
       - name: Package (deb, rpm, tar)
         working-directory: oo/desktop-apps/package
         run: |
-          sudo apt-get install -y rpm m4 fakeroot dpkg-dev
+          sudo apt-get install -y rpm m4 fakeroot dpkg-dev debhelper
           make clean
           make deb rpm tar \
             COMPANY_NAME=WorkSuite PRODUCT_NAME=Office \

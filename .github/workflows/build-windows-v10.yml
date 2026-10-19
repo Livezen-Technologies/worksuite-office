@@ -102,6 +102,8 @@ jobs:
         shell: pwsh
         run: |
           $vs = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath
+          # V8 8.9's vs_toolchain.py looks for VS 2019/2017 by folder; this VS 2022 has the 2019 toolset (v142)
+          $env:vs2019_install = $vs
           python configure.py --module desktop --platform win_64 --update 0 --clean 0 `
             --qt-dir C:/Qt/5.15.2 --vs-version 2019 --vs-path "$vs\VC\Auxiliary\Build"
           Get-Content config
