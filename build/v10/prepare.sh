@@ -17,6 +17,11 @@ python "$repo/build/patch-pdf-convert.py" web-apps
 # v10 core fetches libxml2 itself; build_tools 9.4 does not call it
 ( cd core/Common/3dParty/libxml && python fetch.py && test -f libxml2/HTMLparser.c )
 
+# brotli and harfbuzz are fetched by their own make.py, which build_tools runs as "./make.py": on Windows
+# that never runs, and FreeType then misses brotli/decode.h. Fetch them here (nothing changes elsewhere).
+( cd core/Common/3dParty/brotli && python make.py && test -f brotli/c/include/brotli/decode.h )
+( cd core/Common/3dParty/harfbuzz && python make.py && test -d harfbuzz )
+
 python - <<'PY'
 p = "build_tools/scripts/core_common/make_common.py"
 s = open(p).read()
