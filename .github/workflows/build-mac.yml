@@ -31,7 +31,7 @@ env:
   OO_TAG: v10.0.0.176
   BUILD_TOOLS_REF: master
   # desktop-apps' v10 branch: the Windows and Linux builds keep the 9.3 desktop-apps this repository pins
-  DESKTOP_APPS_REF: 6f5073a5bcf7535d83554fd8e8d06f7c94a5e0d2
+  DESKTOP_APPS_REF: 43de994ec9d3e9191e41deefc139454c7f42cd10
   PRODUCT_VERSION: 10.0.0
   COMPANY_NAME: WorkSuite
   UPDATE_CENTER: https://download.worksuitecloud.com
