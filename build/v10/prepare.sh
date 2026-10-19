@@ -48,5 +48,10 @@ pin = '    base.cmd_in_dir("depot_tools", "git", ["checkout", "-q", base.run_com
 # (git_common.py reads the git.exe path from its last line, which must start with a quote)
 gitbat = '    if "windows" == base.host_platform():\n      base.writeFile("depot_tools/git.bat", "@echo off\\n\\"" + base.run_command("where git")["stdout"].splitlines()[0].strip() + "\\" %*\\n")\n'
 s = s.replace(old, old + pin + gitbat, 1)
+# ... and its Python bootstrap (python3_bin_reldir.txt, which gn.bat needs) only runs from that update
+# too; Linux gets it from build_tools' ensure_bootstrap. Run it once build_tools has edited bootstrap/.
+bs = '    change_bootstrap()\n'
+assert bs in s, "v8_89.py change_bootstrap changed"
+s = s.replace(bs, bs + '    if "windows" == base.host_platform():\n      base.cmd_in_dir("depot_tools", "cmd", ["/c", "bootstrap\\\\win_tools.bat"])\n', 1)
 open(p, "w").write(s)
 PY
