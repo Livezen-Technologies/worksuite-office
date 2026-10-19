@@ -45,7 +45,8 @@ old = '    base.cmd("git", ["clone", "https://chromium.googlesource.com/chromium
 assert old in s, "v8_89.py changed"
 pin = '    base.cmd_in_dir("depot_tools", "git", ["checkout", "-q", base.run_command("git -C depot_tools rev-list -1 --before=2026-05-20 HEAD")["stdout"].strip()])\n'
 # on Windows depot_tools runs git.bat, which its own bootstrap makes; with DEPOT_TOOLS_UPDATE=0 that never runs
-gitbat = '    if "windows" == base.host_platform():\n      base.writeFile("depot_tools/git.bat", "@\\"" + base.run_command("where git")["stdout"].splitlines()[0].strip() + "\\" %*\\n")\n'
+# (git_common.py reads the git.exe path from its last line, which must start with a quote)
+gitbat = '    if "windows" == base.host_platform():\n      base.writeFile("depot_tools/git.bat", "@echo off\\n\\"" + base.run_command("where git")["stdout"].splitlines()[0].strip() + "\\" %*\\n")\n'
 s = s.replace(old, old + pin + gitbat, 1)
 open(p, "w").write(s)
 PY
