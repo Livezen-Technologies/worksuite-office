@@ -89,9 +89,13 @@ jobs:
           $installer = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vs_installer.exe"
           $vs = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath
           $p = Start-Process -Wait -PassThru -FilePath $installer -ArgumentList @('modify', '--installPath', "`"$vs`"",
-            '--add', 'Microsoft.VisualStudio.Component.VC.v142.x86.x64', '--add', 'Microsoft.VisualStudio.Component.VC.v142.ATL',
+            '--add', 'Microsoft.VisualStudio.Component.VC.v142.x86.x64', '--add', 'Microsoft.VisualStudio.Component.VC.v142.ATL', '--add', 'Microsoft.VisualStudio.Component.VC.14.29.16.11.ATL',
             '--quiet', '--norestart', '--nocache')
           Get-ChildItem "$vs\VC\Tools\MSVC" | Select-Object Name
+          # the app (taskdialogtheme.cpp) needs ATL for the v142 toolset: stop here, not two hours later
+          $atl = Get-ChildItem "$vs\VC\Tools\MSVC\14.29.*\atlmfc\include\atlbase.h" -ErrorAction SilentlyContinue
+          if (-not $atl) { Write-Error "ATL for v142 (atlbase.h) is not installed"; exit 1 }
+          $atl.FullName
 
       # Boost's bootstrap and the qmake builds expect cl.exe (the v142 one) and the SDK on PATH
       - uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
