@@ -78,10 +78,22 @@ jobs:
         working-directory: C:/oo
         run: bash "$GITHUB_WORKSPACE/worksuite-office/build/v10/prepare.sh" "$GITHUB_WORKSPACE/worksuite-office"
 
-      # Boost's bootstrap and the qmake builds expect cl.exe and the SDK on PATH
+      # build_tools 9.4 and v10's boost.pri name everything vc142: add VS 2019's toolset (v142) to VS 2022
+      - name: VS 2019 toolset (v142)
+        shell: pwsh
+        run: |
+          $installer = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vs_installer.exe"
+          $vs = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath
+          $p = Start-Process -Wait -PassThru -FilePath $installer -ArgumentList @('modify', '--installPath', "`"$vs`"",
+            '--add', 'Microsoft.VisualStudio.Component.VC.v142.x86.x64', '--add', 'Microsoft.VisualStudio.Component.VC.v142.ATL',
+            '--quiet', '--norestart', '--nocache')
+          Get-ChildItem "$vs\VC\Tools\MSVC" | Select-Object Name
+
+      # Boost's bootstrap and the qmake builds expect cl.exe (the v142 one) and the SDK on PATH
       - uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
         with:
           arch: x64
+          toolset: '14.29'
 
       - name: Build core, editors and app (build_tools)
         working-directory: C:/oo/build_tools
