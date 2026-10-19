@@ -3,6 +3,10 @@ name: Build WorkSuite Office 10 (Linux x64)
 # The 10.0 Linux build: ONLYOFFICE's v10 sources built with ONLYOFFICE's public build_tools (9.4),
 # patched by build/v10/prepare.sh, and packaged by desktop-apps/package with WorkSuite's names.
 # The 9.3 Linux build (Euro-Office) is build.yml.
+#
+# No sysroot for now: V8's host tools would not link against build_tools' Ubuntu 16 sysroot, so the
+# app is built against this runner's Ubuntu 22.04 libraries and needs glibc 2.35 (Ubuntu 22.04,
+# Debian 12) or newer.
 
 on:
   # a new workflow can only be dispatched once it is on the default branch: until then, pushes to office-v10 run it
@@ -76,8 +80,7 @@ jobs:
           ./python3/bin/python3 ./deps.py
           sudo ./cmake.sh
           ./python3/bin/python3 ./qt_binary_fetch.py all
-          (cd sysroot && ../python3/bin/python3 ./fetch.py all)
-          ls qt_build sysroot
+          ls qt_build
 
       - name: Prepare v10 sources for build_tools 9.4
         working-directory: oo
@@ -87,7 +90,7 @@ jobs:
         working-directory: oo/build_tools
         run: |
           py=./tools/linux/python3/bin/python
-          $py configure.py --module desktop --platform linux_64 --update 0 --clean 0 --sysroot 1 \
+          $py configure.py --module desktop --platform linux_64 --update 0 --clean 0 --sysroot 0 \
             --qt-dir "$PWD/tools/linux/qt_build/Qt-5.9.9"
           cat config
           $py make.py
