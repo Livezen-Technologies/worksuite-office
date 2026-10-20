@@ -25,6 +25,8 @@ env:
   DEPOT_TOOLS_UPDATE: '0'
   # build/v10/prepare.sh: CMake builds use VS 2022's generator with the 2019 toolset (v142)
   WS_VS2022_AS_2019: '1'
+  # a run id whose windows-build-output to package instead of building again (empty: build)
+  REUSE_BUILD_RUN: ''
 
 defaults:
   run:
@@ -70,20 +72,22 @@ jobs:
         working-directory: C:/oo
         run: |
           git clone --depth 1 -b "$BUILD_TOOLS_REF" https://github.com/ONLYOFFICE/build_tools.git
-          for r in core sdkjs sdkjs-forms web-apps dictionaries core-fonts desktop-sdk document-templates; do
+          [ -n "$REUSE_BUILD_RUN" ] || for r in core sdkjs sdkjs-forms web-apps dictionaries core-fonts desktop-sdk document-templates; do
             git clone --depth 1 -b "$OO_TAG" --recurse-submodules --shallow-submodules "https://github.com/ONLYOFFICE/$r.git"
           done
-          git clone --depth 1 https://github.com/ONLYOFFICE/onlyoffice.github.io.git
+          [ -n "$REUSE_BUILD_RUN" ] || git clone --depth 1 https://github.com/ONLYOFFICE/onlyoffice.github.io.git
           git clone --depth 1 https://github.com/Livezen-Technologies/worksuite-office-desktop-apps.git desktop-apps
           git -C desktop-apps fetch --depth 1 origin "$DESKTOP_APPS_REF"
           git -C desktop-apps checkout --detach "$DESKTOP_APPS_REF"
 
       - name: Prepare v10 sources for build_tools 9.4
+        if: env.REUSE_BUILD_RUN == ''
         working-directory: C:/oo
         run: bash "$GITHUB_WORKSPACE/worksuite-office/build/v10/prepare.sh" "$GITHUB_WORKSPACE/worksuite-office"
 
       # build_tools 9.4 and v10's boost.pri name everything vc142: add VS 2019's toolset (v142) to VS 2022
       - name: VS 2019 toolset (v142)
+        if: env.REUSE_BUILD_RUN == ''
         shell: pwsh
         run: |
           $installer = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vs_installer.exe"
@@ -98,12 +102,14 @@ jobs:
           $atl.FullName
 
       # Boost's bootstrap and the qmake builds expect cl.exe (the v142 one) and the SDK on PATH
-      - uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
+      - if: env.REUSE_BUILD_RUN == ''
+        uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
         with:
           arch: x64
           toolset: '14.29'
 
       - name: Build core, editors and app (build_tools)
+        if: env.REUSE_BUILD_RUN == ''
         working-directory: C:/oo/build_tools
         shell: pwsh
         run: |
@@ -121,6 +127,23 @@ jobs:
           }
           Get-ChildItem out\win_64\onlyoffice\DesktopEditors\fonts\worksuite-sinhala | Select-Object Name
 
+      - name: Keep the compiled app
+        if: env.REUSE_BUILD_RUN == ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-build-output
+          path: C:/oo/build_tools/out/win_64/onlyoffice/DesktopEditors
+          retention-days: 7
+
+      - name: The compiled app from run ${{ env.REUSE_BUILD_RUN }}
+        if: env.REUSE_BUILD_RUN != ''
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-build-output
+          run-id: ${{ env.REUSE_BUILD_RUN }}
+          github-token: ${{ github.token }}
+          path: C:/oo/build_tools/out/win_64/onlyoffice/DesktopEditors
+
       - name: Package (Inno Setup, standalone)
         working-directory: C:/oo/desktop-apps/package
         shell: pwsh
@@ -132,12 +155,12 @@ jobs:
           $langs = "$env:INNOPATH\Languages"
           $list = Invoke-RestMethod https://api.github.com/repos/jrsoftware/issrc/contents/Files/Languages/Unofficial
           foreach ($f in $list) {
-            if ($f.name -like '*.isl' -and -not (Test-Path "$langs\$($f.name)")) {
+            if ($f.name -match '\.islu?$' -and -not (Test-Path "$langs\$($f.name)")) {
               Invoke-WebRequest $f.download_url -OutFile "$langs\$($f.name)"
             }
           }
           # any still missing falls back to English, rather than stopping the installer build
-          Select-String -Path inno\common.iss -Pattern 'Languages\\([A-Za-z]+\.isl)' -AllMatches |
+          Select-String -Path inno\common.iss -Pattern 'Languages\\([A-Za-z]+\.islu?)\b' -AllMatches |
             ForEach-Object { $_.Matches } | ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique |
             ForEach-Object {
               if (-not (Test-Path "$langs\$_")) {
