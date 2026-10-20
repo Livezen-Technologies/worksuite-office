@@ -27,8 +27,8 @@
   sample texts only, so check converted text before you share it
 * Convert document, Detect, Fonts and Validate work in documents; in
   spreadsheets and presentations, convert a selection
-* Windows and Linux stay on the 9.3 editors for now, so Sinhala Tools comes to
-  them with their 10 builds
+* Windows and Linux are on the 10 editors from this version; the Linux
+  packages need Ubuntu 22.04, Debian 12 or newer, and there is no .rpm yet
 
 ## 10.0.0
 
