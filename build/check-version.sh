@@ -19,8 +19,9 @@ expect() { # what, found
   fi
 }
 
-expect ".github/workflows/build.yml PRODUCT_VERSION" "$(sed -n -E 's/^  PRODUCT_VERSION: (.*)$/\1/p' .github/workflows/build.yml)"
-expect ".github/workflows/build-mac.yml PRODUCT_VERSION" "$(sed -n -E 's/^  PRODUCT_VERSION: (.*)$/\1/p' .github/workflows/build-mac.yml)"
+for f in build build-mac build-linux-v10 build-windows-v10; do
+  expect ".github/workflows/$f.yml PRODUCT_VERSION" "$(sed -n -E 's/^  PRODUCT_VERSION: (.*)$/\1/p' ".github/workflows/$f.yml")"
+done
 expect ".github/workflows/publish.yml default version" "$(sed -n -E '/^      version:$/,/^        default:/ s/^        default: (.*)$/\1/p' .github/workflows/publish.yml)"
 for f in build/docker-bake.hcl build/linux/docker-bake.hcl; do
   expect "$f PRODUCT_VERSION" "$(sed -n -E '/^variable "PRODUCT_VERSION"/,/^\}/ s/^ *default = "(.*)"$/\1/p' "$f")"

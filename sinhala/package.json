@@ -1,0 +1,19 @@
+{
+  "name": "worksuite-sinhala",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Sinhala Tools: @worksuite/sinhala-core and the worksuite-sinhala-tools ONLYOFFICE plugin",
+  "license": "AGPL-3.0-only",
+  "scripts": {
+    "build:core": "tsc -p core",
+    "test": "npm run build:core && node --test",
+    "build:plugin": "npm run build:core && node scripts/build-plugin.mjs",
+    "profiles:hash": "npm run build:core && node scripts/hash-profiles.mjs"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

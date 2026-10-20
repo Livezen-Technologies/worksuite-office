@@ -1,0 +1,30 @@
+{
+  "profile": "dl-manel",
+  "notes": "Written by hand for WorkSuite. The profile maps only the Wijesekara typewriter base, so the corpus keeps to it (no rakaransaya, no ligature glyphs).",
+  "sets": {
+    "newspaper": [
+      ["Wiia wOHdmkh", "උසස් අධ්‍යාපනය"],
+      ["fld<U iy uykqjr", "කොළඹ සහ මහනුවර"],
+      ["ffjoH fiajh", "වෛද්‍ය සේවය"]
+    ],
+    "government-circular": [
+      ["rdcH fiajd ks,OdrSka", "රාජ්‍ය සේවා නිලධාරීන්"],
+      ["oskh 2026 10 20", "දිනය 2026 10 20"],
+      ["wdKavqj", "ආණ්ඩුව"]
+    ],
+    "school-paper": [
+      ["isxy, NdIdj", "සිංහල භාෂාව"],
+      ["fmd; iy fmd;a", "පොත සහ පොත්"],
+      ["wE; TA ta Ta", "ඈත ඖ ඒ ඕ"]
+    ]
+  },
+  "mixed": [
+    {
+      "title": "DL-Manel text beside English",
+      "runs": [
+        { "font": "DL-Manel", "text": "isxy, ", "expect": "සිංහල " },
+        { "font": "Arial", "text": "and English", "expect": "and English" }
+      ]
+    }
+  ]
+}

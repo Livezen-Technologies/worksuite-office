@@ -1,0 +1,32 @@
+{
+  "name": "Sinhala Tools",
+  "nameLocale": {
+    "si": "සිංහල මෙවලම්",
+    "ta": "சிங்கள கருவிகள்"
+  },
+  "guid": "asc.{B50BAEE2-4EAC-4298-9DD2-73CC3223FFFA}",
+  "version": "1.0.0",
+  "minVersion": "8.2.0",
+  "offered": "WorkSuite",
+  "variations": [
+    {
+      "description": "Convert legacy Sinhala fonts (FM Abhaya, DL Manel, Kaputa) to Unicode and back, find legacy text, apply Noto Sinhala fonts and check Sinhala text.",
+      "descriptionLocale": {
+        "si": "පැරණි සිංහල අකුරු (FM Abhaya, DL Manel, Kaputa) යුනිකෝඩ් බවට සහ ආපසු හරවන්න, පැරණි අකුරු සොයන්න, Noto සිංහල අකුරු යොදන්න සහ සිංහල පෙළ පරීක්ෂා කරන්න.",
+        "ta": "பழைய சிங்கள எழுத்துருக்களை (FM Abhaya, DL Manel, Kaputa) யூனிகோடாகவும் மீண்டும் மாற்றவும், பழைய உரையைக் கண்டறியவும், Noto சிங்கள எழுத்துருக்களைப் பயன்படுத்தவும், சிங்கள உரையைச் சரிபார்க்கவும்."
+      },
+      "url": "index.html",
+      "icons": ["resources/light/icon.png", "resources/light/icon@2x.png"],
+      "icons2": [
+        { "style": "light", "100%": { "normal": "resources/light/icon.png" }, "200%": { "normal": "resources/light/icon@2x.png" } },
+        { "style": "dark", "100%": { "normal": "resources/dark/icon.png" }, "200%": { "normal": "resources/dark/icon@2x.png" } }
+      ],
+      "isViewer": false,
+      "EditorsSupport": ["word", "cell", "slide"],
+      "type": "background",
+      "initDataType": "none",
+      "buttons": [],
+      "events": ["onToolbarMenuClick"]
+    }
+  ]
+}

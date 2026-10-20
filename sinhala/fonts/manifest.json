@@ -1,0 +1,33 @@
+{
+  "notes": "Fonts that ship with Sinhala Tools. No font binaries are kept in git: fetch-fonts.py downloads each archive from its pinned release, checks the archive's and every file's sha256, and extracts only the listed files.",
+  "unicode": [
+    {
+      "family": "Noto Sans Sinhala",
+      "version": "3.000",
+      "licence": "OFL-1.1",
+      "url": "https://github.com/notofonts/sinhala/releases/download/NotoSansSinhala-v3.000/NotoSansSinhala-v3.000.zip",
+      "sha256": "25b2c787e0b34b82ccedce026e6519cc535394a6bd8520d5a1df45c233807d8a",
+      "files": {
+        "NotoSansSinhala/full/ttf/NotoSansSinhala-Regular.ttf": "4c1889d92394d06a3be75a78bd68adf4efdcc4dc12f98ee4ec99a02cb6d69874",
+        "NotoSansSinhala/full/ttf/NotoSansSinhala-Bold.ttf": "179dbd68956b845b17b10780ff9ce0c4c96fd81d76a13dee3ee9b34503913c02",
+        "OFL.txt": "2d6f7c43bce61f4b1919379f901bc613484f5285f520b6d29bb7c1f31b17e841"
+      }
+    },
+    {
+      "family": "Noto Serif Sinhala",
+      "version": "2.007",
+      "licence": "OFL-1.1",
+      "url": "https://github.com/notofonts/sinhala/releases/download/NotoSerifSinhala-v2.007/NotoSerifSinhala-v2.007.zip",
+      "sha256": "654f7e394fc80f61667529582b16c5036b762e786741c398f1c359e332dd66a7",
+      "files": {
+        "NotoSerifSinhala/full/ttf/NotoSerifSinhala-Regular.ttf": "cafa8544ad87a1116d296193cfbf8be39b7927e67fd4af36b7e73105cf2ac85e",
+        "NotoSerifSinhala/full/ttf/NotoSerifSinhala-Bold.ttf": "09a843eb8e54be645c2d3b8465886216667acc28e83e5c55d93a93d6c725d427"
+      }
+    }
+  ],
+  "legacy": [
+    { "family": "FM Abhaya", "profile": "fm-abhaya", "distributable": false, "licence": "commercial or unclear: not shipped; organisations with a licence may upload it" },
+    { "family": "DL Manel", "profile": "dl-manel", "distributable": false, "licence": "commercial or unclear: not shipped; organisations with a licence may upload it" },
+    { "family": "Kaputa", "profile": "kaputa", "distributable": false, "licence": "commercial or unclear: not shipped; organisations with a licence may upload it" }
+  ]
+}

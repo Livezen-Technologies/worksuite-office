@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Sinhala Tools</title>
+  <link rel="stylesheet" href="../v1/plugins.css" />
+  <link rel="stylesheet" href="resources/panel.css" />
+  <script type="text/javascript" src="../v1/plugins.js"></script>
+  <script type="text/javascript" src="../v1/plugins-ui.js"></script>
+  <script type="text/javascript" src="scripts/panel.js"></script>
+</head>
+<body>
+  <div class="ws-panel">
+    <label class="ws-field"><span data-tr="Legacy font">Legacy font</span>
+      <select id="profile" class="form-control"><option value="auto" data-tr="From the text's font">From the text's font</option></select>
+    </label>
+    <label class="ws-field"><span data-tr="Convert to legacy as">Convert to legacy as</span>
+      <select id="legacyProfile" class="form-control"></select>
+    </label>
+    <label class="ws-field"><span data-tr="Unicode font">Unicode font</span>
+      <select id="font" class="form-control"></select>
+    </label>
+    <div class="ws-buttons">
+      <button class="btn-text-default" data-action="convertSelection" data-tr="Convert selection">Convert selection</button>
+      <button class="btn-text-default" data-action="convertToLegacy" data-tr="Convert to legacy">Convert to legacy</button>
+      <button class="btn-text-default ws-doc" data-action="convertDocument" data-tr="Convert document">Convert document</button>
+      <button class="btn-text-default ws-doc" data-action="detect" data-tr="Detect">Detect</button>
+      <button class="btn-text-default ws-doc" data-action="fonts" data-tr="Fonts">Fonts</button>
+      <button class="btn-text-default ws-doc" data-action="validate" data-tr="Validate">Validate</button>
+    </div>
+    <div id="result" class="ws-result" aria-live="polite"></div>
+    <p class="ws-note" data-tr="Maps are checked against WorkSuite's own sample texts only. Check converted text before you share it.">Maps are checked against WorkSuite's own sample texts only. Check converted text before you share it.</p>
+  </div>
+</body>
+</html>
