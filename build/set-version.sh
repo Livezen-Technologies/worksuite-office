@@ -13,7 +13,8 @@ version="${1:-}"
 cd "$(dirname "$0")/.."
 
 printf '%s' "$version" > VERSION.txt
-sed -i -E "s/^  PRODUCT_VERSION: .*/  PRODUCT_VERSION: $version/" .github/workflows/build.yml .github/workflows/build-mac.yml
+sed -i -E "s/^  PRODUCT_VERSION: .*/  PRODUCT_VERSION: $version/" .github/workflows/build.yml .github/workflows/build-mac.yml \
+  .github/workflows/build-linux-v10.yml .github/workflows/build-windows-v10.yml
 sed -i -E "/^      version:$/,/^        default:/ s/^        default: .*/        default: $version/" .github/workflows/publish.yml
 sed -i -E "/^variable \"PRODUCT_VERSION\"/,/^\}/ s/default = \".*\"/default = \"$version\"/" build/docker-bake.hcl build/linux/docker-bake.hcl
 sed -i -E "s/(\[string\]\\\$ProductVersion = ')[^']*'/\1$version'/" build/windows/build.ps1

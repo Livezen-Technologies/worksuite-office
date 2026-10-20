@@ -1,5 +1,35 @@
 # Change log
 
+## 10.1.0
+
+### New features
+
+#### Sinhala Tools
+
+* A Sinhala Tools tab in the editors converts text in the legacy FM Abhaya,
+  DL Manel and Kaputa fonts to Unicode Sinhala and back. Convert selection
+  takes the font from the text, or guesses it; Convert to legacy writes the
+  chosen legacy font; Convert document shows what it will change, then
+  converts every run in a legacy font in one step that Undo takes back
+* Detect highlights text in legacy fonts, Fonts sets Noto Sans or Noto Serif
+  Sinhala on Sinhala text, and Validate lists broken conjuncts, stray
+  joiners and vowel signs in legacy order. The panel lists every character
+  without a mapping, which is left as it was
+* Noto Sans Sinhala and Noto Serif Sinhala come with WorkSuite Office. The
+  legacy fonts do not: their licences do not allow it
+* Sinhala Tools speaks English, Sinhala and Tamil
+
+### Known issues
+
+* The legacy font maps cover the letters, vowel signs, yansaya and
+  rakaransaya; repaya, touching letters and the fonts' other special glyphs
+  are listed as unmapped. The maps are checked against WorkSuite's own
+  sample texts only, so check converted text before you share it
+* Convert document, Detect, Fonts and Validate work in documents; in
+  spreadsheets and presentations, convert a selection
+* Windows and Linux stay on the 9.3 editors for now, so Sinhala Tools comes to
+  them with their 10 builds
+
 ## 10.0.0
 
 ### New features

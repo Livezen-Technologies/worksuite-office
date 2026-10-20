@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "target": "ES2019",
+    "lib": ["ES2019"],
+    "types": [],
+    "module": "CommonJS",
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+    "isolatedModules": false,
+    "strict": true,
+    "noUnusedLocals": true,
+    "declaration": true,
+    "rootDir": ".",
+    "outDir": "dist",
+    "newLine": "lf"
+  },
+  "include": ["src/**/*.ts", "profiles/*.json"]
+}

@@ -8,7 +8,7 @@ on:
   # a new workflow can only be dispatched once it is on the default branch: until then, pushes to office-v10 run it
   push:
     branches: [office-v10]
-    paths: ['.github/workflows/build-windows-v10.yml', 'build/v10/**']
+    paths: ['.github/workflows/build-windows-v10.yml', 'build/v10/**', 'sinhala/**']
   workflow_dispatch:
     inputs:
       build_number:
@@ -20,7 +20,7 @@ env:
   OO_TAG: v10.0.0.176
   BUILD_TOOLS_REF: master
   DESKTOP_APPS_REF: 02818fab1ae88d28dbe692455e50bc5b844d9369
-  PRODUCT_VERSION: 10.0.0
+  PRODUCT_VERSION: 10.1.0
   # depot_tools (V8) stays at the pinned commit: its self-update collides with build_tools' bootstrap edits
   DEPOT_TOOLS_UPDATE: '0'
   # build/v10/prepare.sh: CMake builds use VS 2022's generator with the 2019 toolset (v142)
@@ -116,6 +116,10 @@ jobs:
           python make.py
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           Get-ChildItem out\win_64\onlyoffice\DesktopEditors | Select-Object -First 30
+          if (-not (Test-Path "out\win_64\onlyoffice\DesktopEditors\editors\sdkjs-plugins\{B50BAEE2-4EAC-4298-9DD2-73CC3223FFFA}\config.json")) {
+            Write-Error "Sinhala Tools is not in the editors"; exit 1
+          }
+          Get-ChildItem out\win_64\onlyoffice\DesktopEditors\fonts\worksuite-sinhala | Select-Object Name
 
       - name: Package (Inno Setup, standalone)
         working-directory: C:/oo/desktop-apps/package

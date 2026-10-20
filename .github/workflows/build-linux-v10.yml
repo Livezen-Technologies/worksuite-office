@@ -12,7 +12,7 @@ on:
   # a new workflow can only be dispatched once it is on the default branch: until then, pushes to office-v10 run it
   push:
     branches: [office-v10]
-    paths: ['.github/workflows/build-linux-v10.yml', 'build/v10/**']
+    paths: ['.github/workflows/build-linux-v10.yml', 'build/v10/**', 'sinhala/**']
   workflow_dispatch:
     inputs:
       build_number:
@@ -24,7 +24,7 @@ env:
   OO_TAG: v10.0.0.176
   BUILD_TOOLS_REF: master
   DESKTOP_APPS_REF: 02818fab1ae88d28dbe692455e50bc5b844d9369
-  PRODUCT_VERSION: 10.0.0
+  PRODUCT_VERSION: 10.1.0
   # depot_tools (V8) stays at the pinned commit: its self-update collides with build_tools' bootstrap edits
   DEPOT_TOOLS_UPDATE: '0'
 
@@ -95,6 +95,8 @@ jobs:
           cat config
           $py make.py
           ls -la out/linux_64/onlyoffice/desktopeditors
+          test -f "out/linux_64/onlyoffice/desktopeditors/editors/sdkjs-plugins/{B50BAEE2-4EAC-4298-9DD2-73CC3223FFFA}/config.json" || { echo "::error::Sinhala Tools is not in the editors"; exit 1; }
+          ls out/linux_64/onlyoffice/desktopeditors/fonts/worksuite-sinhala
 
       - name: Package (deb, rpm, tar)
         working-directory: oo/desktop-apps/package

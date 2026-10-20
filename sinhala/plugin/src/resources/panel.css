@@ -1,0 +1,14 @@
+body { margin: 0; padding: 0; font-size: 11px; overflow-y: auto; }
+.ws-panel { padding: 8px 12px 12px; display: flex; flex-direction: column; gap: 8px; }
+.ws-field { display: flex; flex-direction: column; gap: 3px; }
+.ws-field select { width: 100%; }
+.ws-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.ws-buttons button { width: 100%; min-height: 24px; }
+.ws-result:empty { display: none; }
+.ws-result { border-top: 1px solid rgba(128, 128, 128, 0.35); padding-top: 8px; display: flex; flex-direction: column; gap: 6px; }
+.ws-result .ws-error { color: #c0392b; }
+.ws-result ul { margin: 0; padding-inline-start: 16px; max-height: 260px; overflow-y: auto; }
+.ws-result li { margin: 2px 0; word-break: break-word; }
+.ws-result code { font-family: monospace; }
+.ws-note { opacity: 0.7; margin: 4px 0 0; }
+.ws-sinhala { font-family: "Noto Sans Sinhala", "Iskoola Pota", sans-serif; }

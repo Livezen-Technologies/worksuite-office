@@ -106,9 +106,24 @@ locally:
 
 | Variable                          | Meaning                                  | Default                |
 | --------------------------------- | ---------------------------------------- | ---------------------- |
-| `PRODUCT_VERSION`                 | marketing version                        | `10.0.0`                |
+| `PRODUCT_VERSION`                 | marketing version                        | `10.1.0`                |
 | `BUILD_NUMBER`                    | build identifier                         | `dev.1`                |
 | `COMPANY_NAME` / `PRODUCT_NAME`   | shown in the app's About page            | `Euro-Office` / `DesktopEditors` |
+
+## Sinhala Tools (the 10.x builds)
+
+The 10.x builds (`build-mac.yml`, `build-linux-v10.yml`, `build-windows-v10.yml`) add two inputs
+before ONLYOFFICE's build_tools runs, through `v10/sinhala.sh` (`v10/prepare.sh` calls it on Linux and
+Windows):
+
+| Input                      | From                                                                 | Ends up in                                                  |
+| -------------------------- | -------------------------------------------------------------------- | ----------------------------------------------------------- |
+| Sinhala Tools plugin       | `sinhala/` (`npm run build:plugin`, into `sinhala/plugin/dist`)      | `editors/sdkjs-plugins/{B50BAEE2-4EAC-4298-9DD2-73CC3223FFFA}` |
+| Noto Sans / Serif Sinhala  | `sinhala/fonts/manifest.json` (pinned URLs, sha256-checked)          | `fonts/worksuite-sinhala`, read by allfontsgen               |
+
+No font files are kept in git, and the legacy fonts (FM, DL, Kaputa) are never shipped. The Check
+workflow runs the Sinhala tests (`cd sinhala && npm ci && npm test`). The 9.3 builds described above do
+not have Sinhala Tools.
 
 ## Where to go next
 
