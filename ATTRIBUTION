@@ -15,3 +15,15 @@ The software is licensed under the GNU Affero General Public License v3.0
 (AGPL-3.0). See the LICENSE file for the full license text. The complete
 corresponding source of WorkSuite Office is this repository and its
 submodules.
+
+Sinhala input (sinhala/wordlist) ranks and completes words with these
+lists, merged as sinhala/wordlist/sources.json records:
+- Sinhala Words List by slwdc (https://github.com/slwdc/Sinhala-Words-List),
+  GPL-3.0; licence text in sinhala/wordlist/slwdc-LICENSE.txt
+- Sinhala stopwords from Corpus-Sinhala-Redux by LIRNEasia
+  (https://github.com/LIRNEasia/FacebookDecadeCorpora), CC BY 4.0:
+  Wijeratne, Y., de Silva, N. (2020). Sinhala Language Corpora and Stopwords
+  from a Decade of Sri Lankan Facebook. LIRNEasia.
+Its candidate window follows the way Google Input Tools
+(https://github.com/google/google-input-tools, Apache-2.0) works; no code or
+data of it is used.

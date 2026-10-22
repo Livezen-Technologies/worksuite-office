@@ -3,10 +3,16 @@
 <head>
   <meta charset="UTF-8" />
   <title>Sinhala Tools</title>
+  <link rel="stylesheet" href="resources/ime.css" />
   <script type="text/javascript" src="../v1/plugins.js"></script>
   <script type="text/javascript" src="../v1/plugins-ui.js"></script>
   <script type="text/javascript" src="scripts/sinhala-core.js"></script>
+  <script type="text/javascript" src="scripts/sinhala-words.js"></script>
   <script type="text/javascript" src="scripts/plugin.js"></script>
+  <script type="text/javascript" src="scripts/ime.js"></script>
 </head>
-<body></body>
+<body>
+  <!-- this frame is the Sinhala input candidate window when the editor shows it as an input helper -->
+  <div id="ime" class="ime" role="listbox" aria-live="polite"><div id="ime-latin" class="ime-latin"></div><ol id="ime-items" class="ime-items"></ol></div>
+</body>
 </html>

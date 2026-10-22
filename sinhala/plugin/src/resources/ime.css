@@ -1,0 +1,11 @@
+/* The Sinhala input candidate window (the plugin's own frame, shown by the editor as an input helper). */
+html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: var(--ime-bg, #ffffff); }
+.ime { box-sizing: border-box; height: 100%; border: 1px solid var(--ime-border, #cfcfcf); font: 12px "Helvetica Neue", Helvetica, Arial, sans-serif; color: var(--ime-text, #373737); user-select: none; }
+.ime-latin { padding: 3px 8px; height: 18px; line-height: 18px; border-bottom: 1px solid var(--ime-border, #cfcfcf); color: var(--ime-muted, #7a7a7a); font-family: monospace; white-space: nowrap; overflow: hidden; }
+.ime-items { list-style: none; margin: 0; padding: 0; }
+.ime-items li { display: flex; align-items: baseline; gap: 8px; padding: 0 8px; height: 26px; line-height: 26px; cursor: default; white-space: nowrap; }
+.ime-items li .n { color: var(--ime-muted, #7a7a7a); width: 10px; text-align: end; }
+.ime-items li .w { font-family: "Noto Sans Sinhala", "Iskoola Pota", sans-serif; font-size: 15px; }
+.ime-items li.completion .w { font-style: normal; color: var(--ime-completion, #4a4a4a); }
+.ime-items li.completion::after { content: "…"; color: var(--ime-muted, #7a7a7a); }
+.ime-items li.selected, .ime-items li:hover { background: var(--ime-selected, #d8dadc); }

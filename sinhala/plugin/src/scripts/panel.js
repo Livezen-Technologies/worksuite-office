@@ -40,6 +40,10 @@
     fill($("profile"), profiles, state.settings.profile);
     fill($("legacyProfile"), profiles, state.settings.legacyProfile);
     fill($("font"), state.fonts.map(function (f) { return { value: f, text: f }; }), state.settings.font);
+    var ime = state.ime || { on: false, learned: 0 };
+    $("imeToggle").textContent = ime.on ? tr("Turn Sinhala input off") : tr("Turn Sinhala input on");
+    $("imeStatus").textContent = (ime.on ? tr("Sinhala input is on.") : tr("Sinhala input is off.")) + " " + fmt("%1 words learned from your picks.", ime.learned);
+    $("imeForget").disabled = !ime.learned;
     var docs = state.editor === "word";
     var buttons = document.querySelectorAll(".ws-doc");
     for (var i = 0; i < buttons.length; i++) buttons[i].disabled = !docs;
