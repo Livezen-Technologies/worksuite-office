@@ -32,17 +32,18 @@ test("config.json: fixed guid, name, a background variation with the toolbar eve
   const v = config.variations[0];
   assert.equal(v.url, "index.html");
   assert.equal(v.type, "background");
-  assert.ok(v.events.includes("onToolbarMenuClick"));
+  for (const e of ["onToolbarMenuClick", "onInputHelperInput", "onInputHelperClear", "onKeyDown"]) assert.ok(v.events.includes(e), e);
   for (const f of v.icons) readFileSync(join(a, f));
   const files = readFileSync(join(a, "files.sha256"), "utf8");
   for (const f of ["index.html", "panel.html", "scripts/plugin.js", "scripts/panel.js", "scripts/sinhala-core.js",
-    "translations/langs.json", "translations/si-LK.json", "translations/ta-LK.json"]) {
+    "scripts/ime.js", "scripts/sinhala-words.js", "resources/ime.css", "licenses/word-lists.json",
+    "licenses/slwdc-Sinhala-Words-List-GPL-3.0.txt", "translations/langs.json", "translations/si-LK.json", "translations/ta-LK.json"]) {
     assert.ok(files.includes("  " + f + "\n"), f);
   }
 });
 
 test("every string the plugin shows is translated into Sinhala and Tamil", () => {
-  const sources = ["scripts/plugin.js", "scripts/panel.js", "panel.html"].map((f) => readFileSync(join(a, f), "utf8")).join("\n");
+  const sources = ["scripts/plugin.js", "scripts/panel.js", "scripts/ime.js", "panel.html"].map((f) => readFileSync(join(a, f), "utf8")).join("\n");
   const keys = new Set();
   for (const m of sources.matchAll(/\b(?:tr|fmt)\("((?:[^"\\]|\\.)+)"/g)) keys.add(m[1]);
   for (const m of sources.matchAll(/data-tr="([^"]+)"/g)) keys.add(m[1]);
@@ -107,4 +108,56 @@ test("the plugin's document command converts runs in legacy fonts in one pass", 
   ctx.Asc.scope.dryRun = false;
   vm.runInContext("documentCommand()", ctx);
   assert.equal(runs[4].font, "Noto Sans Sinhala");
+});
+
+test("Sinhala input in the plugin frame: input helper events in, ShowInputHelper / InputText out", () => {
+  const calls = [];
+  const storage = new Map();
+  const el = () => ({ textContent: "", children: [], appendChild(c) { this.children.push(c); }, setAttribute() {}, addEventListener() {} });
+  const nodes = { "ime-latin": el(), "ime-items": el() };
+  const plugin = {
+    info: { guid: "asc.{B50BAEE2-4EAC-4298-9DD2-73CC3223FFFA}", editorType: "word" },
+    executeMethod(name, args, cb) { calls.push([name, args]); if (name === "GetCurrentWord" && cb) cb("amm"); },
+    attachToolbarMenuClickEvent() {}, callCommand() {}, tr: (t) => t,
+  };
+  const window = {
+    Asc: { plugin, scope: {}, PluginWindow: function () {} },
+    localStorage: { getItem: (k) => storage.get(k) ?? null, setItem: (k, v) => storage.set(k, v) },
+  };
+  const document = { getElementById: (id) => nodes[id], createElement: el, documentElement: { style: { setProperty() {} } } };
+  const ctx = vm.createContext({ window, document, JSON, Object, Math, String, Number });
+  window.window = window;
+  for (const f of ["scripts/sinhala-core.js", "scripts/sinhala-words.js"]) vm.runInContext(readFileSync(join(a, f), "utf8") + "\nwindow.WorkSuiteSinhala = WorkSuiteSinhala; window.__worksuiteSinhalaFactory = __worksuiteSinhalaFactory;" + (f.includes("words") ? "window.WorkSuiteSinhalaWords = WorkSuiteSinhalaWords;" : ""), ctx);
+  vm.runInContext(readFileSync(join(a, "scripts", "plugin.js"), "utf8"), ctx);
+  vm.runInContext(readFileSync(join(a, "scripts", "ime.js"), "utf8"), ctx);
+
+  // off: typing is ignored
+  plugin.event_onInputHelperInput({ text: "amma" });
+  assert.equal(calls.length, 0);
+  // Ctrl+Shift+Y turns it on (and the state is kept)
+  plugin.event_onKeyDown({ keyCode: 89, ctrlKey: true, shiftKey: true });
+  assert.equal(window.WorkSuiteSinhalaIme.isOn(), true);
+  assert.equal(storage.get("worksuite-sinhala-input"), "true");
+  plugin.event_onInputHelperInput({ text: "amma" });
+  assert.equal(calls.at(-1)[0], "ShowInputHelper");
+  assert.equal(calls.at(-1)[1][3], false, "the editor keeps the keyboard");
+  assert.equal(nodes["ime-latin"].textContent, "amma");
+  assert.equal(nodes["ime-items"].children[0].children[1].textContent, "අම්මා");
+  // Down, then Enter writes the second candidate
+  plugin.event_onKeyDown({ keyCode: 40 });
+  plugin.event_onKeyDown({ keyCode: 13 });
+  assert.deepEqual(calls.slice(-2).map((c) => c[0]), ["UnShowInputHelper", "InputText"]);
+  assert.deepEqual(Array.from(calls.at(-1)[1]), ["අම්ම", "amma"]);
+  assert.ok(JSON.parse(storage.get("worksuite-sinhala-input-learned")).picks.amma, "learned locally");
+  // Backspace in a document: the word before the cursor continues the composition
+  plugin.event_onInputHelperInput({ text: "ammaa" });
+  plugin.event_onInputHelperClear();
+  assert.equal(JSON.stringify(calls.at(-2)), JSON.stringify(["GetCurrentWord", ["before"]]));
+  assert.equal(nodes["ime-latin"].textContent, "amm");
+  // off again: the window closes
+  window.WorkSuiteSinhalaIme.toggle();
+  assert.equal(calls.at(-1)[0], "UnShowInputHelper");
+  const n = calls.length;
+  plugin.event_onInputHelperInput({ text: "amma" });
+  assert.equal(calls.length, n);
 });

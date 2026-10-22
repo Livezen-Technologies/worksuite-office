@@ -11,6 +11,16 @@
 </head>
 <body>
   <div class="ws-panel">
+    <section class="ws-ime">
+      <h3 data-tr="Sinhala input">Sinhala input</h3>
+      <p class="ws-note" data-tr="Type Singlish in the document (amma, shrii lankaava) and pick a word: Space or Enter writes the highlighted one, 1-9 that one, the arrow keys move, Esc keeps the Latin. Ctrl+Shift+Y turns it on and off.">Type Singlish in the document (amma, shrii lankaava) and pick a word: Space or Enter writes the highlighted one, 1-9 that one, the arrow keys move, Esc keeps the Latin. Ctrl+Shift+Y turns it on and off.</p>
+      <div id="imeStatus" class="ws-note"></div>
+      <div class="ws-buttons">
+        <button id="imeToggle" class="btn-text-default" data-action="ime" data-tr="Turn Sinhala input on">Turn Sinhala input on</button>
+        <button id="imeForget" class="btn-text-default" data-action="imeForget" data-tr="Forget learned words">Forget learned words</button>
+      </div>
+      <p class="ws-note" data-tr="Your picks are kept on this computer only and never sent anywhere.">Your picks are kept on this computer only and never sent anywhere.</p>
+    </section>
     <label class="ws-field"><span data-tr="Legacy font">Legacy font</span>
       <select id="profile" class="form-control"><option value="auto" data-tr="From the text's font">From the text's font</option></select>
     </label>
