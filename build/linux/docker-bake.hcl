@@ -13,7 +13,7 @@ variable "TAG" {
 }
 
 variable "PRODUCT_VERSION" {
-  default = "10.1.1"
+  default = "10.1.2"
 }
 
 variable "BUILD_NUMBER" {

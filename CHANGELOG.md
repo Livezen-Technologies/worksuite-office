@@ -1,5 +1,15 @@
 # Change log
 
+## 10.1.2
+
+### Fixes
+
+#### Build
+
+* The Windows build no longer stops on the Sinhala word lists: Git kept
+  converting their line endings, so they no longer matched their pinned hashes
+* The macOS app builds again: one line of the new upload code did not compile
+
 ## 10.1.1
 
 ### New features
