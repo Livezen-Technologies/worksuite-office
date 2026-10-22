@@ -8,6 +8,7 @@ repo="$1"
 # WorkSuite's changes to the editors
 python "$repo/build/patch-editor-menu.py" web-apps
 python "$repo/build/patch-pdf-convert.py" web-apps
+python "$repo/build/patch-ai-panel.py" desktop-sdk desktop-apps
 
 # The v10 start page is built with Vite (build_tools 9.4 only knows Grunt)
 ( cd desktop-apps/common/loginpage
