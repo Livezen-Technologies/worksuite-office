@@ -1,0 +1,127 @@
+name: Publish to the Linux repositories
+
+# Puts a 10.x Linux build's .deb and .rpm into WorkSuite Office's APT and RPM repositories
+# (https://download.worksuitecloud.com/linux/, UPD-05, G-02), signed with the repository GPG key (UPD-06,
+# G-03). Run it once the release is approved and published in the Update Center: unlike publish.yml,
+# which only submits a release for testing, this reaches every installed copy on its next apt/dnf upgrade.
+#
+# The repository tree is kept on the download host. With LINUX_REPO_SSH_TARGET set, the job pulls the
+# current tree over rsync/SSH, adds the packages, signs the metadata again and pushes it back. Without it
+# (or with dry_run) the tree is only kept as this run's artifact. Layout and setup: build/README.md,
+# "Linux repositories"; build/linux/make-repos.sh does the work.
+#
+# Settings: secret LINUX_REPO_GPG_PRIVATE_KEY (armoured secret key; RSA 4096 so RHEL 8's rpm can check it)
+# and, when it has one, LINUX_REPO_GPG_PASSPHRASE; for the upload the secrets LINUX_REPO_SSH_KEY
+# (private key of a deploy user), LINUX_REPO_SSH_KNOWN_HOSTS (the host's known_hosts lines) and the
+# variable LINUX_REPO_SSH_TARGET (user@host:/path served as /linux/).
+
+on:
+  workflow_dispatch:
+    inputs:
+      linux_run:
+        description: Run ID of a "Build WorkSuite Office 10 (Linux x64)" run whose packages to add
+        required: true
+      channel:
+        description: Repository channel (the Update Center channel the release was published on)
+        type: choice
+        options: [stable, beta]
+        default: beta
+      dry_run:
+        description: Make and sign the repositories as an artifact only; upload nothing
+        type: boolean
+        default: false
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: linux-repos
+  cancel-in-progress: false
+
+jobs:
+  repos:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: The build
+        env:
+          GH_TOKEN: ${{ github.token }}
+          LINUX_RUN: ${{ inputs.linux_run }}
+        run: |
+          [[ "$LINUX_RUN" =~ ^[0-9]+$ ]] || { echo "::error::$LINUX_RUN is not a run ID"; exit 1; }
+          read -r path conclusion < <(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$LINUX_RUN" --jq '"\(.path) \(.conclusion)"')
+          [ "$path" = .github/workflows/build-linux-v10.yml ] || { echo "::error::Run $LINUX_RUN is $path, not build-linux-v10.yml"; exit 1; }
+          [ "$conclusion" = success ] || { echo "::error::Run $LINUX_RUN did not succeed ($conclusion)"; exit 1; }
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: linux-packages-amd64
+          path: dist
+          run-id: ${{ inputs.linux_run }}
+          github-token: ${{ github.token }}
+
+      - name: Tools and key
+        env:
+          LINUX_REPO_GPG_PRIVATE_KEY: ${{ secrets.LINUX_REPO_GPG_PRIVATE_KEY }}
+          LINUX_REPO_GPG_PASSPHRASE: ${{ secrets.LINUX_REPO_GPG_PASSPHRASE }}
+        run: |
+          [ -n "$LINUX_REPO_GPG_PRIVATE_KEY" ] || { echo "::error::Add the secret LINUX_REPO_GPG_PRIVATE_KEY (build/README.md, Linux repositories)"; exit 1; }
+          sudo apt-get -y update && sudo apt-get -y install apt-utils createrepo-c rpm rsync
+          printf '%s\n' "$LINUX_REPO_GPG_PRIVATE_KEY" | gpg --batch --pinentry-mode loopback ${LINUX_REPO_GPG_PASSPHRASE:+--passphrase "$LINUX_REPO_GPG_PASSPHRASE"} --import
+          gpg --list-secret-keys --keyid-format long
+
+      - name: SSH
+        id: ssh
+        if: ${{ !inputs.dry_run && vars.LINUX_REPO_SSH_TARGET != '' }}
+        env:
+          LINUX_REPO_SSH_KEY: ${{ secrets.LINUX_REPO_SSH_KEY }}
+          LINUX_REPO_SSH_KNOWN_HOSTS: ${{ secrets.LINUX_REPO_SSH_KNOWN_HOSTS }}
+        run: |
+          if [ -z "$LINUX_REPO_SSH_KEY" ] || [ -z "$LINUX_REPO_SSH_KNOWN_HOSTS" ]; then echo "::error::LINUX_REPO_SSH_TARGET needs the secrets LINUX_REPO_SSH_KEY and LINUX_REPO_SSH_KNOWN_HOSTS"; exit 1; fi
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$LINUX_REPO_SSH_KEY" > ~/.ssh/id_repo && chmod 600 ~/.ssh/id_repo
+          printf '%s\n' "$LINUX_REPO_SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          echo "upload=true" >> "$GITHUB_OUTPUT"
+
+      - name: The current repositories
+        if: steps.ssh.outputs.upload == 'true'
+        env:
+          TARGET: ${{ vars.LINUX_REPO_SSH_TARGET }}
+        run: |
+          mkdir -p repo
+          rsync -a -e "ssh -i $HOME/.ssh/id_repo -o StrictHostKeyChecking=yes" "${TARGET%/}/" repo/ || {
+            echo "::warning::Nothing at $TARGET yet: starting new repositories"; }
+
+      - name: Add the packages and sign
+        env:
+          CHANNEL: ${{ inputs.channel }}
+          LINUX_RUN: ${{ inputs.linux_run }}
+          GPG_PASSPHRASE: ${{ secrets.LINUX_REPO_GPG_PASSPHRASE }}
+        run: |
+          mapfile -t pkgs < <(find dist -type f \( -name '*.deb' -o -name '*.rpm' \) | sort)
+          [ "${#pkgs[@]}" -gt 0 ] || { echo "::error::no .deb or .rpm in run $LINUX_RUN"; exit 1; }
+          bash build/linux/make-repos.sh repo "$CHANNEL" "${pkgs[@]}"
+          {
+            echo "### Linux repositories ($CHANNEL)"
+            for p in "${pkgs[@]}"; do echo "- \`$(basename "$p")\`"; done
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload
+        if: steps.ssh.outputs.upload == 'true'
+        env:
+          TARGET: ${{ vars.LINUX_REPO_SSH_TARGET }}
+        run: |
+          # packages first, then the signed metadata that names them, so a client never sees a missing file
+          ssh_cmd="ssh -i $HOME/.ssh/id_repo -o StrictHostKeyChecking=yes"
+          rsync -a -e "$ssh_cmd" --exclude 'repodata/' --exclude 'dists/' repo/ "${TARGET%/}/"
+          rsync -a -e "$ssh_cmd" repo/ "${TARGET%/}/"
+          echo "- Uploaded to the download host." >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-repositories-${{ inputs.channel }}
+          path: repo
+          retention-days: 14

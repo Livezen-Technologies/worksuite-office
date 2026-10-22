@@ -10,6 +10,7 @@ on:
       - 'build/**'
       - '.github/workflows/**'
       - 'sinhala/**'
+      - 'desktop-apps'
 
 jobs:
   # The version in VERSION.txt is the one every build and publish uses, with its changelog section and
@@ -35,6 +36,55 @@ jobs:
       - run: npm test
       - run: node scripts/hash-profiles.mjs --check
       - run: npm run build:plugin
+  # The WorkSuite start-page tests (NFR-18, G-12) of every desktop-apps commit a build takes: the 9.3 builds'
+  # submodule pin and the DESKTOP_APPS_REF of each 10.x workflow (build/test-desktop-apps.sh).
+  desktop-apps-refs:
+    runs-on: ubuntu-latest
+    outputs:
+      refs: ${{ steps.refs.outputs.refs }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - id: refs
+        run: |
+          {
+            git ls-tree HEAD desktop-apps | awk '{print $3}'
+            sed -n 's/^  DESKTOP_APPS_REF: *//p' .github/workflows/build-mac.yml .github/workflows/build-*-v10.yml
+          } | sort -u | jq -R . | jq -cs . | sed 's/^/refs=/' >> "$GITHUB_OUTPUT"
+          cat "$GITHUB_OUTPUT"
+  desktop-apps-tests:
+    needs: desktop-apps-refs
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        ref: ${{ fromJSON(needs.desktop-apps-refs.outputs.refs) }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: Livezen-Technologies/worksuite-office-desktop-apps
+          ref: ${{ matrix.ref }}
+          path: desktop-apps-under-test
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: build/test-desktop-apps.sh desktop-apps-under-test
+  # Every build/patch-*.py against the ONLYOFFICE sources the 10.x builds patch, and the same patches on
+  # macOS as on Windows/Linux (NFR-19, G-13).
+  patches:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - run: build/v10/check-patches.sh "$RUNNER_TEMP/oo"
+  # The CI scripts themselves
+  scripts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - run: |
+          for f in build/*.sh build/v10/*.sh build/linux/*.sh; do [ -f "$f" ] && bash -n "$f"; done
+          shellcheck -S warning build/test-desktop-apps.sh build/v10/check-patches.sh build/linux/make-repos.sh
+          node --check build/sign-edsig.mjs
   markdownlint:
     runs-on: ubuntu-latest
     steps:

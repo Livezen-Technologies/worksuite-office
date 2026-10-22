@@ -125,6 +125,101 @@ No font files are kept in git, and the legacy fonts (FM, DL, Kaputa) are never s
 workflow runs the Sinhala tests (`cd sinhala && npm ci && npm test`). The 9.3 builds described above do
 not have Sinhala Tools.
 
+## The 10.x builds: one upstream for all three platforms (NFR-19)
+
+On `office-v10` all three 10.x builds take their sources from **ONLYOFFICE**, at the one tag `OO_TAG`
+(`v10.0.0.176`) in `build-mac.yml`, `build-linux-v10.yml` and `build-windows-v10.yml`, built with
+ONLYOFFICE's public `build_tools` (9.4, adapted by `v10/prepare.sh` on Windows and Linux and by the same
+edits inline in `build-mac.yml`). Euro-Office is the upstream of the **9.3** builds only (`build.yml`, the
+submodules of this repository); it has no macOS build and no v10 release yet. So the split is:
+
+| Builds | Upstream | Editor patches applied by |
+| ------ | -------- | ------------------------- |
+| 10.x macOS, Windows, Linux | ONLYOFFICE `OO_TAG` | `build-mac.yml` (macOS), `v10/prepare.sh` (Windows, Linux) |
+| 9.3 Windows, Linux (`build.yml`) | Euro-Office (submodule pins) | `build.yml`, plus `patch-upstream.py` |
+
+The Check workflow's `patches` job (`v10/check-patches.sh`) keeps the 10.x side honest: it fails when the three
+workflows name different `OO_TAG`s, when `build-mac.yml` and `v10/prepare.sh` apply different
+`build/patch-*.py` scripts, or when any of them no longer applies to ONLYOFFICE's sources at `OO_TAG`. The
+patches change only platform-independent sources (web-apps, sdkjs), so that one checkout is what every platform
+patches; there is nothing platform-specific to test separately. The `build_tools`/`core` edits in `prepare.sh`
+and `build-mac.yml` are not run by Check (they need the full sources, several GB): each asserts the text it
+replaces, so drift stops the build in its first minutes. The 9.3 patches are not checked against Euro-Office
+by Check either; the 9.3 line takes no new upstream. The desktop-apps commit may differ by platform
+(`DESKTOP_APPS_REF` in each workflow); Check runs the start-page tests of each one.
+
+## Signing and updates (UPD-04…07, NFR-08)
+
+Every signing step is skipped, with a warning, when its secrets are missing; such a build may only go to
+the **beta** channel (the `stable` channel input stops an unsigned build). Settings are repository secrets
+unless marked *variable*.
+
+| Name | Used by | What |
+| ---- | ------- | ---- |
+| `SPARKLE_PUBLIC_ED_KEY` (*variable*) | mac, Windows, publish | base64 Ed25519 public key; `SUPublicEDKey` (Sparkle) and `WS_UPDATE_EDDSA_PUBLIC_KEY` (WinSparkle) |
+| `SPARKLE_ED_PRIVATE_KEY` | mac, Windows | its private half, as `generate_keys -x` exports it (32-byte seed, base64); signs the DMG and the Windows installer into `<file>.edsig` |
+| `MACOS_CERTIFICATE_P12` | mac | base64 `.p12` with the **Developer ID Application** certificate and its key |
+| `MACOS_CERTIFICATE_PASSWORD` | mac | the `.p12`'s password |
+| `MACOS_NOTARY_KEY` | mac | base64 App Store Connect API key (`AuthKey_XXXX.p8`) for `notarytool` |
+| `MACOS_NOTARY_KEY_ID` | mac | that key's ID |
+| `MACOS_NOTARY_ISSUER` | mac | the issuer ID of the App Store Connect team |
+| `WINDOWS_CERTIFICATE_PFX` | Windows | base64 `.pfx` code-signing (OV/EV) certificate, for `signtool` (`v10/sign-windows.ps1`) |
+| `WINDOWS_CERTIFICATE_PASSWORD` | Windows | the `.pfx`'s password |
+| `WINDOWS_TIMESTAMP_URL` (*env*, optional) | Windows | RFC 3161 server, default `http://timestamp.digicert.com` |
+| `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET` | Windows | instead of a PFX: an Entra app allowed to sign with Azure Trusted Signing |
+| `AZURE_SIGNING_ENDPOINT`, `AZURE_SIGNING_ACCOUNT`, `AZURE_SIGNING_PROFILE` (*variables*) | Windows | the Trusted Signing endpoint, account and certificate profile |
+| `LINUX_REPO_GPG_PRIVATE_KEY` | Linux repos | armoured GPG secret key that signs the APT and RPM repositories (use RSA 4096: RHEL 8's rpm cannot check Ed25519) |
+| `LINUX_REPO_GPG_PASSPHRASE` | Linux repos | its passphrase, if it has one |
+| `LINUX_REPO_SSH_KEY`, `LINUX_REPO_SSH_KNOWN_HOSTS` | Linux repos | deploy key and `known_hosts` lines of the download host |
+| `LINUX_REPO_SSH_TARGET` (*variable*) | Linux repos | `user@host:/path` served as `https://download.worksuitecloud.com/linux/` |
+| `UC_CI_TOKEN`, `UC_CI_KEY`, `UC_CI_KEY_ID` (*variable*) | publish | as before (Update Center CI client and attestation key) |
+
+Order matters, because each signature covers the bytes before it: macOS builds the app with the Developer ID
+identity and hardened runtime (CEF keeps its JIT entitlements; `get-task-allow` is removed), signs the DMG,
+notarises it with `notarytool`, staples it, and only then makes the Sparkle `.edsig`. Windows signs the app's
+`.exe`/`.dll` files that carry no signature yet, packages, signs the installer, and then makes the WinSparkle
+`.edsig`.
+
+**macOS architectures (UPD-07).** `build-mac.yml` builds two DMGs, `WorkSuite-Office-<version>-arm64.dmg`
+(macos-14) and `WorkSuite-Office-<version>-x64.dmg` (macos-15-intel, build_tools `mac_64`, the
+`ONLYOFFICE-x86_64` scheme), each with its own feed (`appcast.xml?arch=arm64|x64`). Both carry the same
+`CFBundleVersion`; publish uploads both into one release.
+
+**Windows updates (UPD-04).** WinSparkle (pinned version and sha256 in `build-windows-v10.yml`) ships beside
+the app and reads
+`https://download.worksuitecloud.com/api/v1/apps/lk.worksuite.office/channels/<channel>/appcast.xml?platform=windows&arch=x64&type=exe`.
+The build passes `WS_UPDATE_APPCAST_URL`, `WS_UPDATE_EDDSA_PUBLIC_KEY` and `WINSPARKLE_DIR` to build_tools'
+qmake through the environment; desktop-apps wires WinSparkle in from them.
+
+## Linux repositories (UPD-05)
+
+`publish-linux-repos.yml` (run after the release is approved in the Update Center) adds a 10.x Linux build's
+`.deb` and `.rpm` to signed repositories, made by `linux/make-repos.sh`, under
+`https://download.worksuitecloud.com/linux/`:
+
+| URL | What |
+| --- | ---- |
+| `/linux/worksuite-office.gpg`, `/linux/worksuite-office.asc` | the signing key (binary keyring, armoured) |
+| `/linux/apt` with suites `stable`, `beta`, component `main`, `amd64` | APT (`dists/<channel>/InRelease`, `pool/<channel>/…`) |
+| `/linux/rpm/<channel>/x86_64` | RPM (`repodata/repomd.xml.asc`; the packages are rpm-signed too) |
+| `/linux/rpm/worksuite-office-<channel>.repo` | the dnf/zypper repository file |
+
+Users (or the package's own setup) add them with:
+
+```sh
+# Debian, Ubuntu
+curl -fsSL https://download.worksuitecloud.com/linux/worksuite-office.gpg | sudo tee /usr/share/keyrings/worksuite-office.gpg >/dev/null
+echo "deb [signed-by=/usr/share/keyrings/worksuite-office.gpg] https://download.worksuitecloud.com/linux/apt stable main" | sudo tee /etc/apt/sources.list.d/worksuite-office.list
+# Fedora, RHEL, openSUSE
+sudo curl -fsSLo /etc/yum.repos.d/worksuite-office.repo https://download.worksuitecloud.com/linux/rpm/worksuite-office-stable.repo
+```
+
+## CI checks
+
+The Check workflow runs the version check, the Sinhala tests, the WorkSuite start-page tests of every
+desktop-apps commit a build takes (`test-desktop-apps.sh`, NFR-18), the patch check above, `bash -n` and
+shellcheck over the build scripts, markdownlint and the spellchecker.
+
 ## Where to go next
 
 - Building on **[Linux](./linux/README.md)**
