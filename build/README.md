@@ -110,6 +110,14 @@ locally:
 | `BUILD_NUMBER`                    | build identifier                         | `dev.1`                |
 | `COMPANY_NAME` / `PRODUCT_NAME`   | shown in the app's About page            | `Euro-Office` / `DesktopEditors` |
 
+## Text recognition in the PDF Editor (the 10.x builds)
+
+The Convert tab's **Recognise text** runs Tesseract on the computer. `v10/ocr.sh` (called by
+`v10/prepare.sh` on Linux and Windows, and by a step of `build-mac.yml`) fetches tesseract.js 6.0.1, its
+LSTM WebAssembly core 6.0.0 and the `eng`, `sin` and `tam` models of tessdata_fast 4.1.0, each pinned by
+URL and sha256, adds `ocr/worker.js`, and has the desktop deploy copy them to `editors/ocr`. Nothing is
+fetched when the app runs.
+
 ## Sinhala Tools (the 10.x builds)
 
 The 10.x builds (`build-mac.yml`, `build-linux-v10.yml`, `build-windows-v10.yml`) add two inputs
