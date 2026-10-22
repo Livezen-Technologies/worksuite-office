@@ -8,6 +8,7 @@ repo="$1"
 # WorkSuite's changes to the editors
 python "$repo/build/patch-editor-menu.py" web-apps
 python "$repo/build/patch-pdf-convert.py" web-apps
+python "$repo/build/patch-ai-panel.py" desktop-sdk desktop-apps
 
 # The v10 start page is built with Vite (build_tools 9.4 only knows Grunt)
 ( cd desktop-apps/common/loginpage
@@ -71,3 +72,6 @@ PY
 
 # Sinhala Tools: the plugin and the Noto Sinhala fonts
 bash "$repo/build/v10/sinhala.sh" "$repo"
+
+# The PDF Editor's text recognition (OCR): tesseract.js and the English, Sinhala and Tamil models
+bash "$repo/build/v10/ocr.sh" "$repo"

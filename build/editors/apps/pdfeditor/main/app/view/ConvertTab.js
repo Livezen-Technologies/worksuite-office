@@ -28,6 +28,8 @@ define([
         'btn-ws-convert-text':  page + badge('#5c6b7a') + '<path d="M14.5 16.5h9M14.5 19h9M14.5 21.5h6" ' + white + '/>',
         'btn-ws-convert-html':  page + badge('#d9541e') + '<path d="M17 16.5l-2.5 2.5 2.5 2.5M21 16.5l2.5 2.5-2.5 2.5M19.8 15.8l-1.6 6.4" ' + white + '/>',
         'btn-ws-convert-ebook': page + badge('#2e8b57') + '<path d="M19 17.3c-1.4-.9-2.9-1-4.5-.8v5.6c1.6-.2 3.1-.1 4.5.8 1.4-.9 2.9-1 4.5-.8v-5.6c-1.6-.2-3.1-.1-4.5.8zM19 17.3v5.6" ' + white + '/>',
+        'btn-ws-convert-ocr':   page + badge('#0f766e') + '<path d="M14 17v-1.5h1.5M22.5 15.5H24V17M24 21v1.5h-1.5M15.5 22.5H14V21M16.5 19h5" ' + white + '/>',
+        'btn-ws-convert-pdfa':  page + badge('#b91c1c') + '<path d="M15 22.5l2-6 2 6M15.6 20.7h2.8M21 22.5v-6h1.6a1.6 1.6 0 010 3.2H21" ' + white + '/>',
         'btn-ws-convert-all':   page + badge('#69707a') + '<circle cx="15.5" cy="19" r="1.1" fill="#fff"/><circle cx="19" cy="19" r="1.1" fill="#fff"/><circle cx="22.5" cy="19" r="1.1" fill="#fff"/>'
     };
     var STYLE =
@@ -61,6 +63,11 @@ define([
                     '<span class="btn-slot text x-huge" id="slot-btn-convert-text"></span>' +
                     '<span class="btn-slot text x-huge" id="slot-btn-convert-html"></span>' +
                     '<span class="btn-slot text x-huge" id="slot-btn-convert-ebook"></span>' +
+                '</div>' +
+                '<div class="separator long"></div>' +
+                '<div class="group">' +
+                    '<span class="btn-slot text x-huge" id="slot-btn-convert-ocr"></span>' +
+                    '<span class="btn-slot text x-huge" id="slot-btn-convert-pdfa"></span>' +
                 '</div>' +
                 '<div class="separator long"></div>' +
                 '<div class="group">' +
@@ -117,6 +124,34 @@ define([
                     me.lockedControls.push(btn);
                 });
 
+                // Recognise text: the desktop app ships the OCR engine (build/v10/ocr.sh); it changes the
+                // document's pages, so only when it can be edited.
+                if (this.appConfig && this.appConfig.isDesktopApp && this.appConfig.isEdit) {
+                    this.btnOcr = new Common.UI.Button({
+                        cls: 'btn-toolbar x-huge icon-top',
+                        iconCls: 'svgicon btn-ws-convert-ocr',
+                        caption: me.capOcr,
+                        lock: [_set.lostConnect, _set.disableOnStart],
+                        dataHint: '1',
+                        dataHintDirection: 'bottom',
+                        dataHintOffset: 'small'
+                    });
+                    this.lockedControls.push(this.btnOcr);
+                }
+                // PDF/A: the converter writes PDF/A-2 (core's PdfWriter in PDF/A mode)
+                if (Asc.c_oAscFileType.PDFA !== undefined) {
+                    this.btnPdfa = new Common.UI.Button({
+                        cls: 'btn-toolbar x-huge icon-top',
+                        iconCls: 'svgicon btn-ws-convert-pdfa',
+                        caption: me.capPdfa,
+                        lock: [_set.lostConnect, _set.disableOnStart],
+                        dataHint: '1',
+                        dataHintDirection: 'bottom',
+                        dataHintOffset: 'small'
+                    });
+                    this.lockedControls.push(this.btnPdfa);
+                }
+
                 this.btnAllFormats = new Common.UI.Button({
                     cls: 'btn-toolbar x-huge icon-top',
                     iconCls: 'svgicon btn-ws-convert-all',
@@ -143,6 +178,10 @@ define([
                 this.formatButtons.forEach(function (btn) {
                     Common.Utils.injectComponent($host.find(btn.convertSlot), btn);
                 });
+                var $ocrGroup = $host.find('#slot-btn-convert-ocr').closest('.group');
+                if (!this.btnOcr && !this.btnPdfa) $ocrGroup.next('.separator').addBack().remove();
+                this.btnOcr ? Common.Utils.injectComponent($host.find('#slot-btn-convert-ocr'), this.btnOcr) : $host.find('#slot-btn-convert-ocr').remove();
+                this.btnPdfa ? Common.Utils.injectComponent($host.find('#slot-btn-convert-pdfa'), this.btnPdfa) : $host.find('#slot-btn-convert-pdfa').remove();
                 Common.Utils.injectComponent($host.find('#slot-btn-convert-all'), this.btnAllFormats);
                 return this.$el;
             },
@@ -162,6 +201,14 @@ define([
                     });
                     btn.updateHint(btn.convertHint);
                 });
+                this.btnOcr && this.btnOcr.on('click', function () {
+                    me.fireEvent('convert:ocr');
+                });
+                this.btnOcr && this.btnOcr.updateHint(this.tipOcr);
+                this.btnPdfa && this.btnPdfa.on('click', function () {
+                    me.fireEvent('convert:format', [Asc.c_oAscFileType.PDFA]);
+                });
+                this.btnPdfa && this.btnPdfa.updateHint(this.tipPdfa);
                 this.btnAllFormats.on('click', function () {
                     me.fireEvent('convert:all');
                 });
@@ -194,6 +241,14 @@ define([
             tipHtml: 'Convert to a web page (HTML)',
             capEbook: 'E-book',
             tipEbook: 'Convert to an e-book',
+            capOcr: 'Recognise text',
+            tipOcr: 'Recognise the text of scanned pages (OCR), on this computer',
+            capPdfa: 'PDF/A',
+            tipPdfa: 'Save as PDF/A-2, for long-term archiving',
+            txtOcrLoading: 'Loading the text recognition…',
+            txtOcrPage: 'Recognising page {0} of {1}…',
+            txtOcrNothing: 'There were no scanned pages to recognise.',
+            txtOcrFailed: 'The text could not be recognised.',
             capAll: 'All formats',
             tipAll: 'Choose any format in the Save as dialog',
             txtDocx: 'Word document (.docx)',

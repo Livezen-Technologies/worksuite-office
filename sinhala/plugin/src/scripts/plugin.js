@@ -7,6 +7,7 @@
  *   Detect              highlights runs in a legacy font or that look like legacy text (documents)
  *   Fonts               Noto Sans / Noto Serif Sinhala on runs with Unicode Sinhala (documents)
  *   Validate            lists broken conjuncts, stray joiners, vowel signs in legacy order (documents)
+ *   Sinhala input       Singlish typing with a candidate window, on and off (scripts/ime.js)
  *
  * The engine is @worksuite/sinhala-core (scripts/sinhala-core.js). Whole-document work runs as an
  * editor command (callCommand over Api.GetDocument()); the command gets the engine as source text in
@@ -48,6 +49,7 @@
       settings: settings,
       fonts: FONTS,
       editor: editorType(),
+      ime: { on: imeOn(), learned: ime() ? ime().learnedCount() : 0 },
       profiles: S.builtinProfiles.map(function (p) {
         return { id: p.id, name: p.name, version: p.version, status: p.status };
       })
@@ -271,7 +273,12 @@
   }
 
   // --- actions --------------------------------------------------------------------------------
+  function ime() { return window.WorkSuiteSinhalaIme; }
+  function imeOn() { return !!(ime() && ime().isOn()); }
+
   var ACTIONS = {
+    ime: function () { if (ime()) ime().toggle(); },
+    imeForget: function () { if (ime()) ime().forget(); },
     convertSelection: convertSelection,
     convertToLegacy: convertToLegacy,
     // a preview first; the panel's Convert button applies it
@@ -295,6 +302,7 @@
 
   // --- the toolbar tab ------------------------------------------------------------------------
   var BUTTONS = [
+    ["ime", "Sinhala input", "Type Singlish and pick Sinhala words as you type (Ctrl+Shift+Y)"],
     ["convertSelection", "Convert selection", "Legacy font text in the selection to Unicode"],
     ["convertToLegacy", "Convert to legacy", "Unicode in the selection to the chosen legacy font"],
     ["convertDocument", "Convert document", "Every run in a legacy font to Unicode, after a preview"],
@@ -315,10 +323,11 @@
         text: tr("Sinhala Tools"),
         items: BUTTONS.map(function (b, i) {
           return {
-            id: "ws-sinhala-" + b[0], type: "big-button", text: tr(b[1]), hint: tr(b[2]), icons: icons,
+            id: "ws-sinhala-" + b[0], type: "big-button", text: b[0] === "ime" && imeOn() ? tr("Sinhala input: on") : tr(b[1]),
+            hint: tr(b[2]), icons: icons,
             lockInViewMode: b[0] !== "validate" && b[0] !== "panel",
             disabled: !isDocument() && !!documentOnly[b[0]],
-            separator: i === 2 || i === 5
+            separator: i === 0 || i === 3 || i === 6
           };
         })
       }]
@@ -333,6 +342,14 @@
   BUTTONS.forEach(function (b) {
     plugin.attachToolbarMenuClickEvent("ws-sinhala-" + b[0], function () { run(b[0], false); });
   });
+
+  // scripts/ime.js tells us when Sinhala input is turned on or off, or forgets what it learned
+  window.WorkSuiteSinhalaTools = {
+    imeChanged: function () {
+      if (toolbarAdded) addToolbar();
+      if (panel && panelReady) panel.command("onState", panelState());
+    }
+  };
 
   plugin.init = function () {
     addToolbar();

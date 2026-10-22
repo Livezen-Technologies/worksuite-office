@@ -1,0 +1,36 @@
+{
+  "comment": "The word lists Sinhala input ranks and completes with, in this order (earlier = more frequent). scripts/wordlist.mjs checks each file's sha256 and merges them; the plugin build writes the result to scripts/sinhala-words.js.",
+  "lists": [
+    {
+      "file": "worksuite-common.txt",
+      "name": "WorkSuite common words",
+      "licence": "AGPL-3.0-only",
+      "source": "Written for WorkSuite Office (sinhala/wordlist)",
+      "order": "rough frequency, most common first",
+      "sha256": null
+    },
+    {
+      "file": "lirneasia-stopwords.txt",
+      "name": "LIRNEasia Sinhala stopwords (Corpus-Sinhala-Redux)",
+      "licence": "CC-BY-4.0",
+      "attribution": "Wijeratne, Y., de Silva, N. (2020). Sinhala Language Corpora and Stopwords from a Decade of Sri Lankan Facebook. LIRNEasia.",
+      "source": "https://github.com/LIRNEasia/FacebookDecadeCorpora/blob/9e7ce725ca81dac7337f87cd7fbf5067f1ee9c16/stopwords.txt",
+      "url": "https://raw.githubusercontent.com/LIRNEasia/FacebookDecadeCorpora/9e7ce725ca81dac7337f87cd7fbf5067f1ee9c16/stopwords.txt",
+      "upstreamSha256": "478769962818a3e39de550d5fe4dc0b2e3921c040eb9dafc41c6eeea44eef342",
+      "changes": "none; the merge adds the zero-width joiner the source leaves out of rakaransaya and yansaya (්ර, ්ය)",
+      "order": "frequency in the corpus, most frequent first",
+      "sha256": "478769962818a3e39de550d5fe4dc0b2e3921c040eb9dafc41c6eeea44eef342"
+    },
+    {
+      "file": "slwdc-si.txt",
+      "name": "Sinhala Words List (slwdc)",
+      "licence": "GPL-3.0-only (slwdc-LICENSE.txt); combined with AGPL-3.0 code under GPL-3.0 section 13",
+      "source": "https://github.com/slwdc/Sinhala-Words-List/blob/2cd4f32b7091c9a0c4eeb043748817d6f5d32a7f/si.txt",
+      "url": "https://raw.githubusercontent.com/slwdc/Sinhala-Words-List/2cd4f32b7091c9a0c4eeb043748817d6f5d32a7f/si.txt",
+      "upstreamSha256": "0142b39ca6d82dc9f3478193daec2f69962de1f90cc748d25f21f34ac64de514",
+      "changes": "byte-order mark removed; the 4 entries longer than 20 characters dropped",
+      "order": "alphabetical (no frequencies): ranked after the lists above, shorter words first",
+      "sha256": "557a74a5f80b7b81e3336bcbd6119efba123f0db702c98a77226440a29f9e571"
+    }
+  ]
+}

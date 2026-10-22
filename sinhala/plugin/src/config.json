@@ -5,15 +5,15 @@
     "ta": "சிங்கள கருவிகள்"
   },
   "guid": "asc.{B50BAEE2-4EAC-4298-9DD2-73CC3223FFFA}",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "minVersion": "8.2.0",
   "offered": "WorkSuite",
   "variations": [
     {
-      "description": "Convert legacy Sinhala fonts (FM Abhaya, DL Manel, Kaputa) to Unicode and back, find legacy text, apply Noto Sinhala fonts and check Sinhala text.",
+      "description": "Convert legacy Sinhala fonts (FM Abhaya, DL Manel, Kaputa) to Unicode and back, find legacy text, apply Noto Sinhala fonts, check Sinhala text, and type Sinhala in Singlish with suggested words.",
       "descriptionLocale": {
-        "si": "පැරණි සිංහල අකුරු (FM Abhaya, DL Manel, Kaputa) යුනිකෝඩ් බවට සහ ආපසු හරවන්න, පැරණි අකුරු සොයන්න, Noto සිංහල අකුරු යොදන්න සහ සිංහල පෙළ පරීක්ෂා කරන්න.",
-        "ta": "பழைய சிங்கள எழுத்துருக்களை (FM Abhaya, DL Manel, Kaputa) யூனிகோடாகவும் மீண்டும் மாற்றவும், பழைய உரையைக் கண்டறியவும், Noto சிங்கள எழுத்துருக்களைப் பயன்படுத்தவும், சிங்கள உரையைச் சரிபார்க்கவும்."
+        "si": "පැරණි සිංහල අකුරු (FM Abhaya, DL Manel, Kaputa) යුනිකෝඩ් බවට සහ ආපසු හරවන්න, පැරණි අකුරු සොයන්න, Noto සිංහල අකුරු යොදන්න සහ සිංහල පෙළ පරීක්ෂා කරන්න, සහ යෝජිත වචන සමඟ සිංග්ලිෂ් වලින් සිංහල ටයිප් කරන්න.",
+        "ta": "பழைய சிங்கள எழுத்துருக்களை (FM Abhaya, DL Manel, Kaputa) யூனிகோடாகவும் மீண்டும் மாற்றவும், பழைய உரையைக் கண்டறியவும், Noto சிங்கள எழுத்துருக்களைப் பயன்படுத்தவும், சிங்கள உரையைச் சரிபார்க்கவும், பரிந்துரைக்கப்பட்ட சொற்களுடன் சிங்லிஷில் சிங்களம் தட்டச்சு செய்யவும்."
       },
       "url": "index.html",
       "icons": ["resources/light/icon.png", "resources/light/icon@2x.png"],
@@ -26,7 +26,7 @@
       "type": "background",
       "initDataType": "none",
       "buttons": [],
-      "events": ["onToolbarMenuClick"]
+      "events": ["onToolbarMenuClick", "onInputHelperInput", "onInputHelperClear", "onKeyDown"]
     }
   ]
 }

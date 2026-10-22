@@ -9,13 +9,16 @@ name: Publish to the WorkSuite Update Center
 # Settings: the secrets UC_CI_TOKEN ("<client_id>.<secret>" of a CI API client) and UC_CI_KEY (the base64
 # libsodium Ed25519 secret key whose public half is pinned as a CI attestation key), and the variable
 # UC_CI_KEY_ID when that key is not ws-ci-1. With the variable SPARKLE_PUBLIC_ED_KEY set, the script checks
-# the DMG's Sparkle signature and refuses a DMG without one.
+# the DMG's Sparkle signature and refuses a DMG without one, and checks a Windows installer's WinSparkle
+# signature (<installer>.edsig, UPD-04) when the build made one.
+# A Mac run holds an arm64 and an x64 DMG (UPD-07); both are uploaded. Older runs with only arm64 still publish.
+# Linux packages reach the APT and RPM repositories once the release is approved: publish-linux-repos.yml.
 
 on:
   workflow_dispatch:
     inputs:
       mac_run:
-        description: Run ID of a "Build WorkSuite Office (macOS arm64)" run whose DMG to publish (empty for none)
+        description: Run ID of a "Build WorkSuite Office (macOS)" run whose DMGs (arm64, x64) to publish (empty for none)
         default: ''
       desktop_run:
         description: Run ID of a "Build WorkSuite Office (Windows/Linux)" run whose installers to publish (empty for none)
@@ -29,7 +32,7 @@ on:
       version:
         description: Version
         required: true
-        default: 10.1.0
+        default: 10.1.1
       build:
         description: Build number. With a Mac build it must be the app's CFBundleVersion, 1000 + that run's number unless build_number was given
         required: true
@@ -114,7 +117,8 @@ jobs:
         if: inputs.mac_run != ''
         uses: actions/download-artifact@v4
         with:
-          name: macos-arm64-dmg
+          pattern: macos-*-dmg
+          merge-multiple: true
           path: dist/macos
           run-id: ${{ inputs.mac_run }}
           github-token: ${{ github.token }}
@@ -159,7 +163,8 @@ jobs:
           }
           echo "### Installers" >> "$GITHUB_STEP_SUMMARY"
           if [ -n "$MAC_RUN" ]; then
-            add required macos arm64 dmg dist/macos '*.dmg'
+            add required macos arm64 dmg dist/macos '*-arm64.dmg'
+            add optional macos x64 dmg dist/macos '*-x64.dmg'
           fi
           if [ -n "$DESKTOP_RUN$WINDOWS_RUN" ]; then
             add required windows x64 exe dist/windows '*.exe'

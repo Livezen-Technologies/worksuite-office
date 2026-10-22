@@ -4,7 +4,9 @@
 Copies build/editors/ over web-apps (the tab's controller and view) and registers the
 controller in the PDF Editor's app.js and app_dev.js, after the Redact tab's. The tab
 converts the open PDF to Word, images, text, a web page or an e-book with the converter
-the editors already have. Works on the Euro-Office web-apps (Windows/Linux) and the
+the editors already have,
+saves as PDF/A, and recognises the text of scanned pages (OCR, with the engine build/v10/ocr.sh ships
+in the desktop app). Works on the Euro-Office web-apps (Windows/Linux) and the
 ONLYOFFICE web-apps (macOS), and again on a web-apps it has patched.
 
 Usage: patch-pdf-convert.py [path/to/web-apps]   (default: the web-apps submodule)
