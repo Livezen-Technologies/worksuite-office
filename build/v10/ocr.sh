@@ -15,7 +15,10 @@ trap 'rm -rf "$tmp"' EXIT
 
 fetch() { # url sha256 file
   curl -fsSL --retry 3 -o "$tmp/$3" "$1"
-  echo "$2  $tmp/$3" | sha256sum -c --quiet - || { echo "ocr.sh: $1 does not match its sha256" >&2; exit 1; }
+  # sha256sum on Linux and Windows' Git Bash, shasum on macOS
+  local got
+  if command -v sha256sum >/dev/null; then got="$(sha256sum "$tmp/$3" | cut -d' ' -f1)"; else got="$(shasum -a 256 "$tmp/$3" | cut -d' ' -f1)"; fi
+  [ "$got" = "$2" ] || { echo "ocr.sh: $1 does not match its sha256 ($got)" >&2; exit 1; }
 }
 fetch https://registry.npmjs.org/tesseract.js/-/tesseract.js-6.0.1.tgz \
   4a208f2560a527ea9fc339ba2fdf125c13bca6638c194a149379601a1418d0ed tesseract.js.tgz
