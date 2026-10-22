@@ -72,3 +72,6 @@ PY
 
 # Sinhala Tools: the plugin and the Noto Sinhala fonts
 bash "$repo/build/v10/sinhala.sh" "$repo"
+
+# The PDF Editor's text recognition (OCR): tesseract.js and the English, Sinhala and Tamil models
+bash "$repo/build/v10/ocr.sh" "$repo"

@@ -117,6 +117,10 @@ jobs:
         working-directory: oo
         run: bash ../worksuite-office/build/v10/sinhala.sh "$GITHUB_WORKSPACE/worksuite-office"
 
+      - name: Text recognition for the PDF Editor (tesseract.js, English/Sinhala/Tamil models)
+        working-directory: oo
+        run: bash ../worksuite-office/build/v10/ocr.sh "$GITHUB_WORKSPACE/worksuite-office"
+
       - name: Build the start page (Vite)
         working-directory: oo/desktop-apps/common/loginpage
         run: |
