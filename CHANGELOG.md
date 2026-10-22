@@ -7,7 +7,7 @@
 #### Build
 
 * The Windows build no longer stops on the Sinhala word lists: Git kept
-  converting their line endings, so their checksums did not match
+  converting their line endings, so they no longer matched their pinned hashes
 
 ## 10.1.1
 
