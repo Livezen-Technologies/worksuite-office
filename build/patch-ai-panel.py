@@ -113,7 +113,7 @@ path = src / "routes" / "settings" / "general" / "index.jsx"
 text = path.read_text(encoding="utf-8")
 text = replace_once(text, 'import { aichat } from "@/stores/aichat";',
                     'import { aichat, openSidePanel, closeSidePanel } from "@/stores/aichat";', path)
-anchor = ('<Switch id="chb-use-ai" checked={settings.useai !== false} onChange={(v) => setSettings("useai", v)} />\n'
+anchor = ('<Switch id="chb-use-ai" checked={settings.useai !== false && policy().aiFunctions !== "off"} disabled={policy().aiFunctions === "off"} onChange={(v) => setSettings("useai", v)} />\n'
           '          </div>\n'
           '        </Show>\n')
 row = ('\n        {/* WorkSuite: the AI agent side panel, as its Hide button and AI Chat leave it */}\n'

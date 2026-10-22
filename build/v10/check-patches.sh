@@ -23,8 +23,8 @@ for f in build-linux-v10.yml build-windows-v10.yml; do
 done
 echo "All 10.x builds: ONLYOFFICE $oo_tag"
 
-# "patch-x.py <repository>" for each patch call; the repository is the last path part (web-apps, sdkjs, ...)
-calls() { grep -oE 'build/patch-[A-Za-z0-9_-]+\.py"? +[^ ;)&|]+' "$1" | sed -E 's#^build/##; s#"##g; s# +# #; s# [^ ]*/# #' | sort -u; }
+# "patch-x.py <repository> [<repository> ...]" for each patch call; each repository is the last path part
+calls() { grep -oE 'build/patch-[A-Za-z0-9_-]+\.py"?( +[^ ;)&|]+)+' "$1" | sed -E 's#^build/##; s#"##g; s# +# #g; s# [^ ]*/# #g' | sort -u; }
 win_linux="$(calls "$repo/build/v10/prepare.sh")"
 mac="$(calls "$wf/build-mac.yml")"
 [ -n "$win_linux" ] || fail "prepare.sh applies no build/patch-*.py"
@@ -41,12 +41,25 @@ for p in "$repo"/build/patch-*.py; do
 done
 
 mkdir -p "$work"
-for r in $(cut -d' ' -f2 <<<"$win_linux" | sort -u); do
-  [ -d "$work/$r" ] || git clone -q --depth 1 -b "$oo_tag" "https://github.com/ONLYOFFICE/$r.git" "$work/$r"
+# desktop-apps is WorkSuite's fork at the commit the builds pin (one ref for all three: checked below);
+# everything else is ONLYOFFICE's at OO_TAG
+da_ref="$(sed -n 's/^  DESKTOP_APPS_REF: *//p' "$wf/build-mac.yml" | head -1)"
+for f in build-linux-v10.yml build-windows-v10.yml; do
+  [ "$(sed -n 's/^  DESKTOP_APPS_REF: *//p' "$wf/$f" | head -1)" = "$da_ref" ] || echo "::warning::$f pins desktop-apps $(sed -n 's/^  DESKTOP_APPS_REF: *//p' "$wf/$f" | head -1), build-mac.yml $da_ref"
 done
-while read -r script r; do
-  echo "::group::$script $r ($oo_tag)"
-  python3 "$repo/build/$script" "$work/$r"
+for r in $(cut -d' ' -f2- <<<"$win_linux" | tr ' ' '\n' | sort -u); do
+  [ -d "$work/$r" ] && continue
+  if [ "$r" = desktop-apps ]; then
+    git clone -q https://github.com/Livezen-Technologies/worksuite-office-desktop-apps.git "$work/$r"
+    git -C "$work/$r" fetch -q origin "$da_ref" && git -C "$work/$r" checkout -q --detach "$da_ref"
+  else
+    git clone -q --depth 1 -b "$oo_tag" "https://github.com/ONLYOFFICE/$r.git" "$work/$r"
+  fi
+done
+while read -r script rs; do
+  echo "::group::$script $rs ($oo_tag)"
+  args=(); for r in $rs; do args+=("$work/$r"); done
+  python3 "$repo/build/$script" "${args[@]}"
   echo "::endgroup::"
 done <<<"$win_linux"
 echo "Every patch applies to ONLYOFFICE $oo_tag"
