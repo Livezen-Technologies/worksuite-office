@@ -1,5 +1,97 @@
 # Change log
 
+## 10.1.1
+
+### New features
+
+#### WorkSuite Drive
+
+* Rename, move, copy, move to bin (with Undo), version history with Restore,
+  and Share now work inside WorkSuite Office instead of in the browser
+  (DRV-08…10)
+* An account and company switcher in the WorkSuite Drive header; lists show
+  the chosen company's files (DRV-11)
+* New from template: your company's templates, by category, beside a blank
+  file (DOC-06)
+* A WorkSuite link opens with the right account: when more than one account
+  could open it, you choose; links to mail attachments open a read-only copy
+  that you save to a Drive folder (LNK-04, LNK-05)
+
+#### Settings and administration
+
+* Settings › WorkSuite: your accounts and how each signed in, the default
+  server, whether Drive documents open in WorkSuite Office or the browser,
+  and updates with the Stable or Beta channel (SHL-08)
+* An Update ready banner and dialog with what's new and Restart to update
+* Organisations can manage WorkSuite Office: the server, the update channel,
+  other cloud services, usage reports and AI functions, through the Windows
+  registry or MSI, a macOS configuration profile or a Linux policy file. The
+  settings they set are shown and locked (ADM-01, ADM-02)
+* Other cloud services (Box, Dropbox, kDrive, Liferay, Moodle, Nextcloud,
+  ownCloud, Seafile, Odoo) are hidden unless your organisation allows them
+  (CLD-02)
+* WorkSuite Office says when a WorkSuite server is too old for it, instead of
+  failing to sign in (AUTH-02)
+* WorkSuite AI is offered as the editors' AI provider when your server has
+  it (AIL-01)
+
+#### Sinhala Tools
+
+* Sinhala input: type Singlish in the document and pick the Sinhala word from
+  a list beside the cursor, as with Google Input Tools. Space, Enter or
+  punctuation writes the highlighted word, 1 to 9 picks one, Esc keeps the
+  Latin letters. It completes longer words and learns the words you pick, on
+  this computer only. Turn it on with Sinhala input on the Sinhala Tools tab
+  or Ctrl+Shift+Y
+
+#### PDF Editor
+
+* Recognise text (OCR) in English, Sinhala and Tamil on scanned PDFs, on this
+  computer: make the PDF searchable, convert it to Word or save it as PDF/A
+  (PDF-03)
+* Save as PDF/A-2 from the Convert tab (PDF-04)
+
+#### AI agent
+
+* Hide the AI agent panel from its header; it stays hidden until AI Chat or
+  Settings › General › Show AI agent panel opens it again
+
+#### Updates and installers
+
+* Windows copies update themselves from the WorkSuite Update Center, with
+  signed updates (UPD-04)
+* Linux updates through signed APT and RPM repositories (UPD-05)
+* Intel Macs get their own build and update feed (UPD-07)
+* Builds are code signed once the signing keys are set up: Authenticode on
+  Windows, Developer ID with notarisation on macOS, GPG for Linux (UPD-06)
+
+#### Languages
+
+* WorkSuite's own words in Sinhala and Tamil (AIL-02)
+
+### Fixes
+
+#### WorkSuite
+
+* On Linux, your WorkSuite sign-in is kept in the system keyring (GNOME
+  Keyring, KWallet, KeePassXC) instead of a file (AUTH-13)
+* The About window on macOS shows the WorkSuite Office icon
+* The AI agent panel's Connect an AI Model screen fits narrow panels, and its
+  header buttons line up
+* The Check workflow runs the WorkSuite tests and checks every editor patch
+  against the sources each platform builds from
+
+### Known issues
+
+* PDF to Excel and PowerPoint is not available: the editors' converter cannot
+  make spreadsheets or presentations from a PDF (PDF-02)
+* Offline editing of Drive documents is not available yet (DOC-07)
+* Sinhala and Tamil words are machine translations awaiting review
+* Sinhala input edits the word being typed with Backspace in documents only;
+  suggestions beyond the commonest words are ranked by length
+* Updates are signed and code signed only once the keys are added to the
+  build; until then the macOS build asks before opening the first time
+
 ## 10.1.0
 
 ### New features
