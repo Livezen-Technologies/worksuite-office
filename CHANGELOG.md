@@ -1,5 +1,14 @@
 # Change log
 
+## 10.1.2
+
+### Fixes
+
+#### Build
+
+* The Windows build no longer stops on the Sinhala word lists: Git kept
+  converting their line endings, so their checksums did not match
+
 ## 10.1.1
 
 ### New features
