@@ -111,6 +111,7 @@ jobs:
         run: |
           python worksuite-office/build/patch-editor-menu.py oo/web-apps
           python worksuite-office/build/patch-pdf-convert.py oo/web-apps
+          python worksuite-office/build/patch-ai-panel.py oo/desktop-sdk oo/desktop-apps
 
       - name: Sinhala Tools (plugin and Noto Sinhala fonts)
         working-directory: oo
