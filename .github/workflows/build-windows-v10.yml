@@ -34,7 +34,8 @@ on:
 
 env:
   OO_TAG: v10.0.0.176
-  BUILD_TOOLS_REF: master
+  BUILD_TOOLS_REF: release/v9.4.0
+  BUILD_TOOLS_SHA: cf4cac0846d03e2e00a6fec5d1ecd4e9463086d5
   DESKTOP_APPS_REF: c6ba148cae093a37997bd9634e33a22fcc7392d4
   PRODUCT_VERSION: 10.1.2
   # depot_tools (V8) stays at the pinned commit: its self-update collides with build_tools' bootstrap edits
@@ -131,6 +132,11 @@ jobs:
         working-directory: C:/oo
         run: |
           git clone --depth 1 -b "$BUILD_TOOLS_REF" https://github.com/ONLYOFFICE/build_tools.git
+          # Pinned, not just named: `-b` follows a branch head, and build/v10/prepare.sh patches
+          # build_tools by matching exact source text. When the head moves the patches stop
+          # applying and the build dies in `prepare`, which is what `master` did here.
+          git -C build_tools fetch --depth 1 origin "$BUILD_TOOLS_SHA"
+          git -C build_tools checkout --detach "$BUILD_TOOLS_SHA"
           [ -n "$REUSE_BUILD_RUN" ] || for r in core sdkjs sdkjs-forms web-apps dictionaries core-fonts desktop-sdk document-templates; do
             git clone --depth 1 -b "$OO_TAG" --recurse-submodules --shallow-submodules "https://github.com/ONLYOFFICE/$r.git"
           done
