@@ -7,12 +7,12 @@
 #### Branding
 
 * The application icon is WorkSuite's everywhere one is set: the Windows
-  executable and window, the macOS app catalogue, the Linux hicolor set and
-  the update daemon. Document-type icons are untouched
+  program and its window, the macOS app, the Linux desktop icons and the
+  update service. The icons for each document type are unchanged
 * The start page shows the WorkSuite loading screen while the app comes up,
   in place of the turning circle, and holds still under reduced motion
-* In-app spinners are the brand's four squares, matching the web and desktop
-  apps
+* While the app is busy it shows the brand's four squares, dimming one after
+  another, as the web and desktop apps do
 
 ## 10.1.2
 

@@ -32,7 +32,7 @@ on:
       version:
         description: Version
         required: true
-        default: 10.1.2
+        default: 10.1.3
       build:
         description: Build number. With a Mac build it must be the app's CFBundleVersion, 1000 + that run's number unless build_number was given
         required: true
