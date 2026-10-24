@@ -1,5 +1,19 @@
 # Change log
 
+## 10.1.3
+
+### Changes
+
+#### Branding
+
+* The application icon is WorkSuite's everywhere one is set: the Windows
+  executable and window, the macOS app catalogue, the Linux hicolor set and
+  the update daemon. Document-type icons are untouched
+* The start page shows the WorkSuite loading screen while the app comes up,
+  in place of the turning circle, and holds still under reduced motion
+* In-app spinners are the brand's four squares, matching the web and desktop
+  apps
+
 ## 10.1.2
 
 ### Fixes
