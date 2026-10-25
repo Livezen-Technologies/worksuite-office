@@ -10,6 +10,7 @@ export { Issue, IssueCode, normalize, validate } from "./normalize";
 export { Option, Piece, Segment as TranslitSegment, Variant, VowelKey, render, segment, transliterate, variants } from "./translit";
 export { Candidate, CandidateOptions, LearnedData, Learner, Lexicon, candidates } from "./suggest";
 export { ImeAction, ImeOptions, SinhalaIme } from "./ime";
+export { COLLOQUIAL, EnglishWords, SmartDecision, SmartReason, smartDecision } from "./smart";
 export { isSinhala, isConsonant, ZWJ, ZWNJ } from "./script";
 
 export const VERSION = "1.1.0";

@@ -6,7 +6,8 @@ guid {9DC93CDB-B576-4F0C-B55E-FCC9C48DD777}). build_tools copies its prebuilt de
 is; the start page shows it in its AI side panel (or full page) in an iframe.
 
 - The "Connect an AI Model" empty state is compact and centred: a small AI icon, a 17px semibold
-  heading, 13px muted text and one 6px-rounded button, nothing clipped in a 300px panel.
+  heading, 13px muted text and one 6px-rounded button, nothing clipped in a 300px panel. It is
+  centred in the whole panel: the closed chat-history toggle sits over it at the header's inset.
 - The header is one aligned 48px row (title, New chat, Settings) with a Hide button at its end.
   Hide sends the start page the plugin's "collapse" event (and "minimize" first from the full
   page), which closes the panel and remembers it closed.
@@ -84,6 +85,12 @@ for old, new in (
     js = replace_once(js, old, new, path)
 js = sub_once(js, r'(\w+\.jsx\(\w+,\{)(onClick:\(\)=>\w+\("settings"\),children:\w+\("ConnectAIModelBtn"\)\}\))',
               r'\1className:"ws-ai-empty__btn",\2', path, 'className:"ws-ai-empty__btn"')
+# Layout (src/components/layout): the body row below the header and the closed history toggle,
+# which ws-ai-panel.css lifts out of the flow on the empty state so the block centres in the panel
+js = replace_once(js, 'className:"flex flex-row flex-1",style:{height:"calc(100vh - 56px)"}',
+                  'className:"ws-ai-body flex flex-row flex-1",style:{height:"calc(100vh - 48px)"}', path)
+js = sub_once(js, r'className:"ms-\[32px\] mt-\[24px\]"(,children:\w+\.jsx\(\w+,\{tooltip:\w+\("ChatHistory"\))',
+              r'className:"ws-ai-history-toggle"\1', path, 'className:"ws-ai-history-toggle"')
 # Header (src/components/layout/sub-components/Header.tsx)
 js = replace_once(js, '"w-full flex justify-between items-center h-[56px] min-h-[56px] box-border border-b-[1px] '
                       'border-[var(--header-border-color)] bg-[var(--header-background-color)] px-[32px]"',

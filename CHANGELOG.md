@@ -1,5 +1,69 @@
 # Change log
 
+## 10.1.4
+
+### New features
+
+#### Sinhala Tools
+
+* Type Singlish straight into a document in four input modes: English,
+  Sinhala Unicode, Sinhala legacy font and Smart Auto. Each word is written in
+  the chosen Sinhala font, or encoded for a legacy font and written in it, as
+  one undo step. Ctrl+Shift+Y turns typing on and off
+* A Sinhala font menu and a searchable font picker with samples and whether
+  each font is installed; legacy fonts without a character map are shown but
+  can't be chosen
+* Word suggestions from the word list, common Singlish spellings and your own
+  picks, with optional local AI suggestions (off by default)
+* Convert to legacy opens a dialog to choose the font or convert the other
+  way, check that the font is installed, preview the result and see
+  characters the font can't show
+
+#### Settings
+
+* Settings › WorkSuite is redesigned: Accounts, WorkSuite Drive, Updates,
+  Advanced and About sections, readable in dark mode, usable by keyboard,
+  with locked settings still locked
+* An add-account wizard: check the server, continue as a WorkSuite Desktop
+  account or sign in with another, then check the session. Each account can
+  be signed in, reconnected, switched to, signed out or removed
+* WorkSuite Drive shows a compact "Connect your WorkSuite account" card with
+  one account picker, and a connection summary once signed in
+
+#### Branding
+
+* A new WorkSuite Office app icon on macOS, Windows (app and installer) and
+  Linux, with new installer artwork and About and start page logos
+* The loading screen is the navy WorkSuite Office animation; it plays offline
+  and shows a still frame when reduced motion is on
+
+### Fixes
+
+#### Settings
+
+* About WorkSuite Office opened empty; it now shows the product, version,
+  developer (Livezen Technologies LLC), copyright and website
+* Add account and every other WorkSuite dialog (Sign in, New document, Move,
+  Versions, Share, Open link) opened invisibly behind the dimmed page
+
+#### Sinhala Tools
+
+* Every ribbon button showed the same icon; each now has its own, for light
+  and dark themes at every display scale, with a tooltip
+* Convert to legacy left the text in the old font, so it showed as Latin
+  letters; the legacy font is now applied with the text in one undo step
+
+#### Start page
+
+* The WorkSuite item in the left sidebar uses an outlined icon like the
+  others, in light and dark themes
+* The loading screen no longer shows an attribution line
+
+#### AI agent
+
+* The "Connect an AI Model" screen is centred in the whole panel, with an
+  evenly wrapped title, and the chat history button lines up with the header
+
 ## 10.1.3
 
 ### Changes
