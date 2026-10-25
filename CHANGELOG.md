@@ -41,6 +41,8 @@
 
 #### Settings
 
+* About WorkSuite Office opened empty; it now shows the product, version,
+  developer (Livezen Technologies LLC), copyright and website
 * Add account and every other WorkSuite dialog (Sign in, New document, Move,
   Versions, Share, Open link) opened invisibly behind the dimmed page
 
