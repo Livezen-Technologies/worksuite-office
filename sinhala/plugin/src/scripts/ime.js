@@ -230,7 +230,8 @@
 
   function popupSize(a) {
     var longest = a.items.reduce(function (m, i) { return Math.max(m, i.text.length); }, (a.token || "").length + (a.ghost || "").length);
-    return [Math.round(Math.max(200, Math.min(320, 84 + longest * 9))), 24 + 26 * a.items.length + 20 + 2];
+    // wide enough for the footer's key hint (longer while composing Singlish), at most 320 px
+    return [Math.round(Math.max(a.composing ? 270 : 200, Math.min(320, 84 + longest * 9))), 24 + 26 * a.items.length + 20 + 2];
   }
 
   function apply(actions) {
