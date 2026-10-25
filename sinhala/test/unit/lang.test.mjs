@@ -118,3 +118,25 @@ test("words that are both: game and tea are English first, game offers Sinhala s
   assert.equal(shared.suggest({ before: "api", mode: "smart" }).items[0].lang, "en");
   assert.equal(shared.suggest({ before: "mama oya api", mode: "smart" }).items[0].text, "අපි");
 });
+
+test("the worked examples of docs/sinhala/smart-typing.md §2.7", () => {
+  const rows = [
+    ["meeting", "R9", "en", ["meetings", "මීටිං", "මීටින්ග්"]],
+    ["meeting eka", "R7", "singlish", ["එක", "එක්ක", "එකක්"]],
+    ["kanna", "R9", "singlish", ["කන්න", "කන්නට", "කන්නේ"]],
+    ["docu", "R9", "en", ["document", "documents", "documentation"]],
+    ["send to Kamal", "R3", "en", []],
+    ["see report.docx", "R2", "en", []],
+    ["PDF", "R3", "en", []],
+    ["the game", "R9", "en", ["games", "ගමෙ", "ගමේ"]],
+    ["tea", "R9", "en", ["team", "tear", "teach"]],
+    ["api", "R11", "en", ["api", "අපි", "අපිම"]],
+    ["mama oya api", "R10", "singlish", ["අපි"]],
+    ["ලිය", "R1", "si", ["ලියන්න", "ලියනවා", "ලියවිල්ල"]]
+  ];
+  for (const [before, rule, lang, top] of rows) {
+    const r = shared.suggest({ before, mode: "smart" });
+    assert.deepEqual([r.decision.rule, r.decision.lang], [rule, lang], before);
+    assert.deepEqual(r.items.slice(0, top.length).map((i) => i.text), top, before);
+  }
+});
