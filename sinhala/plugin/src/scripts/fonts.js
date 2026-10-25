@@ -1,6 +1,7 @@
 /*
  * The Sinhala font picker (fonts.html): Unicode fonts and legacy fonts with a map, searchable, each with
- * a sample in that font and whether it is installed; legacy fonts without a map are listed disabled.
+ * a sample in that font and whether it is installed; legacy fonts without a map are listed disabled. Each legacy
+ * family is its own row (DL-Sarala and Kumudu use DL Manel's map, Padma Thara's, Lankanatha Kandy's).
  * plugin.js sends onFontsInit { catalog, typing, sample } and gets onFontsChoose { unicode } or
  * { profile, name }, or onFontsCancel.
  */
@@ -34,11 +35,11 @@
   function build() {
     rows = [];
     data.catalog.unicode.forEach(function (f) { rows.push({ group: "unicode", name: f.name, label: f.name, installed: f.installed, bundled: f.bundled, enabled: true }); });
-    data.catalog.legacy.forEach(function (f) { rows.push({ group: "legacy", name: f.name, label: f.label, profile: f.profile, installed: f.installed, enabled: f.mapped }); });
+    data.catalog.legacy.forEach(function (f) { rows.push({ group: "legacy", name: f.name, label: f.label, profile: f.profile, primary: f.primary !== false, installed: f.installed, enabled: f.mapped }); });
     var t = data.typing || {};
     current = -1;
     rows.forEach(function (r, i) {
-      if (t.mode === "legacy" ? r.profile && r.profile === t.legacyProfile : !r.profile && r.name === t.unicodeFont) current = i;
+      if (t.mode === "legacy" ? r.profile && r.profile === t.legacyProfile && (r.name === t.legacyFont || (!t.legacyFont && r.primary)) : !r.profile && r.name === t.unicodeFont) current = i;
     });
     render();
   }
@@ -96,7 +97,7 @@
       e.preventDefault();
       var r = rows[current];
       if (!r || !r.enabled) return;
-      plugin.sendToPlugin("onFontsChoose", r.profile ? { profile: r.profile, name: r.installed ? r.name : "" } : { unicode: r.name });
+      plugin.sendToPlugin("onFontsChoose", r.profile ? { profile: r.profile, name: r.installed || !r.primary ? r.name : "" } : { unicode: r.name });
     });
     document.addEventListener("keydown", function (e) { if (e.keyCode === 27) plugin.sendToPlugin("onFontsCancel", {}); });
     if (plugin.theme) applyTheme(plugin.theme);

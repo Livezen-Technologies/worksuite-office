@@ -24,7 +24,7 @@
   var SETTINGS_KEY = "worksuite-sinhala-tools";
   var MAX_LIST = 200;
 
-  var settings = { profile: "auto", legacyProfile: "fm-abhaya", font: FONTS[0] };
+  var settings = { profile: "auto", legacyProfile: "fm-abhaya", legacyFamily: "", font: FONTS[0] };
   try {
     var saved = JSON.parse(window.localStorage.getItem(SETTINGS_KEY) || "null");
     if (saved && typeof saved === "object") {
@@ -227,8 +227,18 @@
 
   // The legacy font's name as this computer has it installed (FMAbhaya, FM Abhaya, ...), else its usual name.
   var installedFonts = [];
+  // A family chosen in the Convert dialog (Kumudu, Padma, ...) is used while its profile is the one chosen.
   function legacyFontName(profile) {
     var lower = installedFonts.map(function (n) { return n.toLowerCase(); });
+    var family = settings.legacyFamily;
+    if (family && S.legacyFonts().some(function (f) { return f.profile === profile.id && f.family === family; })) {
+      var names = familyNames(family);
+      for (var j = 0; j < names.length; j++) {
+        var hit = lower.indexOf(names[j].toLowerCase());
+        if (hit >= 0) return installedFonts[hit];
+      }
+      return family;
+    }
     for (var i = 0; i < profile.fontNames.length; i++) {
       var at = lower.indexOf(profile.fontNames[i].toLowerCase());
       if (at >= 0) return installedFonts[at];
@@ -276,7 +286,7 @@
           var init = {
             direction: prefer === "toLegacy" || prefer === "toUnicode" ? prefer : SINHALA.test(text) ? "toLegacy" : "toUnicode",
             text: text, selectionFont: sel.font, mixed: !!sel.mixed,
-            legacyProfile: settings.legacyProfile, unicodeFont: settings.font,
+            legacyProfile: settings.legacyProfile, legacyFamily: settings.legacyFamily, unicodeFont: settings.font,
             installed: installedFonts, fontListKnown: Array.isArray(list)
           };
           if (dialog) { try { dialog.close(); } catch (e) { /* closed */ } }
@@ -287,7 +297,11 @@
             closeDialog();
             if (!data) return;
             if (data.direction === "toUnicode") { convertSelection(false, knownProfile(data.profile) ? data.profile : null); return; }
-            if (knownProfile(data.profile)) { settings.legacyProfile = data.profile; saveSettings(); }
+            if (knownProfile(data.profile)) {
+              settings.legacyProfile = data.profile;
+              settings.legacyFamily = typeof data.font === "string" ? data.font : "";
+              saveSettings();
+            }
             convertToLegacyNow(false);
           });
           dialog.show({
@@ -443,9 +457,17 @@
   var UNICODE_FONTS = ["Noto Sans Sinhala", "Noto Serif Sinhala", "Iskoola Pota", "Nirmala UI", "Sinhala MN",
     "Sinhala Sangam MN", "Noto Sans Sinhala UI", "Abhaya Libre", "Yaldevi", "Gemunu Libre", "Malithi Web", "LKLUG"];
   var LEGACY_NO_MAP = ["FM Bindumathi", "FM Ganganee", "FM Malithi", "FM Derana", "FM Basuru", "FM Emanee",
-    "DL Araliya", "DL Paras", "DL Sarala", "Kandy"];
-  var BUNDLED = ["Noto Sans Sinhala", "Noto Serif Sinhala"];
+    "DL Araliya", "DL Paras"];
+  var BUNDLED = ["Noto Sans Sinhala", "Noto Serif Sinhala", "Malithi Web"];
   var installedFontList = null; // null until GetFontList answers
+
+  // "DL-Sarala." (the family name these old fonts carry, dot included) is also installed as "DL-Sarala", "DL Sarala"
+  function familyNames(family) {
+    var bare = family.replace(/\.$/, "");
+    var out = [family, bare, bare.replace(/[-\s]+/g, " "), bare.replace(/[-\s]+/g, "")];
+    return out.filter(function (n, i) { return out.indexOf(n) === i; });
+  }
+  function familyLabel(family) { return family.replace(/\.$/, ""); }
 
   function fontCatalog() {
     var have = installedFontList || [];
@@ -462,9 +484,14 @@
     have.forEach(function (n) {
       if (/sinhala/i.test(n) && !unicode.some(function (u) { return u.name.toLowerCase() === n.toLowerCase(); })) unicode.push({ name: n, installed: true });
     });
-    var legacy = S.builtinProfiles.map(function (p) {
-      var name = installed(p.fontNames);
-      return { profile: p.id, name: name || p.fontNames[0], label: p.name, installed: !!name, mapped: true };
+    // one row per font family: DL-Sarala, Kumudu and the others share DL Manel's map, Padma Thara's
+    var seen = {};
+    var legacy = S.legacyFonts().map(function (f) {
+      var p = S.getProfile(f.profile);
+      var primary = !seen[f.profile];
+      seen[f.profile] = true;
+      var name = primary && !p.fonts ? installed(p.fontNames) : installed(familyNames(f.family));
+      return { profile: f.profile, family: f.family, primary: primary, name: name || f.family, label: familyLabel(f.family), installed: !!name, mapped: true };
     });
     LEGACY_NO_MAP.forEach(function (n) {
       legacy.push({ profile: null, name: installed([n, n.replace(/ /g, "")]) || n, label: n, installed: !!installed([n, n.replace(/ /g, "")]), mapped: false });
@@ -545,9 +572,12 @@
         menuIds["font-u-" + i] = function () { chooseFont({ unicode: f.name }); };
         return { id: "ws-sinhala-font-u-" + i, text: mark(f.name + (f.installed ? "" : " (" + tr("not installed") + ")"), st.mode !== "legacy" && st.unicodeFont === f.name) };
       });
-      var leg = cat.legacy.filter(function (f) { return f.mapped; }).map(function (f) {
-        menuIds["font-l-" + f.profile] = function () { chooseFont({ profile: f.profile, name: f.installed ? f.name : "" }); };
-        return { id: "ws-sinhala-font-l-" + f.profile, text: mark(f.label + (f.installed ? "" : " (" + tr("not installed") + ")"), st.mode === "legacy" && st.legacyProfile === f.profile) };
+      var leg = cat.legacy.filter(function (f) { return f.mapped; }).map(function (f, i) {
+        var key = "font-l-" + f.profile + (f.primary ? "" : "-" + i);
+        menuIds[key] = function () { chooseFont({ profile: f.profile, name: f.installed || !f.primary ? f.name : "" }); };
+        var on = st.mode === "legacy" && st.legacyProfile === f.profile &&
+          (st.legacyFont ? familyNames(f.family).concat([f.name]).indexOf(st.legacyFont) >= 0 : f.primary);
+        return { id: "ws-sinhala-" + key, text: mark(f.label + (f.installed ? "" : " (" + tr("not installed") + ")"), on) };
       });
       menuIds["font-more"] = openFontPicker;
       return [

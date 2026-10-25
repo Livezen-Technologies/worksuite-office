@@ -6,7 +6,10 @@
 # - fetches Noto Sans Sinhala and Noto Serif Sinhala (pinned, sha256-checked) into core-fonts/worksuite-sinhala
 # - has build_tools' desktop deploy copy both: the plugin to editors/sdkjs-plugins/{guid}, the fonts to
 #   fonts/worksuite-sinhala, which allfontsgen then reads with the other fonts
-# Legacy fonts (FM, DL, Kaputa) are never shipped: the converter only needs their maps.
+# - the WorkSuite-hosted legacy fonts (Thara, Kandy, DL-Sarala, ...: manifest.json "legacy" entries with a url)
+#   go into core-fonts/worksuite-sinhala/legacy with them; one that cannot be fetched yet is a warning and the
+#   build goes on (the editor then uses the user's installed copy). FM, DL Manel and Kaputa are never shipped:
+#   the converter only needs their maps.
 set -euo pipefail
 repo="$1"
 

@@ -34,7 +34,11 @@ const ZWJ = "\u200D";
 const GAPS = {
   "fm-abhaya": { "vowel signs": ["ඃ"], sentence: ["."] },
   "dl-manel": { conjuncts: [ZWJ], rakaransaya: [ZWJ], "vowel signs": ["ඃ"], sentence: [".", ZWJ] },
-  "kaputa": { conjuncts: [ZWJ], rakaransaya: [ZWJ], "vowel signs": ["ඃ"], sentence: [".", ZWJ] }
+  "kaputa": { conjuncts: [ZWJ], rakaransaya: [ZWJ], "vowel signs": ["ඃ"], sentence: [".", ZWJ] },
+  "lastech": { conjuncts: [ZWJ], rakaransaya: [ZWJ], yansaya: [ZWJ], repaya: ["ධ"], "vowel signs": ["ෘ", "ෟ"],
+    "independent vowels": ["ඌ", "එ", "ඒ", "ඔ", "ඕ", "ඖ"], sentence: [".", ZWJ] },
+  "kandy": { conjuncts: ["ි", ZWJ], rakaransaya: [ZWJ], yansaya: [ZWJ], "vowel signs": ["ඃ", "්", "ි", "ී", "ු", "ූ", "ෛ"],
+    "independent vowels": ["ඖ"], sentence: [".", "ි", "ී", ZWJ] }
 };
 
 for (const profile of S.builtinProfiles) {

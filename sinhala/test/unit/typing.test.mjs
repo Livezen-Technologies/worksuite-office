@@ -294,8 +294,11 @@ test("the font picker: Unicode and mapped legacy fonts, others listed without a 
   w.events.onFontsReady();
   const { catalog } = JSON.parse(JSON.stringify(w.commands[0][1]));
   assert.deepEqual(catalog.unicode.map((f) => [f.name, f.installed]),
-    [["Noto Sans Sinhala", false], ["Noto Serif Sinhala", false], ["Iskoola Pota", true], ["Sinhala Sangam MN", true]]);
-  assert.deepEqual(catalog.legacy.filter((f) => f.mapped).map((f) => f.profile), ["fm-abhaya", "dl-manel", "kaputa"]);
+    [["Noto Sans Sinhala", false], ["Noto Serif Sinhala", false], ["Iskoola Pota", true], ["Sinhala Sangam MN", true], ["Malithi Web", false]]);
+  assert.deepEqual([...new Set(catalog.legacy.filter((f) => f.mapped).map((f) => f.profile))], ["fm-abhaya", "dl-manel", "kaputa", "lastech", "kandy"]);
+  assert.deepEqual(catalog.legacy.filter((f) => f.profile === "dl-manel").map((f) => f.label),
+    ["DL Manel", "DL-Sarala", "Dl-Nisansala", "FS-Kapila", "FS-Dilrukshi", "Sinhala - Kumudu", "Ranaviru- PC", "Hemawathy", "Anuradha"]);
+  assert.equal(catalog.legacy.find((f) => f.label === "Kandy").mapped, true, "Kandy now has a map");
   const bindu = catalog.legacy.find((f) => f.label === "FM Bindumathi");
   assert.deepEqual([bindu.mapped, bindu.installed], [false, true]);
   w.events.onFontsChoose({ unicode: "Iskoola Pota" });

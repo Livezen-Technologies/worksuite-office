@@ -1,5 +1,5 @@
 {
-  "notes": "Fonts that ship with Sinhala Tools. No font binaries are kept in git: fetch-fonts.py downloads each archive from its pinned release, checks the archive's and every file's sha256, and extracts only the listed files.",
+  "notes": "Fonts that ship with Sinhala Tools. No font binaries are kept in git: fetch-fonts.py downloads each one from its pinned URL and checks its sha256 (and, for an archive, every extracted file's). Legacy entries with a url are WorkSuite-hosted copies of fonts users supplied; their licence fields quote the fonts' own name tables, and fsType is the font's embedding flag (0 installable, 1 restricted, 4 preview & print). A legacy font that cannot be fetched is a warning, not a failure: the editor then uses the user's installed copy.",
   "unicode": [
     {
       "family": "Noto Sans Sinhala",
@@ -23,11 +23,250 @@
         "NotoSerifSinhala/full/ttf/NotoSerifSinhala-Regular.ttf": "cafa8544ad87a1116d296193cfbf8be39b7927e67fd4af36b7e73105cf2ac85e",
         "NotoSerifSinhala/full/ttf/NotoSerifSinhala-Bold.ttf": "09a843eb8e54be645c2d3b8465886216667acc28e83e5c55d93a93d6c725d427"
       }
+    },
+    {
+      "family": "Malithi Web",
+      "version": "",
+      "licence": "Copyright (c) Pushpananda Ekanayaka, 2001. All rights reserved. Rules by Gihan Dias, ICT Agency, 2004. (no licence text in the font; fsType 0)",
+      "url": "https://download.worksuitecloud.com/fonts/legacy/MalithiWeb.ttf",
+      "sha256": "249adc80afbbdbd56652d3a0c247b9b241b41f33405253017923529756310ed8",
+      "file": "MalithiWeb.ttf",
+      "optional": true
     }
   ],
   "legacy": [
-    { "family": "FM Abhaya", "profile": "fm-abhaya", "distributable": false, "licence": "commercial or unclear: not shipped; organisations with a licence may upload it" },
-    { "family": "DL Manel", "profile": "dl-manel", "distributable": false, "licence": "commercial or unclear: not shipped; organisations with a licence may upload it" },
-    { "family": "Kaputa", "profile": "kaputa", "distributable": false, "licence": "commercial or unclear: not shipped; organisations with a licence may upload it" }
+    {
+      "family": "FM Abhaya",
+      "profile": "fm-abhaya",
+      "distributable": false,
+      "licence": "commercial or unclear: not shipped; organisations with a licence may upload it"
+    },
+    {
+      "family": "DL Manel",
+      "profile": "dl-manel",
+      "distributable": false,
+      "licence": "commercial or unclear: not shipped; organisations with a licence may upload it"
+    },
+    {
+      "family": "Kaputa",
+      "profile": "kaputa",
+      "distributable": false,
+      "licence": "commercial or unclear: not shipped; organisations with a licence may upload it"
+    },
+    {
+      "family": "Thara",
+      "profile": "lastech",
+      "distributable": "decide before upload",
+      "licence": "Copyright (c) 1992,Lastech.All rights reserved. (fsType 4)",
+      "file": "Thara.ttf",
+      "url": "https://download.worksuitecloud.com/fonts/legacy/Thara.ttf",
+      "sha256": "c42f7a0fa96be2d55323b42fe0942d2a19654f1a87f451b90fdcdcb01a1112c1",
+      "uploaded as": [
+        "Thara.ttf"
+      ]
+    },
+    {
+      "family": "Padma",
+      "profile": "lastech",
+      "distributable": "decide before upload",
+      "licence": "Copyright (c) 1992,Lastech.All rights reserved. (fsType 4)",
+      "file": "Padma.ttf",
+      "url": "https://download.worksuitecloud.com/fonts/legacy/Padma.ttf",
+      "sha256": "34e13fa30c76fd19cdfa17ce954b6545824bfbe02ac2d584ad454b5a87d8a609",
+      "uploaded as": [
+        "PADMA1.TTF"
+      ]
+    },
+    {
+      "family": "Kandy",
+      "profile": "kandy",
+      "distributable": "decide before upload",
+      "licence": "Kandy True Type Font - Copy Right Reserved- LN 00001 (fsType 0)",
+      "file": "Kandy.ttf",
+      "url": "https://download.worksuitecloud.com/fonts/legacy/Kandy.ttf",
+      "sha256": "1a0f556d1a869f2cb927f1599e4fc19de024863f2ab64ecd4ad35139fae021ab",
+      "uploaded as": [
+        "Kandy.ttf",
+        "Kandy1.TTF"
+      ]
+    },
+    {
+      "family": "Lankanatha",
+      "profile": "kandy",
+      "distributable": "decide before upload",
+      "licence": "LankaNatha Copy Right Reserved (c)  000000 (fsType 0)",
+      "file": "Lankanatha.ttf",
+      "url": "https://download.worksuitecloud.com/fonts/legacy/Lankanatha.ttf",
+      "sha256": "1926f1cedab5cb30be4c0619d0bab3416726bf4c2c4847ff5ec5b71c7a25761c",
+      "uploaded as": [
+        "LANKA1.TTF"
+      ]
+    },
+    {
+      "family": "Lankapura",
+      "profile": "kandy",
+      "distributable": "decide before upload",
+      "licence": "no copyright or licence in the font (FontMonger; fsType 0)",
+      "file": "Lankapura.ttf",
+      "url": "https://download.worksuitecloud.com/fonts/legacy/Lankapura.ttf",
+      "sha256": "cdff1d524d8a49ca664274a878708b432846ec20c22e02eb2cf2d35d49eb462d",
+      "uploaded as": [
+        "LKPURA.TTF"
+      ]
+    },
+    {
+      "family": "DL-Sarala.",
+      "profile": "dl-manel",
+      "distributable": "decide before upload",
+      "licence": "copyright string unreadable (mis-encoded name table; Altsys Fontographer; fsType 0)",
+      "file": "DLSarala.ttf",
+      "url": "https://download.worksuitecloud.com/fonts/legacy/DLSarala.ttf",
+      "sha256": "865d0838d6f8eb55f64063716bb5406f0d23e05bfda3b27a399a8f540482fdc2",
+      "uploaded as": [
+        "DL - Sarala.ttf",
+        "KSWF001.TTF"
+      ]
+    },
+    {
+      "family": "Dl-Nisansala.",
+      "profile": "dl-manel",
+      "distributable": "decide before upload",
+      "licence": "Generated by Fontographer 3.5 (no copyright or licence; fsType 0)",
+      "file": "DLNisansala.ttf",
+      "url": "https://download.worksuitecloud.com/fonts/legacy/DLNisansala.ttf",
+      "sha256": "e05ff83fde8317581bb00c6508d5f743c47c9e6e5fea4cd892a1ba30097d517e",
+      "uploaded as": [
+        "KKNIS12.TTF",
+        "kknis1.ttf"
+      ]
+    },
+    {
+      "family": "FS-Kapila.",
+      "profile": "dl-manel",
+      "distributable": "decide before upload",
+      "licence": "copyright string unreadable (mis-encoded name table; fsType 1)",
+      "file": "FSKapila.ttf",
+      "url": "https://download.worksuitecloud.com/fonts/legacy/FSKapila.ttf",
+      "sha256": "749980e6b72c0829c4f3f259cde9e480fce14309354f0fe199dee46f018be6c4",
+      "uploaded as": [
+        "DS-Kapila.TTF"
+      ]
+    },
+    {
+      "family": "FS-Dilrukshi.",
+      "profile": "dl-manel",
+      "distributable": "decide before upload",
+      "licence": "copyright string unreadable (mis-encoded name table; fsType 0)",
+      "file": "FSDilrukshi.ttf",
+      "url": "https://download.worksuitecloud.com/fonts/legacy/FSDilrukshi.ttf",
+      "sha256": "4ecc9773728a112cf77ab4b24277ace794213b1e747a8db9b3c03b720c28bafc",
+      "uploaded as": [
+        "V-009.TTF"
+      ]
+    },
+    {
+      "family": "Sinhala - Kumudu",
+      "profile": "dl-manel",
+      "distributable": "decide before upload",
+      "licence": "Designed by HUG Computers. (fsType 1)",
+      "file": "SinhalaKumuduBold.ttf",
+      "url": "https://download.worksuitecloud.com/fonts/legacy/SinhalaKumuduBold.ttf",
+      "sha256": "8d3fe28f82f51b3719359f782a61d3600beddb6ce5d21611037a10b2f06d780f",
+      "uploaded as": [
+        "KUMUDU.TTF"
+      ]
+    },
+    {
+      "family": "Ranaviru- PC",
+      "profile": "dl-manel",
+      "distributable": "decide before upload",
+      "licence": "Micro & Way FontBank Inc. Kolith V. Dissanayake Tele 692822 (fsType 1)",
+      "file": "RanaviruPC.ttf",
+      "url": "https://download.worksuitecloud.com/fonts/legacy/RanaviruPC.ttf",
+      "sha256": "77ef5566d56a0dff5e2fce23626c9b48208536ee12bf4a1b1463330a2c05d3da",
+      "uploaded as": [
+        "RANAVIRU.TTF"
+      ]
+    },
+    {
+      "family": "Hemawathy",
+      "profile": "dl-manel",
+      "distributable": "decide before upload",
+      "licence": "©Ethno Multimedia & Ranjan Shivakumar (fsType 0)",
+      "file": "Hemawathy.ttf",
+      "url": "https://download.worksuitecloud.com/fonts/legacy/Hemawathy.ttf",
+      "sha256": "6f3c5a3ff35419289aedf1a3035fa75a21191c6b8057a5bd25893feda6575682",
+      "uploaded as": [
+        "HES_____.TTF",
+        "HES____0.TTF"
+      ]
+    },
+    {
+      "family": "Anuradha",
+      "profile": "dl-manel",
+      "distributable": "decide before upload",
+      "licence": "ANURADHA   S.MADHAVA TENNAKOON. (fsType 0)",
+      "file": "AnuradhaBold.ttf",
+      "url": "https://download.worksuitecloud.com/fonts/legacy/AnuradhaBold.ttf",
+      "sha256": "da4b12ee1932ed6f3e3713af4fe6e8a568fbbf3067461d8857839cfa3518def2",
+      "uploaded as": [
+        "Anuradha_Bold.TTF"
+      ]
+    },
+    {
+      "family": "SriLanka",
+      "profile": null,
+      "distributable": "decide before upload",
+      "licence": "Copyright © 1992 Ecological Linguistics.  All Rights Reserved. (fsType 1)",
+      "file": "SriLanka.ttf",
+      "url": "https://download.worksuitecloud.com/fonts/legacy/SriLanka.ttf",
+      "sha256": "288325eb6def0ccfe295403783550606bbbf05afc9dc5bf90fe1838da2a9299a",
+      "uploaded as": [
+        "Sri_Lanka.TTF",
+        "Sri Lanka-Regular.TTF",
+        "SriLanka_Regular.ttf"
+      ],
+      "note": "layout not identified yet: shipped for display only, not converted"
+    },
+    {
+      "family": "SIN Walawe",
+      "profile": null,
+      "distributable": "decide before upload",
+      "licence": "Copyrighted by P S Systems, Bangalore (fsType 1)",
+      "file": "SINWalaweBold.ttf",
+      "url": "https://download.worksuitecloud.com/fonts/legacy/SINWalaweBold.ttf",
+      "sha256": "f977bef5dac45a406a59de5bad4a02bc132ac92ca9d47ef4ca05134ea59c165a",
+      "uploaded as": [
+        "Sin_Walave_B.TTF",
+        "WALABD.TTF"
+      ],
+      "note": "layout not identified yet: shipped for display only, not converted"
+    },
+    {
+      "family": "VriSiNhala CN",
+      "profile": null,
+      "distributable": "decide before upload",
+      "licence": "Created by Shwebonth Software (fsType 1)",
+      "file": "VriSiNhalaCN.ttf",
+      "url": "https://download.worksuitecloud.com/fonts/legacy/VriSiNhalaCN.ttf",
+      "sha256": "7e468ab2c51c8814fa46804ec6f22080f6993b0146f5f35525ce424f5c71903d",
+      "uploaded as": [
+        "VriSiNhala_CN__Normal.ttf"
+      ],
+      "note": "layout not identified yet: shipped for display only, not converted"
+    },
+    {
+      "family": "VriSiNhala CB",
+      "profile": null,
+      "distributable": "decide before upload",
+      "licence": "Created by Shwebonthe Software (fsType 1)",
+      "file": "VriSiNhalaCB.ttf",
+      "url": "https://download.worksuitecloud.com/fonts/legacy/VriSiNhalaCB.ttf",
+      "sha256": "c2300c4b856a304ae0f5bef122fc3385bc8afa7cdeb0dc432862d35f3ac1c10c",
+      "uploaded as": [
+        "VriSiNhala_CB__Bold.ttf"
+      ],
+      "note": "layout not identified yet: shipped for display only, not converted"
+    }
   ]
 }
