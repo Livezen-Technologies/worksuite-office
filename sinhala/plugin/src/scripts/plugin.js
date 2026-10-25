@@ -2,7 +2,8 @@
  * Sinhala Tools (worksuite-sinhala-tools): a "Sinhala Tools" toolbar tab and a side panel.
  *
  *   Convert selection   legacy font text -> Unicode (profile from the selection's font, or detected)
- *   Convert to legacy   Unicode -> the chosen legacy font's encoding
+ *   Convert to legacy   a dialog (legacy.html): Unicode -> a legacy font, or legacy -> Unicode, with a preview;
+ *                       text and font change in one editor command (one undo step)
  *   Convert document    every run in a legacy font, in one undo step, after a preview (documents)
  *   Detect              highlights runs in a legacy font or that look like legacy text (documents)
  *   Fonts               Noto Sans / Noto Serif Sinhala on runs with Unicode Sinhala (documents)
@@ -110,17 +111,20 @@
     });
   }
 
-  // The selection's font, in documents (null elsewhere or when the selection has several).
+  // The selection's font, in documents: { font, mixed } (font null elsewhere, or when it has several).
   function getSelectionFont(callback) {
-    if (!isDocument()) { callback(null); return; }
+    if (!isDocument()) { callback({ font: null, mixed: false }); return; }
     plugin.callCommand(function () {
       var range = Api.GetDocument().GetRangeBySelect();
-      var textPr = range && range.GetTextPr ? range.GetTextPr() : null;
-      return textPr ? textPr.GetFontFamily() : null;
-    }, false, false, function (font) { callback(typeof font === "string" ? font : null); });
+      if (!range) return null;
+      var textPr = range.GetTextPr ? range.GetTextPr() : null;
+      var font = textPr ? textPr.GetFontFamily() : null;
+      return { font: typeof font === "string" && font ? font : null, mixed: !(typeof font === "string" && font) };
+    }, false, false, function (r) { callback(r && typeof r === "object" ? r : { font: null, mixed: false }); });
   }
 
-  function chooseProfile(text, font) {
+  function chooseProfile(text, font, forced) {
+    if (forced) return { profile: S.getProfile(forced), how: "chosen" };
     if (settings.profile !== "auto") return { profile: S.getProfile(settings.profile), how: "chosen" };
     var byFont = S.profileForFont(font);
     if (byFont) return { profile: byFont, how: "font" };
@@ -129,15 +133,36 @@
     return null;
   }
 
+  // The selection becomes `text` in `font`, as one editor command, so one undo step. The font goes on the
+  // selected range first and the text is then replaced in place (Api.ReplaceTextSmart keeps every run's
+  // size, colour, bold, italic and the paragraphs), so the new text is in the font. Replacing first and
+  // setting the font after, as before, lost the font: ReplaceTextSmart ends with the selection removed,
+  // so GetRangeBySelect() then had no range. Calls back with { fontApplied, error }.
   function replaceSelection(text, font, callback) {
-    plugin.executeMethod("ReplaceTextSmart", [text.split("\n"), "\t", "\r"], function () {
-      if (!font || !isDocument()) { if (callback) callback(); return; }
-      window.Asc.scope.font = font;
-      plugin.callCommand(function () {
-        var range = Api.GetDocument().GetRangeBySelect();
-        if (range) range.SetFontFamily(Asc.scope.font);
-      }, false, true, function () { if (callback) callback(); });
+    window.Asc.scope.lines = text.split("\n");
+    window.Asc.scope.font = font || null;
+    window.Asc.scope.editor = editorType();
+    plugin.callCommand(replaceCommand, false, true, function (res) {
+      callback(res && typeof res === "object" ? res : { fontApplied: false });
     });
+  }
+
+  // Runs in the editor: no closure over this frame, only Asc.scope.
+  function replaceCommand() {
+    var font = Asc.scope.font;
+    var res = { fontApplied: false };
+    if (font) {
+      if (Asc.scope.editor === "word") {
+        var range = Api.GetDocument().GetRangeBySelect();
+        if (!range) return { error: "no-selection" };
+        res.fontApplied = range.SetFontFamily(font) !== null;
+      } else if (Asc.scope.editor === "cell") {
+        var cells = Api.GetSelection();
+        if (cells && cells.SetFontName) { cells.SetFontName(font); res.fontApplied = true; }
+      }
+    }
+    Api.ReplaceTextSmart(Asc.scope.lines, "\t", "\r");
+    return res;
   }
 
   function listUnmapped(unmapped, text) {
@@ -146,17 +171,44 @@
     });
   }
 
-  function convertSelection(fromPanel) {
+  var SINHALA = /[\u0D80-\u0DFF]/;
+
+  // Checks for a conversion; null when it can go ahead, else the message.
+  function checkSelection(direction, text, sel, profile) {
+    if (!text.replace(/\s+/g, "")) return tr("Select the text to convert first.");
+    if (direction === "toLegacy") {
+      if (!SINHALA.test(text)) return tr("There is no Sinhala Unicode text in the selection.");
+      return null;
+    }
+    if (SINHALA.test(text) && !/[A-Za-z]/.test(text)) return tr("The selection is already Sinhala Unicode.");
+    if (!profile) {
+      if (sel && sel.mixed) return tr("The selection mixes fonts. Select text in one legacy font, or choose its font.");
+      if (sel && sel.font) return fmt("%1 is not a legacy Sinhala font Sinhala Tools knows. Choose its font.", sel.font);
+      return tr("The selection does not look like legacy Sinhala text. Choose its font in the panel.");
+    }
+    return null;
+  }
+
+  function fmt(text) {
+    var args = Array.prototype.slice.call(arguments, 1);
+    return tr(text).replace(/%(\d)/g, function (m, n) { return String(args[Number(n) - 1]); });
+  }
+
+  // Legacy font text -> Unicode in settings.font. `forced`: a profile id the user chose (else by font/detection).
+  function convertSelection(fromPanel, forced) {
     getSelection(function (text) {
       if (!text.replace(/\s+/g, "")) { fail("convertSelection", tr("Select the text to convert first."), fromPanel); return; }
-      getSelectionFont(function (font) {
-        var choice = chooseProfile(text, font);
-        if (!choice) { fail("convertSelection", tr("The selection does not look like legacy Sinhala text. Choose its font in the panel."), fromPanel); return; }
+      getSelectionFont(function (sel) {
+        var choice = chooseProfile(text, sel.font, forced);
+        var problem = checkSelection("toUnicode", text, sel, choice);
+        if (problem) { fail("convertSelection", problem, fromPanel); return; }
         var result = S.toUnicode(text, choice.profile);
-        replaceSelection(result.text, settings.font, function () {
+        replaceSelection(result.text, settings.font, function (done) {
+          if (done.error) { fail("convertSelection", tr("Select the text to convert first."), fromPanel); return; }
           report({
             action: "convertSelection", profile: choice.profile.name, profileVersion: result.profileVersion,
-            how: choice.how, confidence: choice.confidence, characters: text.length,
+            how: choice.how, confidence: choice.confidence, characters: text.length, font: settings.font,
+            fontApplied: done.fontApplied, mixed: !!sel.mixed,
             unmapped: listUnmapped(result.unmapped, text), unmappedCount: result.unmapped.length
           }, fromPanel);
         });
@@ -164,18 +216,85 @@
     });
   }
 
-  function convertToLegacy(fromPanel) {
+  // The legacy font's name as this computer has it installed (FMAbhaya, FM Abhaya, ...), else its usual name.
+  var installedFonts = [];
+  function legacyFontName(profile) {
+    var lower = installedFonts.map(function (n) { return n.toLowerCase(); });
+    for (var i = 0; i < profile.fontNames.length; i++) {
+      var at = lower.indexOf(profile.fontNames[i].toLowerCase());
+      if (at >= 0) return installedFonts[at];
+    }
+    return profile.fontNames[0];
+  }
+
+  // Unicode -> settings.legacyProfile's encoding, in that profile's font.
+  function convertToLegacyNow(fromPanel) {
     getSelection(function (text) {
-      if (!text.replace(/\s+/g, "")) { fail("convertToLegacy", tr("Select the text to convert first."), fromPanel); return; }
+      var problem = checkSelection("toLegacy", text);
+      if (problem) { fail("convertToLegacy", problem, fromPanel); return; }
       var profile = S.getProfile(settings.legacyProfile);
       var result = S.toLegacy(text, profile);
-      replaceSelection(result.text, profile.fontNames[0], function () {
+      var font = legacyFontName(profile);
+      replaceSelection(result.text, font, function (done) {
+        if (done.error) { fail("convertToLegacy", tr("Select the text to convert first."), fromPanel); return; }
         report({
           action: "convertToLegacy", profile: profile.name, profileVersion: result.profileVersion, characters: text.length,
+          font: font, fontApplied: done.fontApplied,
           unmapped: listUnmapped(result.unmapped, text.normalize("NFC")), unmappedCount: result.unmapped.length
         }, fromPanel);
       });
     });
+  }
+
+  // --- the Convert to legacy dialog (legacy.html) -----------------------------------------------
+  var dialog = null;
+
+  function fontNames(list) {
+    var names = [];
+    (list || []).forEach(function (f) {
+      var n = typeof f === "string" ? f : f && (f.m_wsFontName || f.name || f.Name);
+      if (typeof n === "string" && n) names.push(n);
+    });
+    return names;
+  }
+
+  function openLegacyDialog() {
+    getSelection(function (text) {
+      if (!text.replace(/\s+/g, "")) { fail("convertToLegacy", tr("Select the text to convert first."), false); return; }
+      getSelectionFont(function (sel) {
+        plugin.executeMethod("GetFontList", [], function (list) {
+          installedFonts = fontNames(list);
+          var init = {
+            direction: SINHALA.test(text) ? "toLegacy" : "toUnicode",
+            text: text, selectionFont: sel.font, mixed: !!sel.mixed,
+            legacyProfile: settings.legacyProfile, unicodeFont: settings.font,
+            installed: installedFonts, fontListKnown: Array.isArray(list)
+          };
+          if (dialog) { try { dialog.close(); } catch (e) { /* closed */ } }
+          dialog = new window.Asc.PluginWindow();
+          dialog.attachEvent("onLegacyReady", function () { dialog.command("onLegacyInit", init); });
+          dialog.attachEvent("onLegacyCancel", closeDialog);
+          dialog.attachEvent("onLegacyApply", function (data) {
+            closeDialog();
+            if (!data) return;
+            if (data.direction === "toUnicode") { convertSelection(false, knownProfile(data.profile) ? data.profile : null); return; }
+            if (knownProfile(data.profile)) { settings.legacyProfile = data.profile; saveSettings(); }
+            convertToLegacyNow(false);
+          });
+          dialog.show({
+            url: "legacy.html", description: tr("Convert Sinhala text"), isVisual: true, isModal: true,
+            buttons: [], EditorsSupport: ["word", "cell", "slide"], size: [480, 420]
+          });
+        });
+      });
+    });
+  }
+
+  function knownProfile(id) { return S.builtinProfiles.some(function (p) { return p.id === id; }); }
+
+  function closeDialog() {
+    if (dialog) { try { dialog.close(); } catch (e) { /* closed */ } }
+    dialog = null;
   }
 
   // --- the whole document (one editor command = one undo step) --------------------------------
@@ -280,7 +399,8 @@
     ime: function () { if (ime()) ime().toggle(); },
     imeForget: function () { if (ime()) ime().forget(); },
     convertSelection: convertSelection,
-    convertToLegacy: convertToLegacy,
+    // the toolbar opens the dialog; the panel converts with its own choice of font
+    convertToLegacy: function (fromPanel) { if (fromPanel) convertToLegacyNow(true); else openLegacyDialog(); },
     // a preview first; the panel's Convert button applies it
     convertDocument: function (fromPanel) { runDocument("convertDocument", "convert", true, fromPanel); },
     convertDocumentApply: function (fromPanel) { runDocument("convertDocumentApply", "convert", false, fromPanel); },

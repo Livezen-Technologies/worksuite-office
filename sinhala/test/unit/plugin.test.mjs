@@ -37,17 +37,17 @@ test("config.json: fixed guid, name, a background variation with the toolbar eve
   for (const f of v.icons) readFileSync(join(a, f));
   const files = readFileSync(join(a, "files.sha256"), "utf8");
   for (const f of ["index.html", "panel.html", "scripts/plugin.js", "scripts/panel.js", "scripts/sinhala-core.js",
-    "scripts/ime.js", "scripts/sinhala-words.js", "scripts/toolbar.js", "licenses/lucide-icons-ISC.txt", "resources/ime.css", "licenses/word-lists.json",
+    "scripts/ime.js", "scripts/sinhala-words.js", "scripts/toolbar.js", "licenses/lucide-icons-ISC.txt", "legacy.html", "scripts/legacy.js", "resources/legacy.css", "resources/ime.css", "licenses/word-lists.json",
     "licenses/slwdc-Sinhala-Words-List-GPL-3.0.txt", "translations/langs.json", "translations/si-LK.json", "translations/ta-LK.json"]) {
     assert.ok(files.includes("  " + f + "\n"), f);
   }
 });
 
 test("every string the plugin shows is translated into Sinhala and Tamil", () => {
-  const sources = ["scripts/plugin.js", "scripts/panel.js", "scripts/ime.js", "panel.html"].map((f) => readFileSync(join(a, f), "utf8")).join("\n");
+  const sources = ["scripts/plugin.js", "scripts/panel.js", "scripts/ime.js", "scripts/legacy.js", "panel.html", "legacy.html"].map((f) => readFileSync(join(a, f), "utf8")).join("\n");
   const keys = new Set();
   for (const m of sources.matchAll(/\b(?:tr|fmt)\("((?:[^"\\]|\\.)+)"/g)) keys.add(m[1]);
-  for (const m of sources.matchAll(/data-tr="([^"]+)"/g)) keys.add(m[1]);
+  for (const m of sources.matchAll(/data-tr="([^"]+)"/g)) keys.add(m[1].replace(/&amp;/g, "&"));
   for (const c of COMMANDS) { keys.add(c.label); keys.add(c.hint); }
   for (const m of sources.matchAll(/^\s+"[a-z-]+": "([A-Z][^"]+)",?$/gm)) keys.add(m[1]);
   assert.ok(keys.size > 30);

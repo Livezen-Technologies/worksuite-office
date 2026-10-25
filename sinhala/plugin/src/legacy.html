@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Convert Sinhala text</title>
+  <link rel="stylesheet" href="../v1/plugins.css" />
+  <link rel="stylesheet" href="resources/legacy.css" />
+  <script type="text/javascript" src="../v1/plugins.js"></script>
+  <script type="text/javascript" src="../v1/plugins-ui.js"></script>
+  <script type="text/javascript" src="scripts/sinhala-core.js"></script>
+  <script type="text/javascript" src="scripts/legacy.js"></script>
+</head>
+<body>
+  <form class="lg" id="form" novalidate>
+    <div class="lg-seg" role="radiogroup">
+      <button type="button" role="radio" id="dirToLegacy" data-dir="toLegacy" data-tr="Unicode → legacy">Unicode → legacy</button>
+      <button type="button" role="radio" id="dirToUnicode" data-dir="toUnicode" data-tr="Legacy → Unicode">Legacy → Unicode</button>
+    </div>
+    <label class="lg-field">
+      <span id="fontLabel" data-tr="Legacy font">Legacy font</span>
+      <select id="profile"></select>
+    </label>
+    <div id="fontStatus" class="lg-status" aria-live="polite"></div>
+    <div class="lg-field">
+      <span data-tr="Preview">Preview</span>
+      <div id="preview" class="lg-preview" dir="auto"></div>
+      <div id="previewNote" class="lg-note"></div>
+    </div>
+    <div id="problems" class="lg-problems" aria-live="polite"></div>
+    <p class="lg-note" data-tr="Only fonts with a map are listed, each converted with its own map. The maps are provisional: characters a map lacks are listed here before anything changes.">Only fonts with a map are listed, each converted with its own map. The maps are provisional: characters a map lacks are listed here before anything changes.</p>
+    <div class="lg-actions">
+      <button type="button" id="cancel" class="lg-btn" data-tr="Cancel">Cancel</button>
+      <button type="submit" id="apply" class="lg-btn lg-primary" data-tr="Convert &amp; apply">Convert &amp; apply</button>
+    </div>
+  </form>
+</body>
+</html>

@@ -78,6 +78,12 @@
     return box;
   }
 
+  function fontNote(r) {
+    if (!r.font) return null;
+    return r.fontApplied ? el("div", fmt("Font: %1. Undo restores the text and its font in one step.", r.font))
+      : el("div", fmt("Set the font %1 on the converted text: it could not be set here.", r.font), "ws-error");
+  }
+
   var ISSUES = {
     "not-nfc": "Not in Unicode normal form (NFC)",
     "sign-without-base": "Vowel sign without a letter",
@@ -102,11 +108,13 @@
     switch (r.action) {
       case "convertSelection":
         add(el("div", fmt("Converted %1 characters from %2 %3.", r.characters, r.profile, r.profileVersion)));
+        add(fontNote(r));
         if (r.how === "detected") add(el("div", fmt("The font was guessed from the text (confidence %1 %). Undo if it is wrong and choose the font above.", Math.round(r.confidence * 100))));
         add(unmappedList(r));
         break;
       case "convertToLegacy":
         add(el("div", fmt("Converted %1 characters to %2 %3.", r.characters, r.profile, r.profileVersion)));
+        add(fontNote(r));
         add(unmappedList(r));
         break;
       case "convertDocument":

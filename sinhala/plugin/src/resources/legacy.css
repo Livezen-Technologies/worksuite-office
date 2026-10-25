@@ -1,0 +1,39 @@
+/* The Convert dialog: the editor theme's variables (set from plugin.theme), with light defaults. */
+:root {
+  --background-normal: #ffffff; --text-normal: rgba(0, 0, 0, 0.8); --text-secondary: rgba(0, 0, 0, 0.6);
+  --border-regular-control: #c0c0c0; --border-control-focus: #848484; --background-toolbar: #f7f7f7;
+  --highlight-button-hover: #e0e0e0; --background-primary-dialog-button: #444444; --text-inverse: #ffffff;
+  --text-contrast-background: #ffffff; --lg-ok: #2e7d32; --lg-warn: #b26a00; --lg-error: #c0392b;
+}
+html[data-theme-type="dark"] { --lg-ok: #7bc47f; --lg-warn: #f0b252; --lg-error: #f08a7e; }
+html, body { margin: 0; height: 100%; background: var(--background-normal); color: var(--text-normal);
+  font: 12px/1.4 "Segoe UI", Arial, Helvetica, sans-serif; }
+.lg { box-sizing: border-box; height: 100%; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
+.lg-seg { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid var(--border-regular-control); border-radius: 4px; overflow: hidden; }
+.lg-seg button { border: 0; background: transparent; color: inherit; padding: 6px 8px; font: inherit; cursor: pointer; }
+.lg-seg button + button { border-inline-start: 1px solid var(--border-regular-control); }
+.lg-seg button[aria-checked="true"] { background: var(--highlight-button-hover); font-weight: 600; }
+.lg-field { display: flex; flex-direction: column; gap: 4px; }
+.lg-field > span { color: var(--text-secondary); }
+select { height: 26px; border: 1px solid var(--border-regular-control); border-radius: 2px; padding: 0 6px;
+  background: var(--background-normal); color: var(--text-normal); font: inherit; }
+select:focus, .lg-btn:focus-visible, .lg-seg button:focus-visible { outline: 1px solid var(--border-control-focus); outline-offset: 1px; }
+.lg-status { display: flex; align-items: center; gap: 6px; min-height: 16px; }
+.lg-status::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; flex: none; }
+.lg-status:empty::before { display: none; }
+.lg-status.ok { color: var(--lg-ok); } .lg-status.warn { color: var(--lg-warn); }
+.lg-preview { box-sizing: border-box; min-height: 64px; max-height: 110px; overflow: auto; padding: 8px 10px; font-size: 18px;
+  border: 1px solid var(--border-regular-control); border-radius: 4px; background: var(--background-toolbar);
+  white-space: pre-wrap; word-break: break-word; }
+.lg-note { margin: 0; color: var(--text-secondary); font-size: 11px; }
+.lg-problems:empty { display: none; }
+.lg-problems { color: var(--lg-error); font-size: 11px; }
+.lg-problems.warn { color: var(--lg-warn); }
+.lg-problems code { font-family: Consolas, monospace; }
+.lg-actions { margin-top: auto; display: flex; justify-content: flex-end; gap: 8px; }
+.lg-btn { min-width: 86px; height: 26px; padding: 0 14px; border-radius: 2px; font: inherit; cursor: pointer;
+  border: 1px solid var(--border-regular-control); background: var(--background-normal); color: var(--text-normal); }
+.lg-btn:hover { background: var(--highlight-button-hover); }
+.lg-primary { background: var(--background-primary-dialog-button); border-color: var(--background-primary-dialog-button); color: var(--text-inverse); font-weight: 600; }
+.lg-primary:hover { background: var(--background-primary-dialog-button); filter: brightness(1.15); }
+.lg-btn:disabled { opacity: 0.45; cursor: default; filter: none; }
