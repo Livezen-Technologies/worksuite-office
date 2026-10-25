@@ -42,13 +42,13 @@ export const ICONS = {
  */
 export const COMMANDS = [
   { id: "inputMode", icon: "globe", label: "Input mode", group: true, menu: true,
-    hint: "English, Sinhala Unicode, Sinhala legacy font, or Smart Auto (Sinhala only for words that are not English)" },
+    hint: "English, Sinhala Unicode, Sinhala legacy font, or Smart Mixed (English and Singlish word by word)" },
   { id: "sinhalaFont", icon: "type", label: "Sinhala font", menu: true,
     hint: "The font Sinhala typing writes in: a Unicode font, or a legacy font with a map" },
   { id: "ime", icon: "keyboard", iconOff: "keyboard-off", label: "Singlish typing",
     hint: "Type Singlish and get Sinhala as you type (Ctrl+Shift+Y)" },
-  { id: "suggestions", icon: "list-ordered", label: "Suggestions",
-    hint: "Show word suggestions while typing; off writes the best match on Space" },
+  { id: "suggestions", icon: "list-ordered", label: "Suggestions", menu: true,
+    hint: "English and Sinhala word suggestions while typing (Ctrl+Space opens them); the menu has the settings" },
   { id: "convertSelection", icon: "replace", label: "Convert", group: true,
     hint: "Convert the selection: choose the direction and the font, with a preview" },
   { id: "convertDocument", icon: "file-text-refresh", label: "Convert doc",
@@ -68,7 +68,7 @@ export const MODES = [
   { id: "english", label: "English" },
   { id: "unicode", label: "Sinhala Unicode" },
   { id: "legacy", label: "Sinhala legacy font" },
-  { id: "smart", label: "Smart Auto" }
+  { id: "smart", label: "Smart Mixed" }
 ];
 
 export function iconFile(theme, name, scale) {

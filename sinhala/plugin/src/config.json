@@ -5,7 +5,7 @@
     "ta": "சிங்கள கருவிகள்"
   },
   "guid": "asc.{B50BAEE2-4EAC-4298-9DD2-73CC3223FFFA}",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "minVersion": "8.2.0",
   "offered": "WorkSuite",
   "variations": [
@@ -26,7 +26,7 @@
       "type": "background",
       "initDataType": "none",
       "buttons": [],
-      "events": ["onToolbarMenuClick", "onInputHelperInput", "onInputHelperClear", "onKeyDown"]
+      "events": ["onToolbarMenuClick", "onInputHelperInput", "onInputHelperClear", "onKeyDown", "onClick"]
     }
   ]
 }

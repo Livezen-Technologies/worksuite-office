@@ -38,18 +38,21 @@ test("config.json: fixed guid, name, a background variation with the toolbar eve
   const files = readFileSync(join(a, "files.sha256"), "utf8");
   for (const f of ["index.html", "panel.html", "scripts/plugin.js", "scripts/panel.js", "scripts/sinhala-core.js",
     "scripts/ime.js", "scripts/sinhala-words.js", "scripts/toolbar.js", "licenses/lucide-icons-ISC.txt", "legacy.html", "scripts/legacy.js", "resources/legacy.css", "resources/ime.css", "licenses/word-lists.json",
-    "licenses/slwdc-Sinhala-Words-List-GPL-3.0.txt", "translations/langs.json", "translations/si-LK.json", "translations/ta-LK.json"]) {
+    "licenses/slwdc-Sinhala-Words-List-GPL-3.0.txt", "translations/langs.json", "translations/si-LK.json", "translations/ta-LK.json",
+    "scripts/smart-data.js", "scripts/smart-worker.js", "suggest.html", "scripts/suggest.js", "resources/suggest.css"]) {
     assert.ok(files.includes("  " + f + "\n"), f);
   }
 });
 
 test("every string the plugin shows is translated into Sinhala and Tamil", () => {
-  const sources = ["scripts/plugin.js", "scripts/panel.js", "scripts/ime.js", "scripts/legacy.js", "scripts/fonts.js", "panel.html", "legacy.html", "fonts.html"].map((f) => readFileSync(join(a, f), "utf8")).join("\n");
+  const sources = ["scripts/plugin.js", "scripts/panel.js", "scripts/ime.js", "scripts/legacy.js", "scripts/fonts.js", "scripts/suggest.js", "panel.html", "legacy.html", "fonts.html", "suggest.html"].map((f) => readFileSync(join(a, f), "utf8")).join("\n");
   const keys = new Set();
   for (const m of sources.matchAll(/\b(?:tr|fmt)\("((?:[^"\\]|\\.)+)"/g)) keys.add(m[1]);
   for (const m of sources.matchAll(/data-tr="([^"]+)"/g)) keys.add(m[1].replace(/&amp;/g, "&"));
   for (const c of COMMANDS) { keys.add(c.label); keys.add(c.hint); }
   for (const m of MODES) keys.add(m.label);
+  // the popup's item tags (ime.js TAGS)
+  for (const m of sources.matchAll(/var TAGS = \{([^}]+)\}/g)) for (const t of m[1].matchAll(/: "([^"]+)"/g)) keys.add(t[1]);
   for (const m of sources.matchAll(/^\s+"[a-z-]+": "([A-Z][^"]+)",?$/gm)) keys.add(m[1]);
   assert.ok(keys.size > 30);
   for (const lang of JSON.parse(readFileSync(join(a, "translations", "langs.json"), "utf8"))) {
@@ -110,4 +113,19 @@ test("the plugin's document command converts runs in legacy fonts in one pass", 
   ctx.Asc.scope.dryRun = false;
   vm.runInContext("documentCommand()", ctx);
   assert.equal(runs[4].font, "Noto Sans Sinhala");
+});
+
+test("the Smart Typing worker loads its scripts and answers queries by seq", () => {
+  const posted = [];
+  const self = { postMessage: (m) => posted.push(JSON.parse(JSON.stringify(m))) };
+  const ctx = vm.createContext({ self, JSON, Object, Math, String, Number, Array, Date });
+  ctx.importScripts = (...files) => { for (const f of files) vm.runInContext(readFileSync(join(a, "scripts", f), "utf8"), ctx); };
+  vm.runInContext(readFileSync(join(a, "scripts", "smart-worker.js"), "utf8"), ctx);
+  self.onmessage({ data: { type: "init", settings: { maxItems: 7 }, personal: null, learned: null } });
+  self.onmessage({ data: { type: "query", seq: 7, query: { before: "docu", mode: "english" } } });
+  assert.equal(posted[0].seq, 7);
+  assert.equal(posted[0].result.items[0].text, "document");
+  self.onmessage({ data: { type: "configure", settings: { english: false } } });
+  self.onmessage({ data: { type: "query", seq: 8, query: { before: "docu", mode: "english" } } });
+  assert.equal(posted[1].result.items.length, 0);
 });
