@@ -269,6 +269,29 @@ jobs:
             build | tee build/xcodebuild.log | grep -E "^(=== |\*\* |error|.*: error|.*warning: unable|Code Signing|CodeSign )" || true
           test -d build/dd/Build/Products/Release/ONLYOFFICE.app || { tail -200 build/xcodebuild.log; exit 1; }
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Local AI service (worksuite-ai) in the app
+        env:
+          SIGN_IDENTITY: ${{ steps.identity.outputs.identity }}
+        run: |
+          app="$GITHUB_WORKSPACE/oo/desktop-apps/macos/build/dd/Build/Products/Release/ONLYOFFICE.app"
+          bash worksuite-office/build/v10/ai-service.sh "$GITHUB_WORKSPACE/worksuite-office" "$app/Contents/MacOS"
+          ent="$GITHUB_WORKSPACE/worksuite-office/ai-service/packaging/macos/worksuite-ai.entitlements"
+          if [ -n "$SIGN_IDENTITY" ]; then
+            codesign --force --timestamp --options runtime --entitlements "$ent" --sign "$SIGN_IDENTITY" "$app/Contents/MacOS/worksuite-ai"
+            # the bundle's seal now covers worksuite-ai: sign the app again, keeping its own entitlements
+            codesign --force --timestamp --options runtime --preserve-metadata=entitlements,requirements,flags,runtime --sign "$SIGN_IDENTITY" "$app"
+            codesign --verify --deep --strict --verbose=2 "$app"
+          else
+            codesign --force --sign - --entitlements "$ent" "$app/Contents/MacOS/worksuite-ai"
+            codesign --force --sign - --preserve-metadata=entitlements,requirements,flags "$app"
+          fi
+          lipo -archs "$app/Contents/MacOS/worksuite-ai"
+          "$app/Contents/MacOS/worksuite-ai" --version
+
       - name: Package the DMG
         working-directory: oo/desktop-apps/macos
         env:
@@ -289,6 +312,7 @@ jobs:
           echo "$archs"
           want=$([ "$ARCH" = x64 ] && echo x86_64 || echo arm64)
           [[ " $archs " == *" $want "* ]] || { echo "::error::the app is $archs, not $want"; exit 1; }
+          test -x "build/stage/WorkSuite Office.app/Contents/MacOS/worksuite-ai" || { echo "::error::worksuite-ai is not in the app"; exit 1; }
           ln -s /Applications build/stage/Applications
           hdiutil create -volname "WorkSuite Office" -srcfolder build/stage -ov -format UDZO \
             "build/WorkSuite-Office-$PRODUCT_VERSION-$ARCH.dmg"

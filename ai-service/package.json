@@ -1,0 +1,33 @@
+{
+  "name": "@worksuite/ai-service",
+  "version": "1.0.0",
+  "private": true,
+  "description": "worksuite-ai: the WorkSuite Local AI service (localhost API v1 over whisper.cpp, llama.cpp, Piper and @worksuite/sinhala-core)",
+  "license": "AGPL-3.0-only",
+  "type": "commonjs",
+  "bin": { "worksuite-ai": "dist/worksuite-ai.cjs" },
+  "scripts": {
+    "gen": "node scripts/gen-wordlists.mjs",
+    "typecheck": "npm run gen && tsc --noEmit -p .",
+    "test": "npm run gen && vitest run",
+    "build": "npm run gen && node scripts/bundle.mjs",
+    "start": "npm run build && node dist/worksuite-ai.cjs",
+    "sea": "npm run build && node scripts/build-sea.mjs",
+    "sign-catalog": "node scripts/sign-catalog.mjs"
+  },
+  "dependencies": {
+    "busboy": "1.6.0",
+    "ws": "8.18.3"
+  },
+  "devDependencies": {
+    "@types/busboy": "1.5.4",
+    "@types/node": "22.15.30",
+    "@types/ws": "8.18.1",
+    "esbuild": "0.25.5",
+    "postject": "1.0.0-alpha.6",
+    "typescript": "5.9.3",
+    "vitest": "3.2.4",
+    "wordlist-english": "1.2.1"
+  },
+  "engines": { "node": ">=22" }
+}
