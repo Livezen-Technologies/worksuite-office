@@ -24,7 +24,7 @@ describe("/v1/sinhala", () => {
   });
   it("converts legacy fonts both ways and lists them", async () => {
     const fonts = (await h.call("GET", "/v1/sinhala/legacy/fonts")).json;
-    expect(fonts.map((f: any) => f.encoding).sort()).toEqual(["dl", "fm", "kaputa"]);
+    expect(fonts.map((f: any) => f.encoding).sort()).toEqual(["dl", "fm", "kandy", "kaputa", "lastech"]);
     expect(fonts[0]).toEqual(expect.objectContaining({ id: expect.any(String), family: expect.any(String), encoding: expect.any(String) }));
     const enc = (await h.call("POST", "/v1/sinhala/legacy/encode", { text: "අම්මා", font: "FMAbhaya" })).json;
     expect(enc).toMatchObject({ font: "FMAbhaya", unmapped: [] });
