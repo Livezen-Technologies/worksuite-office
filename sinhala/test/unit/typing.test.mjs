@@ -47,7 +47,7 @@ function documentModel(font = "Calibri") {
   return d;
 }
 
-function harness({ storage = new Map(), editorType = "word", fetch, fonts = ["Arial", "Noto Sans Sinhala", "FMAbhaya"] } = {}) {
+function harness({ storage = new Map(), editorType = "word", fetch, endpoint, fonts = ["Arial", "Noto Sans Sinhala", "FMAbhaya"] } = {}) {
   const doc = documentModel();
   const calls = [];
   const clicks = {};
@@ -84,7 +84,7 @@ function harness({ storage = new Map(), editorType = "word", fetch, fonts = ["Ar
   const window = {
     Asc: { plugin, scope: {}, PluginWindow },
     localStorage: { getItem: (k) => storage.get(k) ?? null, setItem: (k, v) => storage.set(k, v) },
-    setTimeout, clearTimeout, fetch, AbortController
+    setTimeout, clearTimeout, fetch, AbortController, WSAiEndpoint: endpoint
   };
   window.window = window;
   const document = { getElementById: (id) => nodes[id], createElement: el, documentElement: { style: { setProperty() {} } } };
@@ -303,30 +303,43 @@ test("the font picker: Unicode and mapped legacy fonts, others listed without a 
   assert.equal(h.ime.mode(), "unicode");
 });
 
-test("the local AI service: off by default; on, an answer within 120 ms is merged, a later one dropped", async () => {
-  let asked = 0;
-  const fast = async () => { asked++; return { json: async () => ({ suggestions: [{ text: "මමත්" }, { text: "not sinhala" }] }) }; };
+test("the local AI service: spec contract, off without the bridge's endpoint, 120 ms cap, cancelled by the next key", async () => {
+  const seen = [];
+  const fast = async (url, opts) => { seen.push({ url, opts }); return { json: async () => ({ words: [{ text: "මමත්", source: "model", score: 0.9 }, { text: "not sinhala" }], ghost: { text: "x", score: 0.1 } }) }; };
   let h = harness({ fetch: fast });
+  h.ime.setMode("unicode");
+  h.ime.set({ ai: true });
+  h.type("mama");
+  await new Promise((r) => setTimeout(r, 20));
+  assert.equal(seen.length, 0, "no WSAiEndpoint: off");
+  h = harness({ fetch: fast, endpoint: { baseUrl: "http://127.0.0.1:5123/", token: "t0k" } });
   h.ime.setMode("unicode");
   h.type("mama");
   await new Promise((r) => setTimeout(r, 20));
-  assert.equal(asked, 0, "off by default");
-  h = harness({ fetch: fast });
-  h.ime.setMode("unicode");
+  assert.equal(seen.length, 0, "the setting is off by default");
   h.ime.set({ ai: true });
-  h.type("mama");
+  h.type("a");
   await new Promise((r) => setTimeout(r, 30));
+  const last = seen.at(-1);
+  assert.equal(last.url, "http://127.0.0.1:5123/v1/text/complete");
+  assert.equal(last.opts.method, "POST");
+  assert.equal(last.opts.headers.Authorization, "Bearer t0k");
+  assert.match(last.opts.headers["X-Request-Id"], /^ws-si-/);
+  assert.deepEqual(JSON.parse(last.opts.body), { text: "mamaa", caret: 5, lang: "si", mode: "word", singlish: true, max: 5 });
   const items = h.nodes["ime-items"].children.map((li) => li.children[1].textContent);
   assert.ok(items.includes("මමත්"), items.join());
   assert.ok(!items.includes("not sinhala"));
+  const aborted = [];
   const slow = (url, opts) => new Promise((resolve, reject) => {
-    const t = setTimeout(() => resolve({ json: async () => ({ suggestions: [{ text: "මමයි" }] }) }), 200);
-    opts.signal.addEventListener("abort", () => { clearTimeout(t); reject(new Error("aborted")); });
+    const t = setTimeout(() => resolve({ json: async () => ({ words: [{ text: "මමයි" }] }) }), 200);
+    opts.signal.addEventListener("abort", () => { aborted.push(opts.headers["X-Request-Id"]); clearTimeout(t); reject(new Error("aborted")); });
   });
-  h = harness({ fetch: slow });
+  h = harness({ fetch: slow, endpoint: { baseUrl: "http://127.0.0.1:5123", token: "t" } });
   h.ime.setMode("unicode");
   h.ime.set({ ai: true });
-  h.type("mama");
+  h.type("ma");
+  assert.equal(aborted.length, 1, "the second key cancels the first request");
   await new Promise((r) => setTimeout(r, 250));
+  assert.equal(aborted.length, 2, "the 120 ms cap cancels the last one");
   assert.ok(!h.nodes["ime-items"].children.some((li) => li.children[1].textContent === "මමයි"));
 });

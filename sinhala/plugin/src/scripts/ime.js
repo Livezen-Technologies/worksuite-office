@@ -38,7 +38,7 @@
   var DEFAULTS = {
     mode: "english", lastSinhala: "unicode", suggestions: true, acceptSpace: true, acceptTab: false,
     unicodeFont: "Noto Sans Sinhala", legacyProfile: "fm-abhaya", legacyFont: "",
-    ai: false, aiUrl: "http://127.0.0.1:8765/v1/text/complete"
+    ai: false
   };
   var settings = {};
   (function () {
@@ -168,30 +168,49 @@
   window.WorkSuiteSinhalaTypeCommand = typeCommand;
 
   // --- the local AI service (optional, off by default) ------------------------------------------
-  // Asks for ranked Sinhala words for the composition; what comes back within AI_TIMEOUT ms is merged,
-  // later answers are dropped. Typing never waits: the window shows the local candidates first.
+  // POST <baseUrl>/v1/text/complete {text, caret, lang, mode, singlish, max} with a Bearer token; answer
+  // {words:[{text, source, score}], ghost?}. Base URL and token come from the desktop bridge, injected as
+  // window.WSAiEndpoint = {baseUrl, token}; without it this stays off. What comes back within AI_TIMEOUT
+  // ms is merged; a later answer is dropped, and the next keystroke cancels a pending request.
+  var aiPending = null;
+  var aiSeq = 0;
+  function aiEndpoint() {
+    var e = window.WSAiEndpoint;
+    return e && typeof e.baseUrl === "string" && e.baseUrl && typeof e.token === "string" && e.token ? e : null;
+  }
+  function cancelAi() {
+    if (!aiPending) return;
+    aiPending.done = true;
+    window.clearTimeout(aiPending.timer);
+    if (aiPending.ctrl) aiPending.ctrl.abort();
+    aiPending = null;
+  }
   function askAi(latin) {
-    if (!settings.ai || !settings.aiUrl || typeof window.fetch !== "function") return;
-    var ctrl = typeof window.AbortController === "function" ? new window.AbortController() : null;
-    var done = false;
-    var timer = window.setTimeout(function () { done = true; if (ctrl) ctrl.abort(); }, AI_TIMEOUT);
-    window.fetch(settings.aiUrl, {
-      method: "POST", headers: { "Content-Type": "application/json" }, signal: ctrl ? ctrl.signal : undefined,
-      body: JSON.stringify({ task: "sinhala-suggest", input: latin, language: "si", max: 5 })
+    cancelAi();
+    var endpoint = aiEndpoint();
+    if (!settings.ai || !endpoint || typeof window.fetch !== "function") return;
+    var req = { done: false, ctrl: typeof window.AbortController === "function" ? new window.AbortController() : null };
+    req.timer = window.setTimeout(function () { if (aiPending === req) cancelAi(); }, AI_TIMEOUT);
+    aiPending = req;
+    var id = "ws-si-" + Date.now().toString(36) + "-" + (++aiSeq);
+    window.fetch(endpoint.baseUrl.replace(/\/+$/, "") + "/v1/text/complete", {
+      method: "POST", signal: req.ctrl ? req.ctrl.signal : undefined,
+      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + endpoint.token, "X-Request-Id": id },
+      body: JSON.stringify({ text: latin, caret: latin.length, lang: "si", mode: "word", singlish: true, max: 5 })
     }).then(function (r) { return r.json(); }).then(function (json) {
-      if (done) return;
-      done = true;
-      window.clearTimeout(timer);
-      var list = json && Array.isArray(json.suggestions) ? json.suggestions : [];
+      if (req.done) return;
+      cancelAi();
+      var list = json && Array.isArray(json.words) ? json.words : [];
       var extra = list.filter(function (x) { return x && typeof x.text === "string" && /^[\u0D80-\u0DFF\u200C\u200D]+$/.test(x.text); })
         .slice(0, 5).map(function (x, i) { return { text: x.text, kind: "word", score: 9 - i * 0.5, known: false, learned: 0 }; });
       if (ime) apply(ime.addExtra(latin, extra));
-    }).catch(function () { /* unreachable or too slow: local candidates only */ });
+    }).catch(function () { /* unreachable, cancelled or too slow: local candidates only */ });
   }
 
   // --- the editor's events ----------------------------------------------------------------------
   plugin.event_onInputHelperInput = function (data) {
     if (!on() || !data) return;
+    cancelAi(); // a new keystroke: the last question is moot
     var actions = engine().input(typeof data.text === "string" ? data.text : "");
     apply(actions);
     if (ime && ime.isVisible && actions.some(function (a) { return a.type === "show"; })) askAi(ime.latin);
@@ -240,7 +259,7 @@
     toggle: function () { setMode(on() ? "english" : settings.lastSinhala); },
     settings: function () { var c = {}; for (var k in settings) c[k] = settings[k]; return c; },
     font: currentFont,
-    /** Change typing settings (suggestions, acceptSpace, acceptTab, unicodeFont, legacyProfile, legacyFont, ai, aiUrl). */
+    /** Change typing settings (suggestions, acceptSpace, acceptTab, unicodeFont, legacyProfile, legacyFont, ai). */
     set: function (values) {
       for (var k in values) {
         if (k === "mode" || !(k in DEFAULTS) || typeof values[k] !== typeof DEFAULTS[k]) continue;
