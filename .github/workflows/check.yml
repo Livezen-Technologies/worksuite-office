@@ -10,6 +10,7 @@ on:
       - 'build/**'
       - '.github/workflows/**'
       - 'sinhala/**'
+      - 'ai-plugin/**'
       - 'desktop-apps'
 
 jobs:
@@ -35,6 +36,20 @@ jobs:
       - run: npm ci --no-audit --no-fund
       - run: npm test
       - run: node scripts/hash-profiles.mjs --check
+      - run: npm run build:plugin
+  # WorkSuite Local AI: the plugin's unit tests (client, audio, edits, suggestions, providers) and its build
+  # (deterministic, every icon and translation present).
+  ai-plugin:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ai-plugin
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm test
       - run: npm run build:plugin
   # The WorkSuite start-page tests (NFR-18, G-12) of every desktop-apps commit a build takes: the 9.3 builds'
   # submodule pin and the DESKTOP_APPS_REF of each 10.x workflow (build/test-desktop-apps.sh).

@@ -1,0 +1,32 @@
+{
+  "name": "WorkSuite Local AI",
+  "nameLocale": {
+    "si": "WorkSuite ස්ථානීය AI",
+    "ta": "WorkSuite உள்ளூர் AI"
+  },
+  "guid": "asc.{7A1E5C0D-3B2F-4D6A-9E81-5C4F2B7D0A11}",
+  "version": "1.0.0",
+  "minVersion": "8.2.0",
+  "offered": "WorkSuite",
+  "variations": [
+    {
+      "description": "Voice typing, file transcription, read aloud, writing corrections and rewrites with review, and inline suggestions, from AI models that run on this computer (the WorkSuite Local AI service).",
+      "descriptionLocale": {
+        "si": "හඬින් ටයිප් කිරීම, ගොනු පිටපත් කිරීම, හඬ නගා කියවීම, සමාලෝචනය සහිත ලිවීමේ නිවැරදි කිරීම් සහ නැවත ලිවීම්, සහ පේළිගත යෝජනා, මෙම පරිගණකයේම ක්‍රියාත්මක වන AI ආකෘති මගින් (WorkSuite ස්ථානීය AI සේවාව).",
+        "ta": "குரல் தட்டச்சு, கோப்பு எழுத்துப்படியாக்கம், உரக்கப் படித்தல், மதிப்பாய்வுடன் எழுத்துத் திருத்தங்கள் மற்றும் மறுஎழுத்துகள், உள்வரி பரிந்துரைகள், இந்தக் கணினியிலேயே இயங்கும் AI மாதிரிகள் மூலம் (WorkSuite உள்ளூர் AI சேவை)."
+      },
+      "url": "index.html",
+      "icons": ["resources/light/icon.png", "resources/light/icon@2x.png"],
+      "icons2": [
+        { "style": "light", "100%": { "normal": "resources/light/icon.png" }, "200%": { "normal": "resources/light/icon@2x.png" } },
+        { "style": "dark", "100%": { "normal": "resources/dark/icon.png" }, "200%": { "normal": "resources/dark/icon@2x.png" } }
+      ],
+      "isViewer": false,
+      "EditorsSupport": ["word", "cell", "slide"],
+      "type": "background",
+      "initDataType": "none",
+      "buttons": [],
+      "events": ["onToolbarMenuClick", "onKeyDown", "onClick", "onInputHelperClear"]
+    }
+  ]
+}

@@ -159,6 +159,10 @@ jobs:
         working-directory: oo
         run: bash ../worksuite-office/build/v10/sinhala.sh "$GITHUB_WORKSPACE/worksuite-office"
 
+      - name: WorkSuite Local AI (editor plugin)
+        working-directory: oo
+        run: bash ../worksuite-office/build/v10/ai.sh "$GITHUB_WORKSPACE/worksuite-office"
+
       - name: Text recognition for the PDF Editor (tesseract.js, English/Sinhala/Tamil models)
         working-directory: oo
         run: bash ../worksuite-office/build/v10/ocr.sh "$GITHUB_WORKSPACE/worksuite-office"
@@ -206,6 +210,7 @@ jobs:
           done
           ls -la "$out"
           test -f "$out/editors/sdkjs-plugins/{B50BAEE2-4EAC-4298-9DD2-73CC3223FFFA}/config.json" || { echo "::error::Sinhala Tools is not in the editors"; exit 1; }
+          test -f "$out/editors/sdkjs-plugins/{7A1E5C0D-3B2F-4D6A-9E81-5C4F2B7D0A11}/config.json" || { echo "::error::WorkSuite Local AI is not in the editors"; exit 1; }
           ls "$out/fonts/worksuite-sinhala"
 
       - name: Developer ID certificate
