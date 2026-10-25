@@ -95,6 +95,10 @@ export interface CandidateOptions {
   words?: number;
   /** How many completions (default 4). */
   completions?: number;
+  /** Preferred renderings, ranked above the rules (after what the user picked): colloquial spellings. */
+  preferred?: Record<string, string> | null;
+  /** More ranked candidates to merge (an AI service, personal words): placed by their own score. */
+  extra?: Candidate[] | null;
 }
 
 // Scores: a word picked before for this very input wins, then words in the list (by rank), then the
@@ -120,6 +124,18 @@ export function candidates(latin: string, options: CandidateOptions = {}): Candi
     const score = (learned ? 20 + Math.min(learned, 10) : 0) + lexScore(lexicon, v.text) + (learner ? Math.min(learner.wordCount(v.text), 5) * 0.3 : 0) - v.penalty * 1.2 - i * 0.01;
     return { text: v.text, kind: "word" as const, score, known, learned };
   });
+  const pref = options.preferred ? options.preferred[latin.toLowerCase()] : undefined;
+  if (pref) {
+    const at = words.findIndex((c) => c.text === pref);
+    const learned = learner ? learner.count(latin, pref) : 0;
+    const boosted = { text: pref, kind: "word" as const, score: 15 + (learned ? 20 + Math.min(learned, 10) : 0), known: true, learned };
+    if (at >= 0) words[at] = boosted; else words.push(boosted);
+  }
+  for (const e of options.extra || []) {
+    if (e && typeof e.text === "string" && e.text && !words.some((c) => c.text === e.text)) {
+      words.push({ text: e.text, kind: "word", score: typeof e.score === "number" ? e.score : 0, known: !!e.known, learned: 0 });
+    }
+  }
   words.sort((a, b) => b.score - a.score);
   const top = words.slice(0, nWords);
   // the rules' own rendering is always offered
