@@ -81,7 +81,7 @@
       buttons: [],
       type: "panelRight",
       EditorsSupport: ["word", "cell", "slide"],
-      icons: "resources/%theme-type%(light|dark)/icon%scale%(default).%extension%(png)",
+      icons: "resources/%theme-type%(light|dark)/icon%scale%(100|200).%extension%(png)",
       size: [320, 520]
     });
   }
@@ -301,34 +301,38 @@
   }
 
   // --- the toolbar tab ------------------------------------------------------------------------
-  var BUTTONS = [
-    ["ime", "Sinhala input", "Type Singlish and pick Sinhala words as you type (Ctrl+Shift+Y)"],
-    ["convertSelection", "Convert selection", "Legacy font text in the selection to Unicode"],
-    ["convertToLegacy", "Convert to legacy", "Unicode in the selection to the chosen legacy font"],
-    ["convertDocument", "Convert document", "Every run in a legacy font to Unicode, after a preview"],
-    ["detect", "Detect", "Highlight text in legacy fonts"],
-    ["fonts", "Fonts", "Apply the Noto Sinhala font to Sinhala text"],
-    ["validate", "Validate", "Find broken conjuncts, stray joiners and vowel signs in the wrong order"],
-    ["panel", "Panel", "Open the Sinhala Tools panel"]
-  ];
+  // Items, icons, labels and tooltips come from scripts/toolbar.js (built from plugin/icons/registry.mjs).
+  // Each item's `icons` is the editor's template string, relative to this plugin's folder: the editor
+  // prefixes the plugin's base URL and picks resources/icons/<light|dark>/<name>[@1.25x..@2x].png by theme
+  // and screen scale. v10 never changes an existing button's icon on UpdateToolbarMenuItem (only its
+  // caption, hint, disabled and pressed state), so Sinhala input shows its state by being pressed and by
+  // its caption, not by swapping to keyboard-off.
+  var TOOLBAR = window.WorkSuiteSinhalaToolbar || { fallback: "", items: [] };
   var documentOnly = { convertDocument: true, detect: true, fonts: true, validate: true };
   var toolbarAdded = false;
 
   function toolbar() {
-    var icons = "resources/%theme-type%(light|dark)/icon%scale%(default).%extension%(png)";
+    var on = imeOn();
     return {
       guid: plugin.info.guid,
       tabs: [{
         id: "worksuite-sinhala-tools",
         text: tr("Sinhala Tools"),
-        items: BUTTONS.map(function (b, i) {
-          return {
-            id: "ws-sinhala-" + b[0], type: "big-button", text: b[0] === "ime" && imeOn() ? tr("Sinhala input: on") : tr(b[1]),
-            hint: tr(b[2]), icons: icons,
-            lockInViewMode: b[0] !== "validate" && b[0] !== "panel",
-            disabled: !isDocument() && !!documentOnly[b[0]],
-            separator: i === 0 || i === 3 || i === 6
+        items: TOOLBAR.items.map(function (b, i) {
+          var item = {
+            id: "ws-sinhala-" + b.id, type: "big-button", text: tr(b.label), hint: tr(b.hint),
+            icons: b.icons || TOOLBAR.fallback,
+            lockInViewMode: b.id !== "validate" && b.id !== "panel",
+            disabled: !isDocument() && !!documentOnly[b.id],
+            separator: i > 0 && b.group
           };
+          if (b.id === "ime") {
+            item.text = on ? tr("Sinhala input: on") : tr("Sinhala input: off");
+            item.hint = tr(b.hint) + " \u2014 " + (on ? tr("On: Singlish (phonetic)") : tr("Off"));
+            item.enableToggle = true;
+            item.pressed = on;
+          }
+          return item;
         })
       }]
     };
@@ -339,8 +343,8 @@
     toolbarAdded = true;
   }
 
-  BUTTONS.forEach(function (b) {
-    plugin.attachToolbarMenuClickEvent("ws-sinhala-" + b[0], function () { run(b[0], false); });
+  TOOLBAR.items.forEach(function (b) {
+    plugin.attachToolbarMenuClickEvent("ws-sinhala-" + b.id, function () { run(b.id, false); });
   });
 
   // scripts/ime.js tells us when Sinhala input is turned on or off, or forgets what it learned

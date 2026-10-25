@@ -9,6 +9,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import vm from "node:vm";
 import S from "../../core/dist/src/index.js";
+import { COMMANDS } from "../../plugin/icons/registry.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const tmp = mkdtempSync(join(tmpdir(), "ws-sinhala-"));
@@ -36,7 +37,7 @@ test("config.json: fixed guid, name, a background variation with the toolbar eve
   for (const f of v.icons) readFileSync(join(a, f));
   const files = readFileSync(join(a, "files.sha256"), "utf8");
   for (const f of ["index.html", "panel.html", "scripts/plugin.js", "scripts/panel.js", "scripts/sinhala-core.js",
-    "scripts/ime.js", "scripts/sinhala-words.js", "resources/ime.css", "licenses/word-lists.json",
+    "scripts/ime.js", "scripts/sinhala-words.js", "scripts/toolbar.js", "licenses/lucide-icons-ISC.txt", "resources/ime.css", "licenses/word-lists.json",
     "licenses/slwdc-Sinhala-Words-List-GPL-3.0.txt", "translations/langs.json", "translations/si-LK.json", "translations/ta-LK.json"]) {
     assert.ok(files.includes("  " + f + "\n"), f);
   }
@@ -47,7 +48,7 @@ test("every string the plugin shows is translated into Sinhala and Tamil", () =>
   const keys = new Set();
   for (const m of sources.matchAll(/\b(?:tr|fmt)\("((?:[^"\\]|\\.)+)"/g)) keys.add(m[1]);
   for (const m of sources.matchAll(/data-tr="([^"]+)"/g)) keys.add(m[1]);
-  for (const m of sources.matchAll(/\["\w+", "([A-Z][^"]+)", "([A-Z][^"]+)"\]/g)) { keys.add(m[1]); keys.add(m[2]); }
+  for (const c of COMMANDS) { keys.add(c.label); keys.add(c.hint); }
   for (const m of sources.matchAll(/^\s+"[a-z-]+": "([A-Z][^"]+)",?$/gm)) keys.add(m[1]);
   assert.ok(keys.size > 30);
   for (const lang of JSON.parse(readFileSync(join(a, "translations", "langs.json"), "utf8"))) {
@@ -160,4 +161,42 @@ test("Sinhala input in the plugin frame: input helper events in, ShowInputHelper
   const n = calls.length;
   plugin.event_onInputHelperInput({ text: "amma" });
   assert.equal(calls.length, n);
+});
+
+test("the toolbar tab: eight buttons in four groups, each with its own icon, input state as pressed + caption", () => {
+  const calls = [];
+  const storage = new Map();
+  const plugin = {
+    info: { guid: "asc.{B50BAEE2-4EAC-4298-9DD2-73CC3223FFFA}", editorType: "word" },
+    executeMethod(name, args) { calls.push([name, JSON.parse(JSON.stringify(args))]); },
+    attachToolbarMenuClickEvent() {}, callCommand() {}, tr: (t) => t,
+  };
+  const window = {
+    Asc: { plugin, scope: {}, PluginWindow: function () {} },
+    localStorage: { getItem: (k) => storage.get(k) ?? null, setItem: (k, v) => storage.set(k, v) },
+  };
+  const el = () => ({ textContent: "", children: [], appendChild(c) { this.children.push(c); }, setAttribute() {}, addEventListener() {} });
+  const document = { getElementById: () => el(), createElement: el, documentElement: { style: { setProperty() {} } } };
+  const ctx = vm.createContext({ window, document, JSON, Object, Math, String, Number });
+  window.window = window;
+  for (const f of ["scripts/sinhala-core.js", "scripts/sinhala-words.js", "scripts/toolbar.js"]) {
+    vm.runInContext(readFileSync(join(a, f), "utf8") + "\nwindow.WorkSuiteSinhala = WorkSuiteSinhala; window.__worksuiteSinhalaFactory = __worksuiteSinhalaFactory; window.WorkSuiteSinhalaWords = typeof WorkSuiteSinhalaWords === 'undefined' ? undefined : WorkSuiteSinhalaWords; window.WorkSuiteSinhalaToolbar = typeof WorkSuiteSinhalaToolbar === 'undefined' ? undefined : WorkSuiteSinhalaToolbar;", ctx);
+  }
+  vm.runInContext(readFileSync(join(a, "scripts", "plugin.js"), "utf8"), ctx);
+  vm.runInContext(readFileSync(join(a, "scripts", "ime.js"), "utf8"), ctx);
+  plugin.init();
+  const [name, [menu]] = calls.at(-1);
+  assert.equal(name, "AddToolbarMenuItem");
+  const items = menu.tabs[0].items;
+  assert.deepEqual(items.map((i) => i.text), ["Sinhala input: off", "Convert", "To legacy", "Convert doc", "Detect", "Fonts", "Validate", "Panel"]);
+  assert.deepEqual(items.map((i) => !!i.separator), [false, true, false, false, true, false, false, true]);
+  assert.equal(new Set(items.map((i) => i.icons)).size, 8);
+  for (const i of items) assert.ok(i.hint, i.id);
+  assert.equal(items[0].pressed, false);
+  window.WorkSuiteSinhalaIme.toggle();
+  const [name2, [menu2]] = calls.filter((c) => c[0].endsWith("ToolbarMenuItem")).at(-1);
+  assert.equal(name2, "UpdateToolbarMenuItem");
+  assert.equal(menu2.tabs[0].items[0].text, "Sinhala input: on");
+  assert.equal(menu2.tabs[0].items[0].pressed, true);
+  assert.match(menu2.tabs[0].items[0].hint, /Singlish \(phonetic\)/);
 });
