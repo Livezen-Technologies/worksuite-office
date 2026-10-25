@@ -12,3 +12,4 @@ body { margin: 0; padding: 0; font-size: 11px; overflow-y: auto; }
 .ws-result code { font-family: monospace; }
 .ws-note { opacity: 0.7; margin: 4px 0 0; }
 .ws-sinhala { font-family: "Noto Sans Sinhala", "Iskoola Pota", sans-serif; }
+.ws-check { display: flex; align-items: center; gap: 6px; }

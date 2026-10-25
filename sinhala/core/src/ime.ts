@@ -26,6 +26,18 @@ export interface ImeOptions {
   canResync?: boolean;
   words?: number;
   completions?: number;
+  /** Colloquial spellings ranked above the rules (smart.ts COLLOQUIAL). */
+  preferred?: Record<string, string> | null;
+  /** Smart Auto: offer Sinhala for this word at all? (false: the Latin stays, no window). */
+  gate?: ((latin: string) => boolean) | null;
+  /** Smart Auto: compose `latin` without showing the window yet (it may still become an English word). */
+  quiet?: ((latin: string) => boolean) | null;
+  /** Show the candidate window (default true). Off: Space/Enter/punctuation write the top candidate. */
+  showWindow?: boolean;
+  /** Space (and punctuation) write the highlighted candidate (default true). Off: they keep the Latin. */
+  acceptSpace?: boolean;
+  /** Tab writes the highlighted candidate instead of moving the highlight (default false). */
+  acceptTab?: boolean;
 }
 
 const COMMIT = /^[ .,;:!?)\]}"'෴-]$/;
@@ -37,29 +49,49 @@ export class SinhalaIme {
   selected = 0;
   private base = "";
   private visible = false;
+  private extra: Candidate[] = [];
+  private shown = false;
 
   constructor(private readonly options: ImeOptions = {}) {}
 
+  /** Composing (the editor hands the navigation keys over only while the window is shown). */
   get isVisible(): boolean { return this.visible; }
 
   private show(): ImeAction[] {
+    if (this.options.gate && !this.options.gate(this.latin)) return this.reset();
     this.items = candidates(this.latin, {
       lexicon: this.options.lexicon, learner: this.options.learner,
       words: this.options.words, completions: this.options.completions,
+      preferred: this.options.preferred, extra: this.extra,
     });
     if (!this.items.length) return this.reset();
     if (this.selected >= this.items.length) this.selected = 0;
     this.visible = true;
+    const wasShown = this.shown;
+    this.shown = false;
+    if (this.options.showWindow === false) return [];
+    if (this.options.quiet && this.options.quiet(this.latin)) return wasShown ? [{ type: "hide" }] : [];
+    this.shown = true;
     return [{ type: "show", latin: this.latin, items: this.items, selected: this.selected }];
   }
 
+  /** Candidates that arrived later for `latin` (an AI service): merged if it is still the word typed. */
+  addExtra(latin: string, extra: Candidate[]): ImeAction[] {
+    if (!this.visible || latin !== this.latin || !extra || !extra.length) return [];
+    this.extra = extra;
+    return this.show();
+  }
+
   private reset(clear?: boolean): ImeAction[] {
-    const was = this.visible;
+    const was = this.visible && (this.shown || !this.options.quiet);
+    this.shown = false;
     this.latin = "";
     this.base = "";
     this.items = [];
     this.selected = 0;
     this.visible = false;
+    this.extra = [];
+    if (this.options.showWindow === false) return clear ? [{ type: "hide", clear }] : [];
     return was || clear ? [{ type: "hide", clear }] : [];
   }
 
@@ -86,7 +118,7 @@ export class SinhalaIme {
     const latin = (continues ? this.base : "") + m[1];
     const after = m[2];
     if (!after) {
-      if (latin !== this.latin) this.selected = 0;
+      if (latin !== this.latin) { this.selected = 0; this.extra = []; }
       this.latin = latin;
       return this.show();
     }
@@ -95,6 +127,7 @@ export class SinhalaIme {
         const n = Number(after) - 1;
         if (n < this.items.length) return this.commit(n, after);
       } else if (COMMIT.test(after)) {
+        if (after === " " && this.options.acceptSpace === false) return this.reset();
         return this.commit(this.selected, after);
       }
     }
@@ -109,7 +142,8 @@ export class SinhalaIme {
       case KEY.enter: return this.commit(this.selected, "");
       case KEY.esc: return this.reset(true);
       case KEY.up: this.selected = (this.selected + n - 1) % n; break;
-      case KEY.down: case KEY.tab: this.selected = (this.selected + 1) % n; break;
+      case KEY.tab: if (this.options.acceptTab) return this.commit(this.selected, ""); this.selected = (this.selected + 1) % n; break;
+      case KEY.down: this.selected = (this.selected + 1) % n; break;
       case KEY.pageUp: this.selected = Math.max(0, this.selected - 5); break;
       case KEY.pageDown: this.selected = Math.min(n - 1, this.selected + 5); break;
       case KEY.home: this.selected = 0; break;

@@ -12,12 +12,23 @@
 <body>
   <div class="ws-panel">
     <section class="ws-ime">
-      <h3 data-tr="Sinhala input">Sinhala input</h3>
+      <h3 data-tr="Singlish typing">Singlish typing</h3>
       <p class="ws-note" data-tr="Type Singlish in the document (amma, shrii lankaava) and pick a word: Space or Enter writes the highlighted one, 1-9 that one, the arrow keys move, Esc keeps the Latin. Ctrl+Shift+Y turns it on and off.">Type Singlish in the document (amma, shrii lankaava) and pick a word: Space or Enter writes the highlighted one, 1-9 that one, the arrow keys move, Esc keeps the Latin. Ctrl+Shift+Y turns it on and off.</p>
+      <label class="ws-field"><span data-tr="Input mode">Input mode</span>
+        <select id="mode" class="form-control"></select>
+      </label>
+      <label class="ws-field"><span data-tr="Sinhala font">Sinhala font</span>
+        <select id="typingFont" class="form-control"></select>
+      </label>
       <div id="imeStatus" class="ws-note"></div>
+      <label class="ws-check"><input type="checkbox" id="suggestions" /> <span data-tr="Show word suggestions">Show word suggestions</span></label>
+      <label class="ws-check"><input type="checkbox" id="acceptSpace" /> <span data-tr="Space writes the highlighted word">Space writes the highlighted word</span></label>
+      <label class="ws-check"><input type="checkbox" id="acceptTab" /> <span data-tr="Tab writes the highlighted word">Tab writes the highlighted word</span></label>
+      <label class="ws-check"><input type="checkbox" id="ai" /> <span data-tr="Also ask the local AI service (when it answers within 120 ms)">Also ask the local AI service (when it answers within 120 ms)</span></label>
       <div class="ws-buttons">
         <button id="imeToggle" class="btn-text-default" data-action="ime" data-tr="Turn Sinhala input on">Turn Sinhala input on</button>
         <button id="imeForget" class="btn-text-default" data-action="imeForget" data-tr="Forget learned words">Forget learned words</button>
+        <button class="btn-text-default" data-action="fontPicker" data-tr="All fonts…">All fonts…</button>
       </div>
       <p class="ws-note" data-tr="Your picks are kept on this computer only and never sent anywhere.">Your picks are kept on this computer only and never sent anywhere.</p>
     </section>
