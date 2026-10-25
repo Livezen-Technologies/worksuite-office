@@ -11,7 +11,7 @@ describe("auth and origin", () => {
   it("refuses requests without the token", async () => {
     const r = await fetch(`http://127.0.0.1:${h.port}/v1/info`);
     expect(r.status).toBe(401);
-    expect((await r.json()).error).toEqual({ code: "unauthorized", message: expect.any(String), retryable: false });
+    expect(((await r.json()) as any).error).toEqual({ code: "unauthorized", message: expect.any(String), retryable: false });
   });
   it("refuses a wrong token", async () => {
     const r = await fetch(`http://127.0.0.1:${h.port}/v1/info`, { headers: { authorization: "Bearer nope" } });
