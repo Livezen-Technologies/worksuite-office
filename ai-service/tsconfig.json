@@ -1,0 +1,18 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "types": ["node"],
+    "module": "CommonJS",
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+    "strict": true,
+    "noUnusedLocals": true,
+    "skipLibCheck": true,
+    "baseUrl": ".",
+    "paths": { "@worksuite/sinhala-core": ["../sinhala/core/src/index.ts"] },
+    "noEmit": true
+  },
+  "include": ["src/**/*.ts", "test/**/*.ts", "vitest.config.ts"]
+}
