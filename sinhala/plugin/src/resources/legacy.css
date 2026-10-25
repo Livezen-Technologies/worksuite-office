@@ -37,3 +37,17 @@ select:focus, .lg-btn:focus-visible, .lg-seg button:focus-visible { outline: 1px
 .lg-primary { background: var(--background-primary-dialog-button); border-color: var(--background-primary-dialog-button); color: var(--text-inverse); font-weight: 600; }
 .lg-primary:hover { background: var(--background-primary-dialog-button); filter: brightness(1.15); }
 .lg-btn:disabled { opacity: 0.45; cursor: default; filter: none; }
+/* the font picker (fonts.html) */
+.lg-search { height: 26px; box-sizing: border-box; border: 1px solid var(--border-regular-control); border-radius: 2px; padding: 0 8px;
+  background: var(--background-normal); color: var(--text-normal); font: inherit; }
+.lg-search:focus { outline: 1px solid var(--border-control-focus); }
+.lg-list { flex: 1 1 auto; min-height: 120px; overflow-y: auto; border: 1px solid var(--border-regular-control); border-radius: 4px; }
+.lg-group { padding: 6px 10px 2px; color: var(--text-secondary); font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
+.lg-row { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 2px 8px; padding: 5px 10px; cursor: pointer; }
+.lg-row:hover { background: var(--highlight-button-hover); }
+.lg-row[aria-selected="true"] { background: var(--highlight-button-hover); box-shadow: inset 3px 0 0 var(--background-primary-dialog-button); }
+.lg-row[aria-disabled="true"] { opacity: 0.5; cursor: default; }
+.lg-row .nm { font-weight: 600; }
+.lg-row .chip { font-size: 10px; color: var(--text-secondary); white-space: nowrap; }
+.lg-row .chip.ok { color: var(--lg-ok); } .lg-row .chip.warn { color: var(--lg-warn); }
+.lg-row .sm { grid-column: 1 / -1; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

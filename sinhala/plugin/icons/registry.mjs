@@ -27,6 +27,9 @@ export const ICONS = {
   "scan-text": '<path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M7 8h8"/><path d="M7 12h10"/><path d="M7 16h6"/>',
   "type": '<polyline points="4 7 4 4 20 4 20 7"/><line x1="9" x2="15" y1="20" y2="20"/><line x1="12" x2="12" y1="4" y2="20"/>',
   "shield-check": '<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/>',
+  "globe": '<circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/>',
+  "list-ordered": '<path d="M10 12h11"/><path d="M10 18h11"/><path d="M10 6h11"/><path d="M4 10h2"/><path d="M4 6h1v4"/><path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"/>',
+  "replace": '<path d="M14 4a2 2 0 0 1 2-2"/><path d="M16 10a2 2 0 0 1-2-2"/><path d="M20 2a2 2 0 0 1 2 2"/><path d="M22 8a2 2 0 0 1-2 2"/><path d="m3 7 3 3 3-3"/><path d="M6 10V5a3 3 0 0 1 3-3h1"/><rect x="2" y="14" width="8" height="8" rx="2"/>',
   "panel-right-open": '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M15 3v18"/><path d="m10 15-3-3 3-3"/>',
   // shown for a command whose icon is missing (plugin.js falls back to it; the build refuses that anyway)
   "fallback": '<circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>'
@@ -38,19 +41,34 @@ export const ICONS = {
  * Every label and hint is translated in translations/*.json.
  */
 export const COMMANDS = [
-  { id: "ime", icon: "keyboard", iconOff: "keyboard-off", label: "Sinhala input", group: true,
-    hint: "Type Singlish and pick Sinhala words as you type (Ctrl+Shift+Y)" },
-  { id: "convertSelection", icon: "languages", label: "Convert", group: true,
-    hint: "Legacy font text in the selection to Unicode, in a Noto Sinhala font" },
-  { id: "convertToLegacy", icon: "file-type-refresh", label: "To legacy",
-    hint: "Unicode in the selection to a legacy font, with a preview" },
+  { id: "inputMode", icon: "globe", label: "Input mode", group: true, menu: true,
+    hint: "English, Sinhala Unicode, Sinhala legacy font, or Smart Auto (Sinhala only for words that are not English)" },
+  { id: "sinhalaFont", icon: "type", label: "Sinhala font", menu: true,
+    hint: "The font Sinhala typing writes in: a Unicode font, or a legacy font with a map" },
+  { id: "ime", icon: "keyboard", iconOff: "keyboard-off", label: "Singlish typing",
+    hint: "Type Singlish and get Sinhala as you type (Ctrl+Shift+Y)" },
+  { id: "suggestions", icon: "list-ordered", label: "Suggestions",
+    hint: "Show word suggestions while typing; off writes the best match on Space" },
+  { id: "convertSelection", icon: "replace", label: "Convert", group: true,
+    hint: "Convert the selection: choose the direction and the font, with a preview" },
   { id: "convertDocument", icon: "file-text-refresh", label: "Convert doc",
     hint: "Every run in a legacy font to Unicode, after a preview" },
-  { id: "detect", icon: "scan-text", label: "Detect", group: true, hint: "Highlight text in legacy fonts" },
-  { id: "fonts", icon: "type", label: "Fonts", hint: "Apply the Noto Sinhala font to Sinhala text" },
+  { id: "toLegacy", icon: "file-type-refresh", label: "To legacy",
+    hint: "Unicode in the selection to a legacy font, with a preview" },
+  { id: "toUnicode", icon: "languages", label: "To Unicode",
+    hint: "Legacy font text in the selection to Unicode, in a Noto Sinhala font" },
+  { id: "detect", icon: "scan-text", label: "Detect font", group: true, hint: "Highlight text in legacy fonts" },
   { id: "validate", icon: "shield-check", label: "Validate",
     hint: "Find broken conjuncts, stray joiners and vowel signs in the wrong order" },
   { id: "panel", icon: "panel-right-open", label: "Panel", group: true, hint: "Open the Sinhala Tools panel" }
+];
+
+/** The input modes, in the Input mode menu, the panel and on the Singlish typing button. */
+export const MODES = [
+  { id: "english", label: "English" },
+  { id: "unicode", label: "Sinhala Unicode" },
+  { id: "legacy", label: "Sinhala legacy font" },
+  { id: "smart", label: "Smart Auto" }
 ];
 
 export function iconFile(theme, name, scale) {

@@ -50,7 +50,10 @@
       settings: settings,
       fonts: FONTS,
       editor: editorType(),
-      ime: { on: imeOn(), learned: ime() ? ime().learnedCount() : 0 },
+      ime: { on: imeOn(), learned: ime() ? ime().learnedCount() : 0, mode: ime() ? ime().mode() : "english",
+        typing: ime() ? ime().settings() : null, font: ime() ? ime().font() : null },
+      modes: TOOLBAR.modes,
+      catalog: fontCatalog(),
       profiles: S.builtinProfiles.map(function (p) {
         return { id: p.id, name: p.name, version: p.version, status: p.status };
       })
@@ -68,6 +71,12 @@
       while (queued.length) panel.command("onResult", queued.shift());
     });
     panel.attachEvent("onPanelAction", function (data) { run(data && data.action, true); });
+    panel.attachEvent("onPanelTyping", function (data) {
+      if (!data || !ime()) return;
+      if (typeof data.mode === "string") ime().setMode(data.mode);
+      if (data.font) chooseFont(data.font);
+      if (data.set) ime().set(data.set);
+    });
     panel.attachEvent("onPanelSettings", function (data) {
       if (!data) return;
       for (var key in settings) if (typeof data[key] === "string") settings[key] = data[key];
@@ -258,14 +267,14 @@
     return names;
   }
 
-  function openLegacyDialog() {
+  function openLegacyDialog(prefer) {
     getSelection(function (text) {
       if (!text.replace(/\s+/g, "")) { fail("convertToLegacy", tr("Select the text to convert first."), false); return; }
       getSelectionFont(function (sel) {
         plugin.executeMethod("GetFontList", [], function (list) {
           installedFonts = fontNames(list);
           var init = {
-            direction: SINHALA.test(text) ? "toLegacy" : "toUnicode",
+            direction: prefer === "toLegacy" || prefer === "toUnicode" ? prefer : SINHALA.test(text) ? "toLegacy" : "toUnicode",
             text: text, selectionFont: sel.font, mixed: !!sel.mixed,
             legacyProfile: settings.legacyProfile, unicodeFont: settings.font,
             installed: installedFonts, fontListKnown: Array.isArray(list)
@@ -398,9 +407,16 @@
   var ACTIONS = {
     ime: function () { if (ime()) ime().toggle(); },
     imeForget: function () { if (ime()) ime().forget(); },
-    convertSelection: convertSelection,
-    // the toolbar opens the dialog; the panel converts with its own choice of font
-    convertToLegacy: function (fromPanel) { if (fromPanel) convertToLegacyNow(true); else openLegacyDialog(); },
+    // the toolbar's Convert opens the dialog the way the selection reads; To legacy opens it to legacy;
+    // To Unicode converts at once (the font from the runs). The panel converts with its own choices.
+    convertSelection: function (fromPanel) { if (fromPanel) convertSelection(true); else openLegacyDialog("auto"); },
+    convertToLegacy: function (fromPanel) { if (fromPanel) convertToLegacyNow(true); else openLegacyDialog("toLegacy"); },
+    toLegacy: function (fromPanel) { if (fromPanel) convertToLegacyNow(true); else openLegacyDialog("toLegacy"); },
+    toUnicode: function (fromPanel) { convertSelection(!!fromPanel); },
+    inputMode: function () { /* a menu */ },
+    sinhalaFont: function () { openFontPicker(); },
+    suggestions: function () { if (ime()) ime().set({ suggestions: !ime().settings().suggestions }); },
+    fontPicker: function () { openFontPicker(); },
     // a preview first; the panel's Convert button applies it
     convertDocument: function (fromPanel) { runDocument("convertDocument", "convert", true, fromPanel); },
     convertDocumentApply: function (fromPanel) { runDocument("convertDocumentApply", "convert", false, fromPanel); },
@@ -420,19 +436,133 @@
     }
   }
 
+  // --- Sinhala fonts for typing ---------------------------------------------------------------
+  // The editor's font list (GetFontList) names the fonts but not their scripts, so Unicode Sinhala fonts
+  // are recognised by name. Legacy fonts are offered only with a map; known legacy fonts without one are
+  // listed disabled in the picker ("map not available"), never typed with another font's map.
+  var UNICODE_FONTS = ["Noto Sans Sinhala", "Noto Serif Sinhala", "Iskoola Pota", "Nirmala UI", "Sinhala MN",
+    "Sinhala Sangam MN", "Noto Sans Sinhala UI", "Abhaya Libre", "Yaldevi", "Gemunu Libre", "Malithi Web", "LKLUG"];
+  var LEGACY_NO_MAP = ["FM Bindumathi", "FM Ganganee", "FM Malithi", "FM Derana", "FM Basuru", "FM Emanee",
+    "DL Araliya", "DL Paras", "DL Sarala", "Kandy"];
+  var BUNDLED = ["Noto Sans Sinhala", "Noto Serif Sinhala"];
+  var installedFontList = null; // null until GetFontList answers
+
+  function fontCatalog() {
+    var have = installedFontList || [];
+    var lower = have.map(function (n) { return n.toLowerCase(); });
+    function installed(names) {
+      for (var i = 0; i < names.length; i++) { var at = lower.indexOf(names[i].toLowerCase()); if (at >= 0) return have[at]; }
+      return null;
+    }
+    var unicode = [];
+    UNICODE_FONTS.forEach(function (n) {
+      var name = installed([n]);
+      if (name || BUNDLED.indexOf(n) >= 0) unicode.push({ name: name || n, installed: !!name || installedFontList === null, bundled: BUNDLED.indexOf(n) >= 0 });
+    });
+    have.forEach(function (n) {
+      if (/sinhala/i.test(n) && !unicode.some(function (u) { return u.name.toLowerCase() === n.toLowerCase(); })) unicode.push({ name: n, installed: true });
+    });
+    var legacy = S.builtinProfiles.map(function (p) {
+      var name = installed(p.fontNames);
+      return { profile: p.id, name: name || p.fontNames[0], label: p.name, installed: !!name, mapped: true };
+    });
+    LEGACY_NO_MAP.forEach(function (n) {
+      legacy.push({ profile: null, name: installed([n, n.replace(/ /g, "")]) || n, label: n, installed: !!installed([n, n.replace(/ /g, "")]), mapped: false });
+    });
+    return { unicode: unicode, legacy: legacy, known: installedFontList !== null };
+  }
+
+  function loadFonts(then) {
+    plugin.executeMethod("GetFontList", [], function (list) {
+      installedFontList = fontNames(list);
+      installedFonts = installedFontList;
+      if (then) then();
+    });
+  }
+
+  function chooseFont(choice) {
+    var t = ime();
+    if (!t || !choice) return;
+    if (choice.profile) {
+      if (!knownProfile(choice.profile)) return;
+      t.set({ legacyProfile: choice.profile, legacyFont: choice.name || "" });
+      if (t.mode() !== "legacy") t.setMode("legacy");
+    } else if (choice.unicode) {
+      t.set({ unicodeFont: choice.unicode });
+      if (t.mode() === "legacy" || t.mode() === "english") t.setMode("unicode");
+    }
+  }
+
+  // the searchable font picker (fonts.html), a modal
+  var picker = null;
+  function openFontPicker() {
+    loadFonts(function () {
+      if (picker) { try { picker.close(); } catch (e) { /* closed */ } }
+      picker = new window.Asc.PluginWindow();
+      picker.attachEvent("onFontsReady", function () {
+        picker.command("onFontsInit", { catalog: fontCatalog(), typing: ime() ? ime().settings() : {}, sample: "ශ්‍රී ලංකාව සුබ උදෑසනක්" });
+      });
+      picker.attachEvent("onFontsCancel", closePicker);
+      picker.attachEvent("onFontsChoose", function (choice) { closePicker(); chooseFont(choice); });
+      picker.show({ url: "fonts.html", description: tr("Sinhala font"), isVisual: true, isModal: true, buttons: [],
+        EditorsSupport: ["word", "cell", "slide"], size: [440, 460] });
+    });
+  }
+  function closePicker() { if (picker) { try { picker.close(); } catch (e) { /* closed */ } } picker = null; }
+
   // --- the toolbar tab ------------------------------------------------------------------------
   // Items, icons, labels and tooltips come from scripts/toolbar.js (built from plugin/icons/registry.mjs).
   // Each item's `icons` is the editor's template string, relative to this plugin's folder: the editor
   // prefixes the plugin's base URL and picks resources/icons/<light|dark>/<name>[@1.25x..@2x].png by theme
-  // and screen scale. v10 never changes an existing button's icon on UpdateToolbarMenuItem (only its
-  // caption, hint, disabled and pressed state), so Sinhala input shows its state by being pressed and by
-  // its caption, not by swapping to keyboard-off.
-  var TOOLBAR = window.WorkSuiteSinhalaToolbar || { fallback: "", items: [] };
-  var documentOnly = { convertDocument: true, detect: true, fonts: true, validate: true };
+  // and screen scale. v10's toolbar has buttons, big buttons and buttons with a menu (and split buttons),
+  // no combo box; a menu item has no checked or disabled state, so the current choice is marked "✓". v10
+  // never changes an existing button's icon on UpdateToolbarMenuItem (only caption, hint, disabled,
+  // pressed and menu items), so toggles show their state by being pressed and by their caption.
+  var TOOLBAR = window.WorkSuiteSinhalaToolbar || { fallback: "", modes: [], items: [] };
+  var documentOnly = { convertDocument: true, detect: true, validate: true };
   var toolbarAdded = false;
+  var menuIds = {};
+
+  function mark(text, current) { return (current ? "✓ " : "  ") + text; }
+  function short(name) { return name.length > 16 ? name.slice(0, 15) + "…" : name; }
+  function modeLabel(id) {
+    for (var i = 0; i < TOOLBAR.modes.length; i++) if (TOOLBAR.modes[i].id === id) return tr(TOOLBAR.modes[i].label);
+    return id;
+  }
+
+  function menuFor(id) {
+    var t = ime();
+    var st = t ? t.settings() : { mode: "english", unicodeFont: "Noto Sans Sinhala", legacyProfile: "fm-abhaya" };
+    if (id === "inputMode") {
+      return TOOLBAR.modes.map(function (m) {
+        menuIds["mode-" + m.id] = function () { if (ime()) ime().setMode(m.id); };
+        return { id: "ws-sinhala-mode-" + m.id, text: mark(tr(m.label), st.mode === m.id) };
+      });
+    }
+    if (id === "sinhalaFont") {
+      var cat = fontCatalog();
+      var uni = cat.unicode.map(function (f, i) {
+        menuIds["font-u-" + i] = function () { chooseFont({ unicode: f.name }); };
+        return { id: "ws-sinhala-font-u-" + i, text: mark(f.name + (f.installed ? "" : " (" + tr("not installed") + ")"), st.mode !== "legacy" && st.unicodeFont === f.name) };
+      });
+      var leg = cat.legacy.filter(function (f) { return f.mapped; }).map(function (f) {
+        menuIds["font-l-" + f.profile] = function () { chooseFont({ profile: f.profile, name: f.installed ? f.name : "" }); };
+        return { id: "ws-sinhala-font-l-" + f.profile, text: mark(f.label + (f.installed ? "" : " (" + tr("not installed") + ")"), st.mode === "legacy" && st.legacyProfile === f.profile) };
+      });
+      menuIds["font-more"] = openFontPicker;
+      return [
+        { id: "ws-sinhala-font-unicode", text: tr("Unicode fonts"), items: uni },
+        { id: "ws-sinhala-font-legacy", text: tr("Legacy fonts"), items: leg },
+        { id: "ws-sinhala-font-more", text: tr("All fonts…"), separator: true }
+      ];
+    }
+    return null;
+  }
 
   function toolbar() {
-    var on = imeOn();
+    var t = ime();
+    var st = t ? t.settings() : { mode: "english", suggestions: true, unicodeFont: "Noto Sans Sinhala" };
+    var on = st.mode !== "english";
     return {
       guid: plugin.info.guid,
       tabs: [{
@@ -446,12 +576,16 @@
             disabled: !isDocument() && !!documentOnly[b.id],
             separator: i > 0 && b.group
           };
+          if (b.menu) item.items = menuFor(b.id);
+          if (b.id === "inputMode") item.text = modeLabel(st.mode);
+          if (b.id === "sinhalaFont") { item.text = short(t ? t.font() : st.unicodeFont); item.split = true; }
           if (b.id === "ime") {
-            item.text = on ? tr("Sinhala input: on") : tr("Sinhala input: off");
-            item.hint = tr(b.hint) + " \u2014 " + (on ? tr("On: Singlish (phonetic)") : tr("Off"));
+            item.text = on ? tr("Singlish: on") : tr("Singlish: off");
+            item.hint = tr(b.hint) + " — " + modeLabel(st.mode);
             item.enableToggle = true;
             item.pressed = on;
           }
+          if (b.id === "suggestions") { item.enableToggle = true; item.pressed = !!st.suggestions; }
           return item;
         })
       }]
@@ -459,24 +593,40 @@
   }
 
   function addToolbar() {
-    plugin.executeMethod(toolbarAdded ? "UpdateToolbarMenuItem" : "AddToolbarMenuItem", [toolbar()]);
+    var menu = toolbar();
+    plugin.executeMethod(toolbarAdded ? "UpdateToolbarMenuItem" : "AddToolbarMenuItem", [menu]);
     toolbarAdded = true;
+    // menu items report clicks by their id, like buttons
+    Object.keys(menuIds).forEach(function (k) {
+      if (attached[k]) return;
+      attached[k] = true;
+      plugin.attachToolbarMenuClickEvent("ws-sinhala-" + k, function () { try { menuIds[k](); } catch (e) { fail("typing", String(e && e.message || e), false); } });
+    });
   }
+  var attached = {};
 
   TOOLBAR.items.forEach(function (b) {
     plugin.attachToolbarMenuClickEvent("ws-sinhala-" + b.id, function () { run(b.id, false); });
   });
 
-  // scripts/ime.js tells us when Sinhala input is turned on or off, or forgets what it learned
+  // scripts/ime.js tells us when the mode or a typing setting changes, or what it learned is forgotten
   window.WorkSuiteSinhalaTools = {
     imeChanged: function () {
       if (toolbarAdded) addToolbar();
       if (panel && panelReady) panel.command("onState", panelState());
+    },
+    typingWarning: function (w) {
+      var p = S.getProfile(w.profile);
+      var msg = ({ action: "typing", warning: fmt("%1 has no mapping for %2: typed as it is, it will not show as Sinhala.", p.name,
+        w.unmapped.map(function (u) { return u.codePoint + " " + u.text; }).join(", ")) });
+      // shown in the panel when it is open, never opening it while someone types
+      if (panel && panelReady) panel.command("onResult", msg); else queued.push(msg);
     }
   };
 
   plugin.init = function () {
     addToolbar();
+    loadFonts(function () { addToolbar(); });
   };
 
   plugin.onTranslate = function () {

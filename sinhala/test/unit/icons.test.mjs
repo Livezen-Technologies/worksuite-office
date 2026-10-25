@@ -17,9 +17,9 @@ const exists = (f) => { try { return statSync(join(src, f)).isFile(); } catch { 
 test("the registry is valid: an icon, a label and a tooltip per command, no icon used twice", () => {
   assert.deepEqual(validateRegistry(COMMANDS, ICONS, exists), []);
   assert.deepEqual(COMMANDS.map((c) => c.id),
-    ["ime", "convertSelection", "convertToLegacy", "convertDocument", "detect", "fonts", "validate", "panel"]);
-  assert.deepEqual(COMMANDS.filter((c) => c.group).map((c) => c.id), ["ime", "convertSelection", "detect", "panel"]);
-  for (const c of COMMANDS) assert.ok(c.label.length <= 13, `${c.id}: "${c.label}" is short enough not to wrap`);
+    ["inputMode", "sinhalaFont", "ime", "suggestions", "convertSelection", "convertDocument", "toLegacy", "toUnicode", "detect", "validate", "panel"]);
+  assert.deepEqual(COMMANDS.filter((c) => c.group).map((c) => c.id), ["inputMode", "convertSelection", "detect", "panel"]);
+  for (const c of COMMANDS) assert.ok(c.label.length <= 15, `${c.id}: "${c.label}" fits a big button's two lines`);
 });
 
 test("validateRegistry reports a missing icon, tooltip, duplicate and missing file", () => {

@@ -41,8 +41,29 @@
     fill($("legacyProfile"), profiles, state.settings.legacyProfile);
     fill($("font"), state.fonts.map(function (f) { return { value: f, text: f }; }), state.settings.font);
     var ime = state.ime || { on: false, learned: 0 };
+    fill($("mode"), (state.modes || []).map(function (m) { return { value: m.id, text: tr(m.label) }; }), ime.mode || "english");
+    var cat = state.catalog || { unicode: [], legacy: [] };
+    var fsel = $("typingFont");
+    fsel.textContent = "";
+    [["Unicode fonts", cat.unicode.map(function (f) { return { value: "u:" + f.name, text: f.name + (f.installed ? "" : " (" + tr("not installed") + ")") }; })],
+     ["Legacy fonts", cat.legacy.map(function (f) { return { value: f.mapped ? "l:" + f.profile + ":" + (f.installed ? f.name : "") : "", text: f.label + (f.mapped ? f.installed ? "" : " (" + tr("not installed") + ")" : " (" + tr("map not available") + ")"), disabled: !f.mapped }; })]
+    ].forEach(function (g) {
+      var og = document.createElement("optgroup");
+      og.label = tr(g[0]);
+      g[1].forEach(function (o) { var opt = el("option", o.text); opt.value = o.value; opt.disabled = !!o.disabled; og.appendChild(opt); });
+      fsel.appendChild(og);
+    });
+    var ty = ime.typing || {};
+    for (var oi = 0; oi < fsel.options.length; oi++) {
+      var v = fsel.options[oi].value;
+      if (ty.mode === "legacy" ? v.indexOf("l:" + ty.legacyProfile + ":") === 0 : v === "u:" + ty.unicodeFont) { fsel.selectedIndex = oi; break; }
+    }
+    $("suggestions").checked = ty.suggestions !== false;
+    $("acceptSpace").checked = ty.acceptSpace !== false;
+    $("acceptTab").checked = !!ty.acceptTab;
+    $("ai").checked = !!ty.ai;
     $("imeToggle").textContent = ime.on ? tr("Turn Sinhala input off") : tr("Turn Sinhala input on");
-    $("imeStatus").textContent = (ime.on ? tr("Sinhala input is on.") : tr("Sinhala input is off.")) + " " + fmt("%1 words learned from your picks.", ime.learned);
+    $("imeStatus").textContent = (ime.on ? fmt("Typing in %1.", ime.font || "") : tr("Sinhala input is off.")) + " " + fmt("%1 words learned from your picks.", ime.learned);
     $("imeForget").disabled = !ime.learned;
     var docs = state.editor === "word";
     var buttons = document.querySelectorAll(".ws-doc");
@@ -106,6 +127,9 @@
     if (r.error) { box.appendChild(el("div", r.error, "ws-error")); return; }
     var add = function (node) { if (node) box.appendChild(node); };
     switch (r.action) {
+      case "typing":
+        add(el("div", r.warning, "ws-error"));
+        break;
       case "convertSelection":
         add(el("div", fmt("Converted %1 characters from %2 %3.", r.characters, r.profile, r.profileVersion)));
         add(fontNote(r));
@@ -155,6 +179,15 @@
   plugin.init = function () {
     translate();
     ["profile", "legacyProfile", "font"].forEach(function (id) { $(id).addEventListener("change", sendSettings); });
+    $("mode").addEventListener("change", function () { plugin.sendToPlugin("onPanelTyping", { mode: $("mode").value }); });
+    $("typingFont").addEventListener("change", function () {
+      var v = $("typingFont").value.split(":");
+      if (v[0] === "u") plugin.sendToPlugin("onPanelTyping", { font: { unicode: v.slice(1).join(":") } });
+      else if (v[0] === "l") plugin.sendToPlugin("onPanelTyping", { font: { profile: v[1], name: v.slice(2).join(":") } });
+    });
+    ["suggestions", "acceptSpace", "acceptTab", "ai"].forEach(function (id) {
+      $(id).addEventListener("change", function () { var o = {}; o[id] = $(id).checked; plugin.sendToPlugin("onPanelTyping", { set: o }); });
+    });
     var buttons = document.querySelectorAll("[data-action]");
     for (var i = 0; i < buttons.length; i++) {
       buttons[i].addEventListener("click", function (e) {

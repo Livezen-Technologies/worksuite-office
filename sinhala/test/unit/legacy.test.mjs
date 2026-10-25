@@ -119,7 +119,7 @@ const DL = S.getProfile("dl-manel");
 test("Convert to legacy from the dialog: the legacy text in the legacy font, in one editor command, formatting kept", () => {
   const doc = editor([{ text: "Hello ", font: "Arial" }, { text: "ශ්‍රී ලංකා", font: "Noto Sans Sinhala", bold: true, size: 14, color: "red" }], [1]);
   const h = harness(doc, { fonts: ["Arial", "DL-Manel", "FMAbhaya"] });
-  h.click("convertToLegacy");
+  h.click("toLegacy");
   const dlg = h.windows.at(-1);
   assert.equal(dlg.options.url, "legacy.html");
   assert.equal(dlg.options.isModal, true);
@@ -151,7 +151,7 @@ test("Legacy -> Unicode: the profile from the runs' font, Unicode text in Noto S
   const legacy = S.toLegacy("ප්‍රශ්නය කාර්යය", FM).text;
   const doc = editor([{ text: legacy, font: "FMAbhaya", italic: true }], [0]);
   const h = harness(doc);
-  h.click("convertSelection");
+  h.click("toUnicode");
   assert.equal(h.commands.filter((c) => c.isCalc).length, 1);
   assert.deepEqual(doc.runs[0], { text: "ප්‍රශ්නය කාර්යය".normalize("NFC"), font: "Noto Sans Sinhala", italic: true });
 });
@@ -160,7 +160,7 @@ test("Legacy -> Unicode from the dialog with the font chosen there", () => {
   const legacy = S.toLegacy("අම්මා", DL).text;
   const doc = editor([{ text: legacy, font: "Some Font" }], [0]);
   const h = harness(doc);
-  h.click("convertToLegacy");
+  h.click("convertSelection");
   const dlg = h.windows.at(-1);
   dlg.events.onLegacyReady();
   assert.equal(dlg.commands[0][1].direction, "toUnicode", "Latin text opens the dialog the other way");
@@ -189,11 +189,11 @@ test("the checks: no selection, nothing Sinhala, unknown font, mixed fonts", () 
     }
     assert.equal(doc.history.length, 0, "the document is not changed");
   };
-  check([{ text: "abc", font: "Arial" }], [], "convertToLegacy");
+  check([{ text: "abc", font: "Arial" }], [], "toLegacy");
   check([{ text: "Hello", font: "Arial" }], [0], "convertToLegacy", true);
-  check([{ text: "xyzzy qwrt", font: "Wingdings" }], [0], "convertSelection");
-  check([{ text: "xyzzy ", font: "Arial" }, { text: "qwrt", font: "Courier" }], [0, 1], "convertSelection");
-  check([{ text: "ශ්‍රී", font: "Iskoola Pota" }], [0], "convertSelection");
+  check([{ text: "xyzzy qwrt", font: "Wingdings" }], [0], "toUnicode");
+  check([{ text: "xyzzy ", font: "Arial" }, { text: "qwrt", font: "Courier" }], [0, 1], "toUnicode");
+  check([{ text: "ශ්‍රී", font: "Iskoola Pota" }], [0], "toUnicode");
   assert.deepEqual(results, [
     "Select the text to convert first.",
     "There is no Sinhala Unicode text in the selection.",
