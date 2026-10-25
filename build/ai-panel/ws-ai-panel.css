@@ -84,13 +84,43 @@ html.ws-ai-hosted .ws-ai-hide {
 /* Empty state: compact, centred, nothing clipped in a 300px panel */
 .ws-ai-empty-wrap {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
   box-sizing: border-box;
   height: 100%;
   min-width: 0;
-  padding: 24px 20px;
+  padding: 48px 20px 24px;
   overflow: auto;
+}
+/* optical centre: a little more space below the block than above it */
+.ws-ai-empty-wrap::before,
+.ws-ai-empty-wrap::after {
+  content: "";
+  flex: 2 1 0;
+}
+.ws-ai-empty-wrap::after {
+  flex-grow: 3;
+}
+
+/* Body row and the closed chat-history toggle, at the header's 16px inset */
+.ws-ai-body {
+  position: relative;
+  min-height: 0;
+}
+.ws-ai-history-toggle {
+  flex: none;
+  margin-block-start: 12px;
+  margin-inline-start: 16px;
+}
+/* on the empty state the toggle takes no width, so the block centres in the whole panel */
+.ws-ai-body:has(.ws-ai-empty-wrap) > .ws-ai-history-toggle {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-start: 0;
+  z-index: 1;
+}
+.ws-ai-history-toggle button {
+  color: var(--icon-button-color);
 }
 .ws-ai-empty {
   display: flex;
@@ -100,6 +130,7 @@ html.ws-ai-hosted .ws-ai-hide {
   box-sizing: border-box;
   width: 100%;
   max-width: 320px;
+  flex: none;
   text-align: center;
 }
 .ws-ai-empty::before {
@@ -118,7 +149,8 @@ html.ws-ai-hosted .ws-ai-hide {
 .ws-ai-empty > div {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
+  max-width: 260px;
   min-width: 0;
 }
 .ws-ai-empty__title {
@@ -127,7 +159,8 @@ html.ws-ai-hosted .ws-ai-hide {
   font-size: 17px;
   font-weight: 600;
   line-height: 24px;
-  overflow-wrap: anywhere;
+  text-wrap: balance;
+  overflow-wrap: break-word;
   user-select: none;
 }
 .ws-ai-empty__text {
@@ -136,7 +169,8 @@ html.ws-ai-hosted .ws-ai-hide {
   font-size: 13px;
   font-weight: 400;
   line-height: 20px;
-  overflow-wrap: anywhere;
+  text-wrap: pretty;
+  overflow-wrap: break-word;
   user-select: none;
 }
 .ws-ai-empty .ws-ai-empty__btn {
