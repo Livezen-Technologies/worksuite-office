@@ -13,4 +13,10 @@ export { ImeAction, ImeOptions, SinhalaIme } from "./ime";
 export { COLLOQUIAL, EnglishWords, SmartDecision, SmartReason, smartDecision } from "./smart";
 export { isSinhala, isConsonant, ZWJ, ZWNJ } from "./script";
 
-export const VERSION = "1.1.0";
+
+export { EnglishLexicon, EnglishSources, Correction, PROPER, applyCase, distance } from "./english";
+export { Bigrams, Personal, PersonalData } from "./bigrams";
+export { InputMode, LangDecision, Rule, TokenLang, DetectContext, MARKERS, THRESHOLD, CONTEXT_WINDOW, CONTEXT_WEIGHTS, CONTEXT_MIN, contextLean, detectToken, englishScore, phonotactic, singlishScore } from "./lang";
+export { DEFAULT_SETTINGS, ItemKind, SmartData, SmartEngine, SmartItem, SmartQuery, SmartResult, SmartSettings, words } from "./engine";
+export { AiScheduler, KEY, SmartTyping, TypingAction, TypingOptions } from "./typing";
+export const VERSION = "1.2.0";

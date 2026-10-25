@@ -1,0 +1,31 @@
+# Sinhala word forms for WorkSuite Smart Typing: common inflections the other lists lack, most frequent first.
+# Written for WorkSuite Office; AGPL-3.0-only. One word per line; # starts a comment.
+ලියවිල්ල
+කන්නට
+කන්නේ
+කනවා
+කෑවා
+ලියන්නට
+ලියන්නේ
+ලියවිලි
+ලිව්වා
+යන්නට
+යන්නේ
+එන්නට
+එන්නේ
+කරන්නට
+කරන්නේ
+බලන්නට
+බලන්නේ
+කියන්නට
+කියන්නේ
+හම්බවෙමු
+උදෑසනක්
+රාත්‍රියක්
+හිතන්නේ
+දන්වන්න
+ඕනෑ
+ඕනේ
+ඉතින්
+මීටිං
+ඔෆිස්

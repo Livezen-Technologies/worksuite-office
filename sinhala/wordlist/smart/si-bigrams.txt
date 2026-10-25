@@ -1,0 +1,35 @@
+# Sinhala word pairs for next-word prediction (first<TAB>next), most common first. Mixed pairs (an
+# English word then Sinhala) are next-word predictions for Smart Mixed. Written for WorkSuite Office; AGPL-3.0-only.
+මම	යනවා
+මම	හිතන්නේ
+මට	ඕනෑ
+ඔයා	කොහොමද
+කොහොමද	ඉතින්
+සුබ	උදෑසනක්
+සුබ	රාත්‍රියක්
+සුබ	අලුත්
+ස්තුතියි	ඔබට
+ඔබට	ස්තුතියි
+කරුණාකර	මෙය
+කරුණාකර	දන්වන්න
+කෑම	කන්න
+බත්	කන්න
+වතුර	බොන්න
+ලියුමක්	ලියන්න
+පොතක්	කියවන්න
+ගෙදර	යනවා
+වැඩ	කරනවා
+මේ	ගැන
+ඒ	ගැන
+හෙට	හම්බවෙමු
+ශ්‍රී	ලංකාව
+ශ්‍රී	ලංකා
+meeting	එක
+office	එකට
+report	එක
+document	එක
+presentation	එක
+email	එකක්
+file	එක
+project	එක
+call	එකක්

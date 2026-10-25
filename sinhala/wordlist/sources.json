@@ -10,6 +10,14 @@
       "sha256": null
     },
     {
+      "file": "smart/si-forms.txt",
+      "name": "WorkSuite Smart Typing word forms",
+      "licence": "AGPL-3.0-only",
+      "source": "Written for WorkSuite Office (sinhala/wordlist/smart)",
+      "order": "rough frequency, most common first",
+      "sha256": "6bf23f64f5d85f23312077b7079ce4d9d78f2c6c637bb20bf42abce1b35cd8ef"
+    },
+    {
       "file": "lirneasia-stopwords.txt",
       "name": "LIRNEasia Sinhala stopwords (Corpus-Sinhala-Redux)",
       "licence": "CC-BY-4.0",

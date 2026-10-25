@@ -1,0 +1,43 @@
+# Singlish code-switch markers and English loanwords as Sinhala speakers write them (latin<TAB>Sinhala).
+# Markers (kind "marker") make the word Singlish in Smart Mixed; loanwords (kind "loan") offer the Sinhala
+# spelling of an English word. Written for WorkSuite Office; AGPL-3.0-only. Format: latin<TAB>Sinhala<TAB>kind.
+eka	එක	marker
+ekak	එකක්	marker
+ekata	එකට	marker
+eke	එකේ	marker
+ekka	එක්ක	marker
+kiyala	කියලා	marker
+kiyla	කියලා	marker
+nam	නම්	marker
+da	ද	marker
+ne	නේ	marker
+neh	නේ	marker
+nethnam	නැත්නම්	marker
+nathnam	නැත්නම්	marker
+wage	වගේ	marker
+wge	වගේ	marker
+gena	ගැන	marker
+gana	ගැන	marker
+hinda	නිසා	marker
+nisa	නිසා	marker
+thamai	තමයි	marker
+tamai	තමයි	marker
+tikak	ටිකක්	marker
+godak	ගොඩක්	marker
+hari	හරි	marker
+ok	ඕකේ	loan
+meeting	මීටිං	loan
+office	ඔෆිස්	loan
+report	රිපෝට්	loan
+email	ඊමේල්	loan
+file	ෆයිල්	loan
+computer	කොම්පියුටර්	loan
+phone	ෆෝන්	loan
+project	ප්‍රොජෙක්ට්	loan
+presentation	ප්‍රෙසන්ටේෂන්	loan
+document	ඩොකියුමන්ට්	loan
+call	කෝල්	loan
+bus	බස්	loan
+school	ස්කෝලේ	loan
+class	ක්ලාස්	loan
+team	ටීම්	loan
