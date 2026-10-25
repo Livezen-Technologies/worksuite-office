@@ -1,7 +1,7 @@
 /*
  * The Convert dialog (legacy.html): Unicode -> a legacy font, or legacy -> Unicode, with the font, whether
  * it is installed, a live preview and the problems found. plugin.js sends onLegacyInit (the selection, its
- * font, the installed fonts, the last choices) and gets onLegacyApply { direction, profile } or
+ * font, the installed fonts, the last choices) and gets onLegacyApply { direction, profile, font } or
  * onLegacyCancel; plugin.js does the conversion in the document.
  */
 (function (window, document) {
@@ -11,7 +11,9 @@
   var S = window.WorkSuiteSinhala;
   var KEY = "worksuite-sinhala-tools-legacy";
   // which profiles share an encoding: a profile's map is used only for its own family's fonts
-  var FAMILY = { "fm-abhaya": "FM (Wijesekara)", "dl-manel": "DL", "kaputa": "Kaputa" };
+  var FAMILY = { "fm-abhaya": "FM (Wijesekara)", "dl-manel": "DL (Wijesekara)", "kaputa": "Kaputa", "lastech": "Lastech", "kandy": "Kandy" };
+  // one option per font family; families sharing a profile (DL-Sarala, Kumudu, ... with DL Manel) convert alike
+  var CHOICES = S.legacyFonts();
   var SINHALA = /[඀-෿]/;
   var init = null;
   var direction = "toLegacy";
@@ -23,6 +25,17 @@
   }
   function $(id) { return document.getElementById(id); }
   function known(id) { return S.builtinProfiles.some(function (p) { return p.id === id; }); }
+  // the option for a profile: the remembered family if it is one of the profile's, else its first family
+  function choiceFor(id, family) {
+    var at = -1;
+    CHOICES.forEach(function (c, i) { if (c.profile === id && (at < 0 || c.family === family)) at = i; });
+    return at;
+  }
+  function choice() { return CHOICES[Number($("profile").value)] || CHOICES[0]; }
+  function familyNames(family) {
+    var bare = family.replace(/\.$/, "");
+    return [family, bare, bare.replace(/[-\s]+/g, " "), bare.replace(/[-\s]+/g, "")];
+  }
   function remembered() { try { return window.localStorage.getItem(KEY) || ""; } catch (e) { return ""; } }
   function remember(id) { try { window.localStorage.setItem(KEY, id); } catch (e) { /* ignore */ } }
 
@@ -45,18 +58,21 @@
     var select = $("profile");
     select.textContent = "";
     var auto = direction === "toUnicode" ? S.profileForFont(init.selectionFont) : null;
-    S.builtinProfiles.forEach(function (p) {
+    CHOICES.forEach(function (c, i) {
       var o = document.createElement("option");
-      o.value = p.id;
-      o.textContent = p.name + " — " + fmt("%1 encoding", FAMILY[p.id] || p.name);
+      o.value = String(i);
+      o.textContent = c.family.replace(/\.$/, "") + " — " + fmt("%1 encoding", FAMILY[c.profile] || S.getProfile(c.profile).name);
       select.appendChild(o);
     });
-    var last = remembered();
-    select.value = auto ? auto.id : known(last) ? last : known(init.legacyProfile) ? init.legacyProfile : S.builtinProfiles[0].id;
+    var last = remembered().split("|");
+    var at = auto ? choiceFor(auto.id, init.selectionFont)
+      : known(last[0]) ? choiceFor(last[0], last[1])
+      : known(init.legacyProfile) ? choiceFor(init.legacyProfile, init.legacyFamily) : 0;
     if (direction === "toUnicode" && !auto) {
       var d = S.detect(init.text);
-      if (d.profile) select.value = d.profile;
+      if (d.profile) at = choiceFor(d.profile, "");
     }
+    select.value = String(at < 0 ? 0 : at);
   }
 
   function setDirection(dir) {
@@ -70,7 +86,8 @@
 
   function update() {
     if (!init) return;
-    var profile = S.getProfile($("profile").value);
+    var picked = choice();
+    var profile = S.getProfile(picked.profile);
     var problems = [];
     var warnings = [];
     var text = init.text;
@@ -82,8 +99,8 @@
       var r = S.toLegacy(text, profile);
       out = r.text;
       if (r.unmapped.length) warnings.push(unmapped(r.unmapped));
-      targetFont = installedName(profile.fontNames);
-      status(targetFont, profile.fontNames[0]);
+      targetFont = installedName(familyNames(picked.family).concat(picked === CHOICES[choiceFor(profile.id, "")] ? profile.fontNames : []));
+      status(targetFont, picked.family.replace(/\.$/, ""));
     } else {
       if (SINHALA.test(text) && !/[A-Za-z]/.test(text)) problems.push(tr("The selection is already Sinhala Unicode."));
       if (init.mixed) warnings.push(tr("The selection mixes fonts: all of it is converted with the font chosen here."));
@@ -146,8 +163,9 @@
     $("form").addEventListener("submit", function (e) {
       e.preventDefault();
       if ($("apply").disabled) return;
-      if (direction === "toLegacy") remember($("profile").value);
-      plugin.sendToPlugin("onLegacyApply", { direction: direction, profile: $("profile").value });
+      var c = choice();
+      if (direction === "toLegacy") remember(c.profile + "|" + c.family);
+      plugin.sendToPlugin("onLegacyApply", { direction: direction, profile: c.profile, font: c.family });
     });
     document.addEventListener("keydown", function (e) { if (e.keyCode === 27) plugin.sendToPlugin("onLegacyCancel", {}); });
     if (plugin.theme) applyTheme(plugin.theme);

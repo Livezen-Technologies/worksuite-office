@@ -127,9 +127,12 @@ Windows):
 | Input                      | From                                                                 | Ends up in                                                  |
 | -------------------------- | -------------------------------------------------------------------- | ----------------------------------------------------------- |
 | Sinhala Tools plugin       | `sinhala/` (`npm run build:plugin`, into `sinhala/plugin/dist`)      | `editors/sdkjs-plugins/{B50BAEE2-4EAC-4298-9DD2-73CC3223FFFA}` |
-| Noto Sans / Serif Sinhala  | `sinhala/fonts/manifest.json` (pinned URLs, sha256-checked)          | `fonts/worksuite-sinhala`, read by allfontsgen               |
+| Noto Sans / Serif Sinhala, Malithi Web | `sinhala/fonts/manifest.json` (pinned URLs, sha256-checked) | `fonts/worksuite-sinhala`, read by allfontsgen               |
+| Legacy fonts (Thara, Kandy, DL-Sarala, …) | `sinhala/fonts/manifest.json` `legacy` entries with a `url` (sha256-checked) | `fonts/worksuite-sinhala/legacy`                     |
 
-No font files are kept in git, and the legacy fonts (FM, DL, Kaputa) are never shipped. The Check
+No font files are kept in git, and FM Abhaya, DL Manel and Kaputa are never shipped. The other legacy fonts
+and Malithi Web are fetched from `download.worksuitecloud.com/fonts/legacy/`; one that is not there yet is a
+warning, not a build failure, and the editor then uses the copy installed on the user's computer. The Check
 workflow runs the Sinhala tests (`cd sinhala && npm ci && npm test`). The 9.3 builds described above do
 not have Sinhala Tools.
 

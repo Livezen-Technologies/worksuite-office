@@ -2,6 +2,8 @@ import { canonicalJson, sha256Hex } from "./sha256";
 import fmAbhaya from "../profiles/fm-abhaya.json";
 import dlManel from "../profiles/dl-manel.json";
 import kaputa from "../profiles/kaputa.json";
+import lastech from "../profiles/lastech.json";
+import kandy from "../profiles/kandy.json";
 
 /**
  * A legacy font's code-point map. Profiles are data: versioned, hashed (sha256 over the canonical JSON
@@ -15,6 +17,8 @@ export interface Profile {
   status: "verified" | "provisional";
   /** Font family names (as documents name them) written in this encoding. */
   fontNames: string[];
+  /** The font families offered as targets for this encoding (first is the default); else the first fontName. */
+  fonts?: string[];
   notes: string;
   /** Legacy characters that mean themselves (digits, spaces): copied, never reported. */
   passthrough: string;
@@ -52,7 +56,7 @@ export function verifyProfile(data: unknown): Profile {
   return p;
 }
 
-export const builtinProfiles: Profile[] = [fmAbhaya, dlManel, kaputa].map((p) => verifyProfile(p));
+export const builtinProfiles: Profile[] = ([fmAbhaya, dlManel, kaputa, lastech, kandy] as Profile[]).map((p) => verifyProfile(p));
 
 export function getProfile(id: string, profiles: Profile[] = builtinProfiles): Profile {
   const p = profiles.find((x) => x.id === id);
@@ -76,4 +80,11 @@ export function profileForFont(fontNames: string | string[] | undefined | null, 
     }
   }
   return null;
+}
+
+/** Every legacy font family Sinhala Tools can write, each with the profile of its encoding. */
+export function legacyFonts(profiles: Profile[] = builtinProfiles): { profile: string; family: string }[] {
+  const out: { profile: string; family: string }[] = [];
+  for (const p of profiles) for (const family of p.fonts ?? [p.fontNames[0]]) out.push({ profile: p.id, family });
+  return out;
 }

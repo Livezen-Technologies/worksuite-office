@@ -1,0 +1,56 @@
+{
+  "profile": "lastech",
+  "notes": "Written by hand for WorkSuite from the glyphs of Thara and Padma. The profile is provisional, so the corpus keeps to what it maps (ASCII codes only).",
+  "sets": {
+    "village": [
+      [
+        "ic mu Vij/",
+        "ගම සහ නගරය"
+      ],
+      [
+        "jp/ 2026 10 20",
+        "රජය 2026 10 20"
+      ]
+    ],
+    "vowels": [
+      [
+        "wheld mu whel",
+        "පොත් සහ පොත"
+      ],
+      [
+        "wkd F R G",
+        "කේ ඉ ඊ උ"
+      ],
+      [
+        "Deb Dzl Dsl",
+        "ආව ඇත ඈත"
+      ],
+      [
+        "mfun Ir ld",
+        "සිහල ඝී ත්"
+      ]
+    ]
+  },
+  "mixed": [
+    {
+      "title": "Thara and Padma beside English",
+      "runs": [
+        {
+          "font": "Thara",
+          "text": "ic ",
+          "expect": "ගම "
+        },
+        {
+          "font": "Padma",
+          "text": "mu",
+          "expect": "සහ"
+        },
+        {
+          "font": "Arial",
+          "text": "and English",
+          "expect": "and English"
+        }
+      ]
+    }
+  ]
+}

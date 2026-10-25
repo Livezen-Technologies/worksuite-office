@@ -1,79 +1,313 @@
 {
   "id": "dl-manel",
   "name": "DL Manel",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "status": "provisional",
-  "fontNames": ["DL-Manel", "DLManel", "DL Manel"],
-  "notes": "The Wijesekara typewriter base shared with the FM fonts. DL's own extra glyphs (rakaransaya, repaya, ligatures, punctuation) are not mapped yet and are reported unmapped. Checked against the WorkSuite corpus only.",
+  "fontNames": [
+    "DL-Manel",
+    "DLManel",
+    "DL Manel",
+    "DL-Sarala.",
+    "DL-Sarala",
+    "DL Sarala",
+    "Dl-Nisansala.",
+    "DL-Nisansala.",
+    "DL-Nisansala",
+    "DL Nisansala",
+    "DL-nisan",
+    "FS-Kapila.",
+    "FS-Kapila",
+    "FS Kapila",
+    "FS-Dilrukshi.",
+    "FS-Dilrukshi",
+    "FS Dilrukshi",
+    "Sinhala - Kumudu",
+    "Sinhala-Kumudu",
+    "Sinhala--Kumudu",
+    "Kumudu",
+    "Ranaviru- PC",
+    "Ranaviru-PC",
+    "Ranaviru PC",
+    "Ranaviru",
+    "Hemawathy",
+    "Anuradha"
+  ],
+  "fonts": [
+    "DL Manel",
+    "DL-Sarala.",
+    "Dl-Nisansala.",
+    "FS-Kapila.",
+    "FS-Dilrukshi.",
+    "Sinhala - Kumudu",
+    "Ranaviru- PC",
+    "Hemawathy",
+    "Anuradha"
+  ],
+  "notes": "The Wijesekara typewriter base shared with the FM fonts. DL's own extra glyphs (rakaransaya, repaya, ligatures, punctuation) are not mapped yet and are reported unmapped. Checked against the WorkSuite corpus only. 1.1.0: the same base is used for DL-Sarala, DL-Nisansala, FS-Kapila, FS-Dilrukshi, Sinhala - Kumudu, Ranaviru- PC, Hemawathy and Anuradha, whose glyphs on every code point this map uses were rendered and compared one by one with this map; their extra glyphs (rakaransaya on %, ligatures, high code points) are not mapped.",
   "passthrough": " \t\r\n0123456789",
-  "prebase": ["ෙ", "ෛ"],
+  "prebase": [
+    "ෙ",
+    "ෛ"
+  ],
   "compose": [
-    ["අා", "ආ"],
-    ["අැ", "ඇ"],
-    ["අෑ", "ඈ"],
-    ["උෟ", "ඌ"],
-    ["එ්", "ඒ"],
-    ["ඔ්", "ඕ"],
-    ["ඔෟ", "ඖ"]
+    [
+      "අා",
+      "ආ"
+    ],
+    [
+      "අැ",
+      "ඇ"
+    ],
+    [
+      "අෑ",
+      "ඈ"
+    ],
+    [
+      "උෟ",
+      "ඌ"
+    ],
+    [
+      "එ්",
+      "ඒ"
+    ],
+    [
+      "ඔ්",
+      "ඕ"
+    ],
+    [
+      "ඔෟ",
+      "ඖ"
+    ]
   ],
   "map": [
-    ["l", "ක"],
-    ["L", "ඛ"],
-    [".", "ග"],
-    [">", "ඝ"],
-    ["p", "ච"],
-    ["P", "ඡ"],
-    ["c", "ජ"],
-    ["C", "ඣ"],
-    ["[", "ඤ"],
-    ["{", "ඥ"],
-    ["g", "ට"],
-    ["G", "ඨ"],
-    ["v", "ඩ"],
-    ["V", "ඪ"],
-    ["K", "ණ"],
-    [";", "ත"],
-    [":", "ථ"],
-    ["o", "ද"],
-    ["O", "ධ"],
-    ["k", "න"],
-    ["m", "ප"],
-    ["M", "ඵ"],
-    ["n", "බ"],
-    ["N", "භ"],
-    ["u", "ම"],
-    ["U", "ඹ"],
-    ["h", "ය"],
-    ["r", "ර"],
-    [",", "ල"],
-    ["j", "ව"],
-    ["Y", "ශ"],
-    ["I", "ෂ"],
-    ["i", "ස"],
-    ["y", "හ"],
-    ["<", "ළ"],
-    ["F", "ෆ"],
-    ["w", "අ"],
-    ["b", "ඉ"],
-    ["B", "ඊ"],
-    ["W", "උ"],
-    ["R", "ඍ"],
-    ["t", "එ"],
-    ["T", "ඔ"],
-    ["a", "්"],
-    ["d", "ා"],
-    ["e", "ැ"],
-    ["E", "ෑ"],
-    ["s", "ි"],
-    ["S", "ී"],
-    ["q", "ු"],
-    ["Q", "ූ"],
-    ["D", "ෘ"],
-    ["A", "ෟ"],
-    ["f", "ෙ"],
-    ["ff", "ෛ"],
-    ["x", "ං"],
-    ["H", "්\u200dය"]
+    [
+      "l",
+      "ක"
+    ],
+    [
+      "L",
+      "ඛ"
+    ],
+    [
+      ".",
+      "ග"
+    ],
+    [
+      ">",
+      "ඝ"
+    ],
+    [
+      "p",
+      "ච"
+    ],
+    [
+      "P",
+      "ඡ"
+    ],
+    [
+      "c",
+      "ජ"
+    ],
+    [
+      "C",
+      "ඣ"
+    ],
+    [
+      "[",
+      "ඤ"
+    ],
+    [
+      "{",
+      "ඥ"
+    ],
+    [
+      "g",
+      "ට"
+    ],
+    [
+      "G",
+      "ඨ"
+    ],
+    [
+      "v",
+      "ඩ"
+    ],
+    [
+      "V",
+      "ඪ"
+    ],
+    [
+      "K",
+      "ණ"
+    ],
+    [
+      ";",
+      "ත"
+    ],
+    [
+      ":",
+      "ථ"
+    ],
+    [
+      "o",
+      "ද"
+    ],
+    [
+      "O",
+      "ධ"
+    ],
+    [
+      "k",
+      "න"
+    ],
+    [
+      "m",
+      "ප"
+    ],
+    [
+      "M",
+      "ඵ"
+    ],
+    [
+      "n",
+      "බ"
+    ],
+    [
+      "N",
+      "භ"
+    ],
+    [
+      "u",
+      "ම"
+    ],
+    [
+      "U",
+      "ඹ"
+    ],
+    [
+      "h",
+      "ය"
+    ],
+    [
+      "r",
+      "ර"
+    ],
+    [
+      ",",
+      "ල"
+    ],
+    [
+      "j",
+      "ව"
+    ],
+    [
+      "Y",
+      "ශ"
+    ],
+    [
+      "I",
+      "ෂ"
+    ],
+    [
+      "i",
+      "ස"
+    ],
+    [
+      "y",
+      "හ"
+    ],
+    [
+      "<",
+      "ළ"
+    ],
+    [
+      "F",
+      "ෆ"
+    ],
+    [
+      "w",
+      "අ"
+    ],
+    [
+      "b",
+      "ඉ"
+    ],
+    [
+      "B",
+      "ඊ"
+    ],
+    [
+      "W",
+      "උ"
+    ],
+    [
+      "R",
+      "ඍ"
+    ],
+    [
+      "t",
+      "එ"
+    ],
+    [
+      "T",
+      "ඔ"
+    ],
+    [
+      "a",
+      "්"
+    ],
+    [
+      "d",
+      "ා"
+    ],
+    [
+      "e",
+      "ැ"
+    ],
+    [
+      "E",
+      "ෑ"
+    ],
+    [
+      "s",
+      "ි"
+    ],
+    [
+      "S",
+      "ී"
+    ],
+    [
+      "q",
+      "ු"
+    ],
+    [
+      "Q",
+      "ූ"
+    ],
+    [
+      "D",
+      "ෘ"
+    ],
+    [
+      "A",
+      "ෟ"
+    ],
+    [
+      "f",
+      "ෙ"
+    ],
+    [
+      "ff",
+      "ෛ"
+    ],
+    [
+      "x",
+      "ං"
+    ],
+    [
+      "H",
+      "්‍ය"
+    ]
   ],
-  "sha256": "98f81a871d0143ecc635ac77f8cd2e0bb9b6987e2ee18ec1604bcef1821fcd77"
+  "sha256": "18545d2cf50d9e5f31c8be596d124a7d99c974ea678421942de59e7363607b7e"
 }
