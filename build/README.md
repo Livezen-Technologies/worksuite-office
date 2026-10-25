@@ -143,6 +143,26 @@ Windows install dir (`worksuite-ai.exe`, Authenticode-signed with the other exec
 (packaged to `/opt/…`; the job checks each .deb holds it). Any failure stops the build. Engines and models are not
 bundled: the service downloads them as signed packages from the Update Center catalog.
 
+## WorkSuite Local AI (the 10.x builds)
+
+`ai-plugin/` is the editors' side of the local AI service (`worksuite-ai`, its `/v1` API): the
+`asc.ws-ai` plugin, WorkSuite Local AI, with voice typing, file transcription, read aloud, the AI tab's
+writing commands with a review panel, and inline suggestions. `v10/ai.sh` (called by `v10/prepare.sh` on
+Linux and Windows, and by a step of `build-mac.yml`) builds it and has build_tools deploy it:
+
+| Input                      | From                                                                 | Ends up in                                                  |
+| -------------------------- | -------------------------------------------------------------------- | ----------------------------------------------------------- |
+| WorkSuite Local AI plugin  | `ai-plugin/` (`npm run build:plugin`, into `ai-plugin/plugin/dist`)  | `editors/sdkjs-plugins/{7A1E5C0D-3B2F-4D6A-9E81-5C4F2B7D0A11}` |
+
+The plugin has no dependencies. Its toolbar icons are drawn in `ai-plugin/plugin/src/resources/svg` and
+rendered to the committed PNGs by `npm run icons` (Playwright). The Check workflow runs its tests
+(`cd ai-plugin && npm test`). `npm run screenshots` renders the voice typing dock, the review panel and
+the read-aloud bar against a mocked service.
+
+The plugin finds the service through the desktop shell: the `ws-ai:endpoint` command (desktop-apps
+`docs/local-ai-bridge.md`; `ai-plugin/plugin/src/lib/discovery.js`), which also starts it on demand.
+It shares the endpoint with Sinhala Tools as `window.WSAiEndpoint`.
+
 ## The 10.x builds: one upstream for all three platforms (NFR-19)
 
 On `office-v10` all three 10.x builds take their sources from **ONLYOFFICE**, at the one tag `OO_TAG`

@@ -12,7 +12,7 @@ on:
   # a new workflow can only be dispatched once it is on the default branch: until then, pushes to office-v10 run it
   push:
     branches: [office-v10]
-    paths: ['.github/workflows/build-linux-v10.yml', 'build/v10/**', 'sinhala/**', 'ai-service/**']
+    paths: ['.github/workflows/build-linux-v10.yml', 'build/v10/**', 'sinhala/**', 'ai-service/**', 'ai-plugin/**']
   workflow_dispatch:
     inputs:
       build_number:
@@ -102,6 +102,7 @@ jobs:
           $py make.py
           ls -la out/linux_64/onlyoffice/desktopeditors
           test -f "out/linux_64/onlyoffice/desktopeditors/editors/sdkjs-plugins/{B50BAEE2-4EAC-4298-9DD2-73CC3223FFFA}/config.json" || { echo "::error::Sinhala Tools is not in the editors"; exit 1; }
+          test -f "out/linux_64/onlyoffice/desktopeditors/editors/sdkjs-plugins/{7A1E5C0D-3B2F-4D6A-9E81-5C4F2B7D0A11}/config.json" || { echo "::error::WorkSuite Local AI is not in the editors"; exit 1; }
           ls out/linux_64/onlyoffice/desktopeditors/fonts/worksuite-sinhala
 
       - uses: actions/setup-node@v4

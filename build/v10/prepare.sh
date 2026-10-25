@@ -73,5 +73,8 @@ PY
 # Sinhala Tools: the plugin and the Noto Sinhala fonts
 bash "$repo/build/v10/sinhala.sh" "$repo"
 
+# WorkSuite Local AI: the editor plugin for the local AI service (voice typing, review, read aloud, suggestions)
+bash "$repo/build/v10/ai.sh" "$repo"
+
 # The PDF Editor's text recognition (OCR): tesseract.js and the English, Sinhala and Tamil models
 bash "$repo/build/v10/ocr.sh" "$repo"

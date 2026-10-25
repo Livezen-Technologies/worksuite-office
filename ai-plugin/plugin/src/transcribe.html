@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Transcribe file</title>
+  <meta charset="UTF-8" />
+  <link rel="stylesheet" href="../v1/plugins.css" />
+  <link rel="stylesheet" href="resources/ai.css" />
+  <script type="text/javascript" src="../v1/plugins.js"></script>
+  <script type="text/javascript" src="../v1/plugins-ui.js"></script>
+  <script type="text/javascript" src="lib/discovery.js"></script>
+  <script type="text/javascript" src="lib/client.js"></script>
+  <script type="text/javascript" src="lib/text.js"></script>
+  <script type="text/javascript" src="scripts/ui.js"></script>
+  <script type="text/javascript" src="scripts/transcribe.js"></script>
+</head>
+<body class="ws-window ws-panel">
+  <section class="ws-section">
+    <label class="ws-file">
+      <input type="file" id="file" accept=".mp3,.wav,.m4a,.mp4,audio/mpeg,audio/wav,audio/mp4,video/mp4" />
+      <span class="btn-text-default" data-tr="Choose a file">Choose a file</span>
+      <span id="fileName" class="ws-note" data-tr="MP3, WAV, M4A or MP4">MP3, WAV, M4A or MP4</span>
+    </label>
+    <label class="ws-field"><span data-tr="Language">Language</span>
+      <select id="lang" class="form-control">
+        <option value="auto" data-tr="Auto">Auto</option>
+        <option value="si" data-tr="Sinhala">Sinhala</option>
+        <option value="en" data-tr="English">English</option>
+        <option value="ta" data-tr="Tamil">Tamil</option>
+      </select></label>
+    <label class="ws-check"><input type="checkbox" id="punctuate" checked /> <span data-tr="Punctuation">Punctuation</span></label>
+    <label class="ws-check"><input type="checkbox" id="timestamps" checked /> <span data-tr="Timestamps">Timestamps</span></label>
+    <label class="ws-check" id="speakersRow" hidden><input type="checkbox" id="speakers" /> <span data-tr="Speaker labels">Speaker labels</span></label>
+    <div class="ws-buttons"><button id="go" class="btn-text-default ws-primary" disabled data-tr="Transcribe">Transcribe</button>
+      <button id="cancel" class="btn-text-default" hidden data-tr="Cancel">Cancel</button></div>
+    <div class="ws-progress" id="progress" hidden><div></div></div>
+    <div id="status" class="ws-note" role="status"></div>
+  </section>
+  <section class="ws-section ws-segments" id="review" hidden>
+    <h3 data-tr="Review">Review</h3>
+    <ol id="segments" class="ws-seglist"></ol>
+    <div class="ws-buttons">
+      <button id="insertText" class="btn-text-default ws-primary" data-tr="Insert as text">Insert as text</button>
+      <button id="insertTable" class="btn-text-default" data-tr="Insert as table">Insert as table</button>
+    </div>
+  </section>
+</body>
+</html>

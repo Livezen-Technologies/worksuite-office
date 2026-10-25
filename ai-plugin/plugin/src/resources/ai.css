@@ -1,0 +1,141 @@
+/* WorkSuite Local AI: the editor theme's variables (set by plugins-ui from the editor), light fallbacks,
+   dark fallbacks under html.ws-dark. */
+:root {
+  --ws-bg: var(--background-normal, #ffffff);
+  --ws-bg-2: var(--background-toolbar, #f7f7f7);
+  --ws-fg: var(--text-normal, rgba(0, 0, 0, 0.8));
+  --ws-fg-2: var(--text-secondary, rgba(0, 0, 0, 0.6));
+  --ws-muted: var(--text-tertiary, rgba(0, 0, 0, 0.4));
+  --ws-border: var(--border-regular-control, #c0c0c0);
+  --ws-hover: var(--highlight-button-hover, #e0e0e0);
+  --ws-accent: var(--background-accent-button, #446995);
+  --ws-on-accent: var(--text-inverse, #ffffff);
+  --ws-del-bg: rgba(220, 53, 69, 0.14);
+  --ws-del-fg: #b3261e;
+  --ws-ins-bg: rgba(40, 167, 69, 0.16);
+  --ws-ins-fg: #1e7b34;
+  --ws-error: #c0392b;
+}
+html.ws-dark {
+  --ws-bg: var(--background-normal, #333333);
+  --ws-bg-2: var(--background-toolbar, #404040);
+  --ws-fg: var(--text-normal, rgba(255, 255, 255, 0.8));
+  --ws-fg-2: var(--text-secondary, rgba(255, 255, 255, 0.6));
+  --ws-muted: var(--text-tertiary, rgba(255, 255, 255, 0.4));
+  --ws-border: var(--border-regular-control, #666666);
+  --ws-hover: var(--highlight-button-hover, #555555);
+  --ws-accent: var(--background-accent-button, #ddd);
+  --ws-on-accent: var(--text-inverse, #333);
+  --ws-del-bg: rgba(255, 99, 99, 0.2);
+  --ws-del-fg: #ff9a9a;
+  --ws-ins-bg: rgba(110, 220, 130, 0.2);
+  --ws-ins-fg: #9be7a8;
+  --ws-error: #ff8a80;
+}
+html, body { background: var(--ws-bg); color: var(--ws-fg); }
+body { margin: 0; font: 11px/1.4 "Segoe UI", -apple-system, "Helvetica Neue", Arial, "Noto Sans Sinhala", "Noto Sans Tamil", sans-serif; }
+button { cursor: pointer; }
+button:disabled { cursor: default; opacity: 0.5; }
+.ws-primary:not(:disabled) { background: var(--ws-accent) !important; color: var(--ws-on-accent) !important; border-color: var(--ws-accent) !important; }
+.ws-note { color: var(--ws-fg-2); }
+.ws-error { color: var(--ws-error) !important; }
+.ws-link { color: var(--ws-accent); text-decoration: underline; }
+html.ws-dark .ws-link { color: #9ec5ff; }
+.ws-progress { height: 4px; border-radius: 2px; background: var(--ws-hover); overflow: hidden; }
+.ws-progress > div { height: 100%; width: 0; background: var(--ws-accent); transition: width 0.2s; }
+html.ws-dark .ws-progress > div { background: #9ec5ff; }
+
+/* the overlay at the caret (input helper) */
+.ws-overlay-body { background: transparent; overflow: hidden; }
+.ws-overlay { padding: 3px 8px; font-size: 13px; line-height: 18px; white-space: pre-wrap; word-break: break-word;
+  background: var(--ws-bg); border: 1px solid var(--ws-border); border-radius: 4px; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15); }
+.ws-overlay .partial { color: var(--ws-muted); font-style: italic; }
+.ws-overlay-ghost { border-style: dashed; }
+.ws-overlay-ghost .partial { font-style: normal; }
+.ws-overlay-ghost .partial::after { content: " \21E5"; font-size: 10px; color: var(--ws-muted); }
+
+/* icons drawn in CSS (the toolbar's are PNGs) */
+.ws-i { display: inline-block; width: 12px; height: 12px; position: relative; vertical-align: middle; }
+.ws-i-pause::before, .ws-i-pause::after { content: ""; position: absolute; top: 1px; width: 3px; height: 10px; background: currentColor; }
+.ws-i-pause::before { left: 2px; } .ws-i-pause::after { right: 2px; }
+.ws-i-play::before { content: ""; position: absolute; left: 3px; top: 1px; border-style: solid; border-width: 5px 0 5px 8px; border-color: transparent transparent transparent currentColor; }
+.ws-i-stop::before { content: ""; position: absolute; left: 1px; top: 1px; width: 10px; height: 10px; background: currentColor; border-radius: 1px; }
+.ws-icon-btn { min-width: 28px; height: 24px; padding: 0 6px; display: inline-flex; align-items: center; justify-content: center; }
+
+/* W3 dock */
+.ws-dock { padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; }
+.ws-row { display: flex; align-items: center; gap: 6px; }
+.ws-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--ws-muted); flex: none; }
+.ws-dock[data-state="listening"] .ws-dot, .ws-dock[data-state="recording"] .ws-dot { background: #e53935; animation: ws-pulse 1.2s infinite; }
+@media (prefers-reduced-motion: reduce) { .ws-dock .ws-dot { animation: none !important; } }
+@keyframes ws-pulse { 50% { opacity: 0.35; } }
+.ws-status { min-width: 74px; font-weight: 600; }
+.ws-lang { width: auto; min-width: 84px; }
+.ws-meter { flex: 1; height: 6px; border-radius: 3px; background: var(--ws-hover); overflow: hidden; min-width: 40px; }
+.ws-meter > div { height: 100%; width: 0; background: linear-gradient(90deg, #43a047, #fdd835 70%, #e53935); transition: width 60ms; }
+.ws-dock-text { min-height: 36px; max-height: 54px; overflow-y: auto; padding: 4px 6px; border: 1px solid var(--ws-border); border-radius: 3px; font-size: 12px; background: var(--ws-bg-2); }
+.ws-dock-text .partial { color: var(--ws-muted); font-style: italic; }
+.ws-dock-text:empty::before, .ws-dock-text .final:empty + .partial:empty::before { content: attr(data-empty); }
+.ws-notice { color: var(--ws-fg-2); }
+.ws-dock[data-state="error"] .ws-dock-text, .ws-dock[data-state="consent"] .ws-dock-text { display: none; }
+.ws-dock[data-state="error"] .ws-hint, .ws-dock[data-state="consent"] .ws-hint { display: none; }
+.ws-dock[data-state="error"] .ws-notice { color: var(--ws-error); }
+.ws-consent, .ws-install { display: flex; align-items: center; gap: 8px; }
+.ws-consent p { margin: 0; flex: 1; }
+.ws-install .ws-progress { flex: 1; }
+.ws-hint { color: var(--ws-muted); font-size: 10px; }
+[hidden] { display: none !important; }
+
+/* panels (W4, W6) */
+.ws-panel { padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; overflow-y: auto; box-sizing: border-box; height: 100vh; }
+.ws-section { display: flex; flex-direction: column; gap: 6px; }
+.ws-section h3, .ws-review-head h3 { margin: 4px 0; font-size: 13px; }
+.ws-field { display: flex; flex-direction: column; gap: 3px; }
+.ws-check { display: flex; align-items: center; gap: 6px; }
+.ws-file { display: flex; align-items: center; gap: 8px; }
+.ws-file input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.ws-file .btn-text-default { padding: 3px 10px; }
+.ws-buttons { display: flex; gap: 6px; flex-wrap: wrap; }
+.ws-buttons button { min-height: 24px; padding: 0 12px; }
+.ws-seglist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.ws-seg-meta { color: var(--ws-fg-2); font-variant-numeric: tabular-nums; margin-bottom: 2px; }
+.ws-seg-text { width: 100%; box-sizing: border-box; resize: vertical; font: inherit; font-size: 12px; }
+.ws-seg-text.ws-low { border-color: #e0a800; }
+
+/* W6 review */
+.ws-review-head { display: flex; align-items: center; gap: 8px; }
+.ws-review-head h3 { flex: 1; }
+.ws-review-head select { width: auto; }
+.ws-status-line:empty { display: none; }
+.ws-loading::before { content: ""; display: inline-block; width: 10px; height: 10px; margin-inline-end: 6px; vertical-align: -1px;
+  border: 2px solid var(--ws-border); border-top-color: var(--ws-accent); border-radius: 50%; animation: ws-spin 0.8s linear infinite; }
+@keyframes ws-spin { to { transform: rotate(360deg); } }
+.ws-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.ws-compare h4 { margin: 0 0 3px; font-size: 11px; color: var(--ws-fg-2); font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+.ws-text { white-space: pre-wrap; word-break: break-word; font-size: 12px; line-height: 1.5; padding: 6px 8px; border: 1px solid var(--ws-border);
+  border-radius: 3px; background: var(--ws-bg-2); max-height: 220px; overflow-y: auto; }
+del.ws-change { background: var(--ws-del-bg); color: var(--ws-del-fg); text-decoration: line-through; border-radius: 2px; }
+ins.ws-change { background: var(--ws-ins-bg); color: var(--ws-ins-fg); text-decoration: none; border-radius: 2px; }
+.ws-hot { outline: 2px solid var(--ws-accent); }
+.ws-edits { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.ws-edit { border: 1px solid var(--ws-border); border-radius: 3px; padding: 6px 8px; display: flex; flex-direction: column; gap: 4px; }
+.ws-edit:hover { background: var(--ws-hover); }
+.ws-edit-what { font-size: 12px; word-break: break-word; }
+.ws-edit-buttons { display: flex; gap: 6px; }
+.ws-edit-buttons button { min-height: 22px; padding: 0 10px; }
+.ws-review-foot { position: sticky; bottom: 0; background: var(--ws-bg); padding-top: 6px; border-top: 1px solid var(--ws-border); margin-top: auto; }
+.ws-spans { margin: 0; padding-inline-start: 16px; }
+
+/* W8 reader bar */
+.ws-reader { display: flex; align-items: center; gap: 8px; padding: 8px 10px; }
+.ws-reader-mid { flex: 1; min-width: 80px; display: flex; flex-direction: column; gap: 4px; }
+.ws-sentence { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 12px; }
+.ws-reader[data-state="playing"] .ws-sentence { color: var(--ws-fg); font-weight: 600; }
+.ws-mini { display: flex; flex-direction: column; gap: 1px; font-size: 10px; color: var(--ws-fg-2); }
+.ws-mini select { width: auto; min-width: 58px; }
+.ws-mini input[type="range"] { width: 70px; }
+#voice { max-width: 104px; }
+.ws-mini input[type="range"] { accent-color: var(--ws-accent); }
+.ws-reader-mid { min-width: 120px; }
+.ws-reader-status { padding: 0 10px; }
+.ws-reader-status:empty { display: none; }

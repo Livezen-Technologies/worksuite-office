@@ -1,0 +1,16 @@
+{
+  "name": "worksuite-ai-plugin",
+  "version": "1.0.0",
+  "private": true,
+  "description": "WorkSuite Local AI (asc.ws-ai): the ONLYOFFICE editor plugin for the local worksuite-ai service",
+  "license": "AGPL-3.0-only",
+  "scripts": {
+    "test": "node --test test/unit/*.test.mjs",
+    "build:plugin": "node scripts/build-plugin.mjs",
+    "icons": "node scripts/make-icons.mjs",
+    "screenshots": "node scripts/build-plugin.mjs && node test/screenshots.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

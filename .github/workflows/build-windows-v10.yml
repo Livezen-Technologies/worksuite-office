@@ -19,7 +19,7 @@ on:
   # a new workflow can only be dispatched once it is on the default branch: until then, pushes to office-v10 run it
   push:
     branches: [office-v10]
-    paths: ['.github/workflows/build-windows-v10.yml', 'build/v10/**', 'sinhala/**', 'ai-service/**']
+    paths: ['.github/workflows/build-windows-v10.yml', 'build/v10/**', 'sinhala/**', 'ai-service/**', 'ai-plugin/**']
   workflow_dispatch:
     inputs:
       build_number:
@@ -189,6 +189,9 @@ jobs:
           Get-ChildItem out\win_64\onlyoffice\DesktopEditors | Select-Object -First 30
           if (-not (Test-Path "out\win_64\onlyoffice\DesktopEditors\editors\sdkjs-plugins\{B50BAEE2-4EAC-4298-9DD2-73CC3223FFFA}\config.json")) {
             Write-Error "Sinhala Tools is not in the editors"; exit 1
+          }
+          if (-not (Test-Path "out\win_64\onlyoffice\DesktopEditors\editors\sdkjs-plugins\{7A1E5C0D-3B2F-4D6A-9E81-5C4F2B7D0A11}\config.json")) {
+            Write-Error "WorkSuite Local AI is not in the editors"; exit 1
           }
           Get-ChildItem out\win_64\onlyoffice\DesktopEditors\fonts\worksuite-sinhala | Select-Object Name
 

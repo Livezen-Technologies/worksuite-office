@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Read aloud</title>
+  <meta charset="UTF-8" />
+  <link rel="stylesheet" href="../v1/plugins.css" />
+  <link rel="stylesheet" href="resources/ai.css" />
+  <script type="text/javascript" src="../v1/plugins.js"></script>
+  <script type="text/javascript" src="../v1/plugins-ui.js"></script>
+  <script type="text/javascript" src="lib/discovery.js"></script>
+  <script type="text/javascript" src="lib/client.js"></script>
+  <script type="text/javascript" src="lib/text.js"></script>
+  <script type="text/javascript" src="scripts/ui.js"></script>
+  <script type="text/javascript" src="lib/resampler.js"></script>
+  <script type="text/javascript" src="scripts/reader.js"></script>
+</head>
+<body class="ws-window">
+  <div class="ws-reader" id="reader" data-state="idle">
+    <button id="play" class="btn-text-default ws-icon-btn ws-primary" data-tr-title="Play"><span class="ws-i ws-i-play"></span></button>
+    <button id="stop" class="btn-text-default ws-icon-btn" data-tr-title="Stop"><span class="ws-i ws-i-stop"></span></button>
+    <div class="ws-reader-mid">
+      <div id="sentence" class="ws-sentence"></div>
+      <div class="ws-progress"><div id="progress"></div></div>
+    </div>
+    <label class="ws-mini"><span data-tr="Speed">Speed</span>
+      <select id="rate" class="form-control">
+        <option value="0.5">0.5×</option><option value="0.75">0.75×</option><option value="1" selected>1×</option>
+        <option value="1.25">1.25×</option><option value="1.5">1.5×</option><option value="2">2×</option>
+      </select></label>
+    <label class="ws-mini"><span data-tr="Voice">Voice</span><select id="voice" class="form-control"></select></label>
+    <label class="ws-mini"><span data-tr="Volume">Volume</span><input type="range" id="volume" min="0" max="1" step="0.05" value="1" /></label>
+    <button id="export" class="btn-text-default" data-tr="Export audio">Export audio</button>
+  </div>
+  <div id="status" class="ws-note ws-reader-status" role="status"></div>
+</body>
+</html>

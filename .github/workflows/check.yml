@@ -12,6 +12,7 @@ on:
       - 'sinhala/**'
       - 'ai-service/**'
       - 'docs/local-ai/**'
+      - 'ai-plugin/**'
       - 'desktop-apps'
 
 jobs:
@@ -119,3 +120,17 @@ jobs:
           unknown="$(aspell --lang=en --encoding=utf-8 --personal=./.aspell.en.pws list < CHANGELOG.md)"
           echo "$unknown"
           test -z "$unknown"
+
+  # WorkSuite Local AI: the plugin's unit tests and its build.
+  ai-plugin:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ai-plugin
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm test
+      - run: npm run build:plugin

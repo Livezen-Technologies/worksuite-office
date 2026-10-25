@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Local AI review</title>
+  <meta charset="UTF-8" />
+  <link rel="stylesheet" href="../v1/plugins.css" />
+  <link rel="stylesheet" href="resources/ai.css" />
+  <script type="text/javascript" src="../v1/plugins.js"></script>
+  <script type="text/javascript" src="../v1/plugins-ui.js"></script>
+  <script type="text/javascript" src="lib/discovery.js"></script>
+  <script type="text/javascript" src="lib/client.js"></script>
+  <script type="text/javascript" src="lib/text.js"></script>
+  <script type="text/javascript" src="scripts/ui.js"></script>
+  <script type="text/javascript" src="lib/edits.js"></script>
+  <script type="text/javascript" src="scripts/review.js"></script>
+</head>
+<body class="ws-window ws-panel">
+  <header class="ws-review-head">
+    <h3 id="title"></h3>
+    <select id="tone" class="form-control" hidden data-tr-title="Tone">
+      <option value="friendly" data-tr="Friendly">Friendly</option>
+      <option value="confident" data-tr="Confident">Confident</option>
+      <option value="polite" data-tr="Polite">Polite</option>
+      <option value="neutral" data-tr="Neutral">Neutral</option>
+      <option value="casual" data-tr="Casual">Casual</option>
+    </select>
+    <select id="to" class="form-control" hidden data-tr-title="Translate to">
+      <option value="" data-tr="Translate to">Translate to</option>
+      <option value="si" data-tr="Sinhala">Sinhala</option>
+      <option value="en" data-tr="English">English</option>
+      <option value="ta" data-tr="Tamil">Tamil</option>
+    </select>
+  </header>
+  <div id="status" class="ws-status-line" role="status"></div>
+  <div id="track" class="ws-note" hidden data-tr="Track Changes is on: accepted changes are tracked.">Track Changes is on: accepted changes are tracked.</div>
+  <div class="ws-compare" id="compare" hidden>
+    <div><h4 data-tr="Original">Original</h4><div id="before" class="ws-text"></div></div>
+    <div><h4 data-tr="Suggested">Suggested</h4><div id="after" class="ws-text"></div></div>
+  </div>
+  <ol id="edits" class="ws-edits"></ol>
+  <div id="result" class="ws-result" hidden></div>
+  <footer class="ws-buttons ws-review-foot">
+    <button id="acceptAll" class="btn-text-default ws-primary" data-tr="Accept all">Accept all</button>
+    <button id="undo" class="btn-text-default" data-tr="Undo">Undo</button>
+    <button id="insert" class="btn-text-default ws-primary" hidden data-tr="Insert">Insert</button>
+    <button id="copy" class="btn-text-default" hidden data-tr="Copy">Copy</button>
+    <button id="rerun" class="btn-text-default" hidden data-tr="Run again">Run again</button>
+  </footer>
+</body>
+</html>
