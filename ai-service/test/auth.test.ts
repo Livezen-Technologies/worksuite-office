@@ -46,5 +46,15 @@ describe("auth and origin", () => {
     expect(await code(base, { headers: { authorization: `Bearer ${h.token}`, origin: "https://evil.example" } })).toBe(403);
     expect(await code(base, { headers: { authorization: `Bearer ${h.token}` } })).toBe("open");
     expect(await code(base, {}, [`bearer.${h.token}`])).toBe("open");
+    expect(await code(`${base}?token=${h.token}`, { headers: { origin: "asc://editor" } })).toBe("open");
+    expect(await code(`${base}?token=${h.token}`, { headers: { origin: "null" } })).toBe("open");
+    expect(await code(`${base}?token=${h.token}`, { headers: { origin: "file://" } })).toBe("open");
+    expect(await code(`${base}?token=${h.token}`, { headers: { origin: "http://127.0.0.1:8080" } })).toBe(403);
+    const proto = await new Promise<string>((resolve) => {
+      const ws = new WebSocket(base, ["ws-ai.v1", `bearer.${h.token}`]);
+      ws.on("open", () => { resolve(ws.protocol); ws.close(); });
+    });
+    expect(proto).toBe("ws-ai.v1");
+    expect(await code(`${base}?token=${h.token}`, { headers: { origin: "https://evil.example" } })).toBe(403);
   });
 });

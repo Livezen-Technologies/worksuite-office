@@ -24,6 +24,13 @@ describe("policy parsing", () => {
     expect(p.cloudAllowed).toBe(false);
     expect(p.organization).toBe("Livezen");
   });
+  it("reads the Office app's ai* managed keys (Settings › AI Models mapping)", () => {
+    const p = normalizePolicy(null, { organization: "Livezen", aiSpeechToText: 0, aiReadAloud: "false", aiTranslation: true, aiCloudAllowed: 0, aiApprovedModels: "a,b",
+      aiMaxMemoryMB: "2048", aiGpuAllowed: 0, aiDictionaryUrl: "https://x/d.txt", aiCatalogUrl: "https://mirror/catalog", aiStoragePath: "D:\\AI" });
+    expect(p).toMatchObject({ managed: true, cloudAllowed: false, approvedModels: ["a", "b"], maxMemMB: 2048, gpuAllowed: false, orgDictionaryUrl: "https://x/d.txt",
+      catalogUrl: "https://mirror/catalog", storagePath: "D:\\AI", organization: "Livezen" });
+    expect(p.features).toMatchObject({ stt: false, tts: false, translate: true, suggestions: true });
+  });
   it("reads a policy file in the Linux form, nested features too", async () => {
     const f = join(mkdtempSync(join(tmpdir(), "pol-")), "policy.json");
     writeFileSync(f, JSON.stringify({ features: { assistant: false }, gpuAllowed: "false", orgDictionaryUrl: "http://insecure/x" }));

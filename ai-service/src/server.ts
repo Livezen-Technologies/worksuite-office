@@ -66,7 +66,8 @@ export class Service {
   hardware: Hardware | null = null;
   policy: Policy = normalizePolicy(null);
   server: Server | null = null;
-  private wss = new WebSocketServer({ noServer: true });
+  // subprotocols: "ws-ai.v1, bearer.<token>" -> echo ws-ai.v1 (browsers need one of theirs echoed)
+  private wss = new WebSocketServer({ noServer: true, handleProtocols: (protocols) => (protocols.has("ws-ai.v1") ? "ws-ai.v1" : [...protocols][0] ?? false) });
   private router = new Router();
   private paths: Layout;
   private env: NodeJS.ProcessEnv;
@@ -81,14 +82,14 @@ export class Service {
     this.token = o.token || randomBytes(32).toString("base64url");
     this.jobs = new JobManager(this.events);
     this.settings = new SettingsStore(join(o.dataDir, "settings.json"));
-    this.paths = layout(o.dataDir, this.settings.data.storagePath);
+    this.paths = layout(o.dataDir, this.storagePath());
     for (const d of [o.dataDir, this.paths.cacheDir, this.paths.dictionariesDir]) mkdirSync(d, { recursive: true, mode: 0o700 });
     this.policyReader = o.policyReader || systemPolicyReader(this.env);
     const keys = () => trustedKeys(this.env);
     this.catalog = new Catalog(this.paths.cacheDir, keys, this.env.WS_AI_CATALOG_URL, o.fetcher, this.env);
     this.engines = new EngineRegistry(this.paths.enginesDir, this.catalog, keys, () => this.hardware, () => this.policy, this.env, o.fetcher);
     this.models = new ModelStore({
-      modelsDir: () => layout(o.dataDir, this.settings.data.storagePath).modelsDir,
+      modelsDir: () => layout(o.dataDir, this.storagePath()).modelsDir,
       cacheDir: this.paths.cacheDir, catalog: this.catalog, jobs: this.jobs, events: this.events, settings: this.settings,
       policy: () => this.policy, keys, engines: this.engines, isLoaded: (id) => this.runtime.pool.isLoaded(id), unload: (id) => this.runtime.pool.unload(id),
       hardware: () => this.hardware, fetcher: o.fetcher, env: this.env,
@@ -98,6 +99,9 @@ export class Service {
     this.text = new TextService(this.dict, this.models, this.runtime, () => this.policy, this.diag, this.env);
     this.routes();
   }
+
+  /** The models folder's parent: the organisation's aiStoragePath, else the person's choice. */
+  storagePath(): string | null { return this.policy?.storagePath || this.settings.data.storagePath; }
 
   // ---- lifecycle ------------------------------------------------------------------------------------
   async init(): Promise<void> {
@@ -111,6 +115,7 @@ export class Service {
     this.policy = next;
     if (next.catalogUrl) this.catalog.setUrl(next.catalogUrl);
     if (changed) {
+      if (this.models) this.models.scan();
       if (emit) this.events.emit("policy", next);
       // models no longer approved are unloaded at once
       for (const l of this.runtime.pool.list()) if (!this.models.policyAllows(l.id)) this.runtime.pool.unload(l.id);
@@ -321,12 +326,14 @@ export class Service {
     r.get("/v1/defaults", () => this.settings.data.defaults);
     r.put("/v1/defaults", async (c) => this.models.setDefaults(await c.body()));
     r.get("/v1/storage", () => {
-      const dir = layout(this.o.dataDir, this.settings.data.storagePath).modelsDir;
+      const dir = layout(this.o.dataDir, this.storagePath()).modelsDir;
+      if (this.policy.storagePath) return { path: dir, usedMB: Math.round(this.models.all().reduce((s, m) => s + m.sizeBytes, 0) / 1048576), freeMB: Math.floor(freeBytes(dir) / 1048576), managed: true };
       const used = this.models.all().reduce((s, m) => s + m.sizeBytes, 0);
       const freeMB = Math.floor(freeBytes(dir) / 1048576);
       return { path: dir, usedMB: Math.round(used / 1048576), freeMB };
     });
     r.post("/v1/storage/move", async (c) => {
+      if (this.policy.storagePath) throw new ApiError("forbidden_by_policy", "The storage folder is managed by your organization");
       const b = await c.body<{ path?: string }>();
       return withStatus(202, { jobId: this.models.move(str(b.path, "path")).id });
     });
@@ -334,7 +341,12 @@ export class Service {
     // jobs and requests
     r.get("/v1/jobs", () => this.jobs.list());
     r.get("/v1/jobs/:id", (c) => this.jobs.get(c.params.id));
-    r.delete("/v1/jobs/:id", (c) => this.jobs.cancel(c.params.id));
+    r.delete("/v1/jobs/:id", (c) => {
+      const j = this.jobs.get(c.params.id);
+      // cancelling an install also drops its partial download
+      if (j.type === "install" && j.modelId && ["queued", "running", "paused"].includes(j.state)) return this.models.cancelInstall(j.modelId);
+      return this.jobs.cancel(c.params.id);
+    });
     r.get("/v1/jobs/:id/file", (c) => {
       const j = this.jobs.get(c.params.id);
       const res = j.result as { file?: string; contentType?: string } | undefined;

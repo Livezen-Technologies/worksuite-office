@@ -249,3 +249,51 @@ Ship Phase 1 as English voice typing plus the model manager first; Sinhala speec
 - [ ] Is a GPU build per OS acceptable for download size, or do we ship CPU-only and fetch GPU backends on demand?
 - [ ] Does the organization Admin Center already store dictionaries, or is that new server work?
 - [ ] Licences for each model in the first catalog (Whisper MIT; Qwen and IndicTrans2 terms to confirm before listing).
+
+## API notes (additive, worksuite-ai 1.0.0)
+
+Implementation notes for API v1 as `ai-service/` serves it. Everything here is additive to the contract above; nothing above changes.
+
+**Auth and transport**
+
+- HTTP: `Authorization: Bearer <token>` from `~/.worksuite/ai/endpoint.json` (`{port, token, pid, apiVersion, serviceVersion, startedAt}`, 0600; Windows: ACL to the user).
+- WebSockets (`/v1/events`, `/v1/speech/stream`) also take the token as `?token=<token>`, or as subprotocols `Sec-WebSocket-Protocol: ws-ai.v1, bearer.<token>` (the server echoes `ws-ai.v1`).
+- Origin: none (native callers), `asc://`, `worksuite://`, `app://`, `file://` and `null` (the editors load from file) are allowed; http(s) web origins are refused with 403 `unauthorized`, on HTTP and WebSocket alike. CORS preflight answers allowed origins.
+
+**Jobs and events**
+
+- `GET /v1/jobs/{id}` → `{id, type, state: queued|running|paused|done|failed|cancelled, progress: 0..1, stage?, modelId?, result?, error?, createdAt, updatedAt}`. Stages of an install: `engine`, `downloading`, `verifying`, `unpacking`, `ready`. `GET /v1/jobs` lists them.
+- `DELETE /v1/jobs/{id}` cancels any job; for an install it also deletes the partial download. `POST /v1/models/{id}/cancel` does the same by model.
+- A dropped connection pauses an install (`state: paused`, `error.retryable: true`); `POST /v1/models/{id}/resume` continues with an HTTP Range request from the last byte (also after a restart).
+- `WS /v1/events` sends `{type:"hello"}` first. Every event is sent under its base type and then a finer one: `job` then `job.progress` | `job.done` | `job.failed` | `job.paused` | `job.cancelled`; `model` then `model.state` (`data.state`: installed, active, failed, uninstalled); `policy` then `policy.changed`. Also `job.partial` (transcription segments), `defaults`, `privacy`, `storage`, `engine`.
+- `GET /v1/jobs/{id}/file` downloads a job's file (TTS export: `result.url`).
+
+**Added routes**
+
+- `GET /v1/defaults` → the `PUT /v1/defaults` shape.
+- `GET /v1/storage` → `{path, usedMB, freeMB, managed?}`; `POST /v1/storage/move` is `forbidden_by_policy` when `aiStoragePath` is managed.
+- `GET /v1/engines` → engine availability (`whisper.cpp`, `llama.cpp`, `piper`, `ffmpeg`) and installed engine packages.
+- `POST /v1/models/{id}/cancel`; `POST /v1/dictionaries/personal/learn {latin, word}` (only while learning is on); `GET /v1/catalog?refresh=1`, `GET /v1/hardware?refresh=1`, `GET /v1/policy?refresh=1`.
+
+**Added fields**
+
+- Catalog entries: `engine, source, description, approvedByOrganization, signed, voice?`. `approved` is WorkSuite's listing approval and the organisation's (`approvedModels`) together.
+- Installed models: `name, languages, engine, updateAvailable, approvedByOrganization, evaluation`; failed installs are listed with `state:"failed"` and `error`.
+- Policy: `modelsRestricted` (`approvedModels: []` means no restriction), `organization`, `source`, `catalogUrl`, `storagePath`. `maxMemMB: 0` means the service's own cap (70% of RAM).
+- `/v1/text/check` adds `skipped: [{kind, reason}]` when a kind could not be served (no model, Sinhala gate, invalid model output); spelling still answers.
+- `/v1/sinhala/legacy/encode|decode` add `profile`, `profileVersion`, `unmapped`; `/v1/sinhala/validate` issues add `fixable`; legacy fonts add `fontNames, status, version`.
+- Speech stream sends `{type:"state", state:"starting"|"listening"|"paused"}`; per-segment errors carry `segmentId`.
+- Capabilities add `speech.diarization`, `text.grammar`, `text.grammar.si` (Sinhala grammar/rewrite gate: `evaluation.si.grammar >= 0.8`) and `sinhala`.
+- Error codes add `bad_request` (400/405) and `not_found` (404).
+
+**TTS response**
+
+- `timings:"none"` streams plain `audio/*`. Otherwise `multipart/mixed`: the audio part (WAV streams sentence by sentence), then an `application/json` part `{timings:[{kind, start, end, textStart, textEnd}], durationSec, sampleRate, voice}`. Word timings are estimated within each sentence (Piper reports none). mp3/opus need the ffmpeg engine package.
+
+**Managed policy**
+
+Read from the same location as the other Office keys (desktop-apps docs/managed-configuration.md, "Local AI"): `aiSpeechToText, aiSuggestions, aiCorrection, aiTranslation, aiReadAloud, aiAssistant, aiCloudAllowed, aiApprovedModels, aiMaxMemoryMB, aiGpuAllowed, aiDictionaryUrl, aiCatalogUrl, aiStoragePath`, and `aiFunctions=off` turns all of it off. The spec's own names (`stt`, `cloudAllowed`, …) are also read from `HKLM\Software\Policies\WorkSuite\Office\AI`, the macOS domain's `ai` dictionary and `/etc/worksuite/office/policy.json`. Re-read every 60 s; changes go out as `policy` events.
+
+**Process**
+
+`worksuite-ai` sits next to the app binary (macOS `Contents/MacOS/worksuite-ai`, Windows install dir, Linux the app's `/opt/…` folder). Launching it while an instance answers `GET /v1/health` prints that instance and exits. It exits after 30 minutes with no requests, sockets or jobs (`WS_AI_IDLE_EXIT_MS`).

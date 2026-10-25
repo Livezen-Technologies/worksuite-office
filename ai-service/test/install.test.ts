@@ -30,6 +30,9 @@ describe("model install", () => {
     expect(stages).toContain("downloading");
     expect(stages).toContain("verifying");
     expect(events.some((e) => e.type === "model" && e.data.state === "installed")).toBe(true);
+    expect(events.some((e) => e.type === "model.state" && e.data.state === "installed")).toBe(true);
+    expect(events.some((e) => e.type === "job.progress")).toBe(true);
+    expect(events.some((e) => e.type === "job.done" && e.jobId === r.json.jobId)).toBe(true);
     ws.close();
 
     const list = await h.call("GET", "/v1/models");
@@ -82,8 +85,9 @@ describe("model install", () => {
     expect(p.status).toBe(200);
     release();
     expect((await h.svc.jobs.wait(r.json.jobId)).state).toBe("paused");
-    const c = await h.call("POST", "/v1/models/big-whisper/cancel", {});
+    const c = await h.call("DELETE", `/v1/jobs/${r.json.jobId}`);
     expect(c.json.state).toBe("cancelled");
+    expect(existsSync(join(h.dir, "models", ".staging", "big-whisper-1.0.0"))).toBe(false);
   });
 
   it("refuses unsigned or unapproved models unless WS_AI_DEV=1", async () => {

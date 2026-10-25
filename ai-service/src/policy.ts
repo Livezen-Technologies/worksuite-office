@@ -29,6 +29,8 @@ export interface Policy {
   organization?: string | null;
   /** additive: where the policy came from (registry, managed-preferences, file path) */
   source?: string | null;
+  /** additive: a managed storage folder for models (aiStoragePath) */
+  storagePath?: string | null;
   /** additive: a mirrored catalog (organisations mirror the Update Center's signed catalog) */
   catalogUrl?: string | null;
 }
@@ -51,8 +53,27 @@ function asList(v: unknown): string[] | undefined {
   return String(v).split(/[,\n\0;]/).map((s) => s.trim()).filter(Boolean);
 }
 
+/**
+ * The Office app's managed keys for Local AI (desktop-apps docs/managed-configuration.md, "Local AI"):
+ * the same registry key / macOS domain / Linux policy.json as the other Office keys, prefixed "ai".
+ */
+export const APP_AI_KEYS: Record<string, string> = {
+  aiSpeechToText: "stt", aiSuggestions: "suggestions", aiCorrection: "correction", aiTranslation: "translate", aiReadAloud: "tts",
+  aiAssistant: "assistant", aiCloudAllowed: "cloudAllowed", aiApprovedModels: "approvedModels", aiMaxMemoryMB: "maxMemMB",
+  aiGpuAllowed: "gpuAllowed", aiDictionaryUrl: "orgDictionaryUrl", aiCatalogUrl: "catalogUrl", aiStoragePath: "storagePath",
+};
+
+export function fromAppKeys(app: RawPolicy | null): RawPolicy | null {
+  if (!app) return null;
+  const o: RawPolicy = {};
+  for (const [k, v] of Object.entries(APP_AI_KEYS)) if (app[k] !== undefined && app[k] !== null && app[k] !== "") o[v] = app[k];
+  return Object.keys(o).length ? o : null;
+}
+
 /** Turns raw values (any source) into the contract's shape. `app` is the app-level policy (aiFunctions, organization). */
-export function normalizePolicy(ai: RawPolicy | null, app: RawPolicy | null = null, source: string | null = null): Policy {
+export function normalizePolicy(aiIn: RawPolicy | null, app: RawPolicy | null = null, source: string | null = null): Policy {
+  const fromApp = fromAppKeys(app);
+  const ai = aiIn || fromApp ? { ...(aiIn || {}), ...(fromApp || {}) } : null;
   const a = ai || {};
   const off = String((app && app.aiFunctions) ?? a.aiFunctions ?? "").toLowerCase() === "off";
   const enabled = asBool(a.enabled);
@@ -73,6 +94,7 @@ export function normalizePolicy(ai: RawPolicy | null, app: RawPolicy | null = nu
     modelsRestricted: !!approved && approved.length > 0,
     organization: app && typeof app.organization === "string" ? app.organization : null,
     source: managed ? source : null,
+    storagePath: typeof a.storagePath === "string" && a.storagePath ? a.storagePath : null,
     catalogUrl: typeof a.catalogUrl === "string" && /^https:\/\//.test(a.catalogUrl) ? a.catalogUrl : null,
   };
 }
