@@ -12,7 +12,7 @@ on:
   # a new workflow can only be dispatched once it is on the default branch: until then, pushes to office-v10 run it
   push:
     branches: [office-v10]
-    paths: ['.github/workflows/build-linux-v10.yml', 'build/v10/**', 'sinhala/**']
+    paths: ['.github/workflows/build-linux-v10.yml', 'build/v10/**', 'sinhala/**', 'ai-service/**']
   workflow_dispatch:
     inputs:
       build_number:
@@ -104,6 +104,13 @@ jobs:
           test -f "out/linux_64/onlyoffice/desktopeditors/editors/sdkjs-plugins/{B50BAEE2-4EAC-4298-9DD2-73CC3223FFFA}/config.json" || { echo "::error::Sinhala Tools is not in the editors"; exit 1; }
           ls out/linux_64/onlyoffice/desktopeditors/fonts/worksuite-sinhala
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Local AI service (worksuite-ai) next to the app
+        run: bash worksuite-office/build/v10/ai-service.sh "$GITHUB_WORKSPACE/worksuite-office" "$GITHUB_WORKSPACE/oo/build_tools/out/linux_64/onlyoffice/desktopeditors"
+
       - name: Package (deb, rpm, tar)
         working-directory: oo/desktop-apps/package
         run: |
@@ -121,6 +128,7 @@ jobs:
           find deb rpm tar -maxdepth 4 -type f \( -name '*.deb' -o -name '*.rpm' -o -name '*.tar.xz' \) -exec ls -la {} +
           [ -z "$failed" ] || echo "::warning::package types that failed:$failed"
           ls deb/*.deb >/dev/null 2>&1 || { echo "::error::no .deb was made"; exit 1; }
+          for d in deb/*.deb; do dpkg-deb -c "$d" | grep -q '/worksuite-ai$' || { echo "::error::$d has no worksuite-ai"; exit 1; }; done
 
       - uses: actions/upload-artifact@v4
         if: always()

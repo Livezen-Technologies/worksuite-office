@@ -19,7 +19,7 @@ on:
   # a new workflow can only be dispatched once it is on the default branch: until then, pushes to office-v10 run it
   push:
     branches: [office-v10]
-    paths: ['.github/workflows/build-windows-v10.yml', 'build/v10/**', 'sinhala/**']
+    paths: ['.github/workflows/build-windows-v10.yml', 'build/v10/**', 'sinhala/**', 'ai-service/**']
   workflow_dispatch:
     inputs:
       build_number:
@@ -211,6 +211,13 @@ jobs:
 
       - name: WinSparkle beside the app
         run: cp -fv "$WINSPARKLE_DIR/x64/Release/WinSparkle.dll" C:/oo/build_tools/out/win_64/onlyoffice/DesktopEditors/
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Local AI service (worksuite-ai.exe) in the install dir
+        run: bash worksuite-office/build/v10/ai-service.sh "$GITHUB_WORKSPACE/worksuite-office" C:/oo/build_tools/out/win_64/onlyoffice/DesktopEditors
 
       - name: Sign the app (Authenticode, certificate)
         if: steps.signing.outputs.mode == 'pfx'

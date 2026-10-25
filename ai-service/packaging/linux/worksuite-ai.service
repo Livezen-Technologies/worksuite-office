@@ -1,0 +1,10 @@
+# Optional systemd user unit (~/.config/systemd/user/). The app normally launches worksuite-ai on demand.
+[Unit]
+Description=WorkSuite Local AI service
+
+[Service]
+ExecStart=/opt/worksuite/office/worksuite-ai
+Restart=no
+
+[Install]
+WantedBy=default.target

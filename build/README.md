@@ -133,6 +133,16 @@ No font files are kept in git, and the legacy fonts (FM, DL, Kaputa) are never s
 workflow runs the Sinhala tests (`cd sinhala && npm ci && npm test`). The 9.3 builds described above do
 not have Sinhala Tools.
 
+## Local AI service (the 10.x builds)
+
+`ai-service/` is `worksuite-ai`, the Local AI service (docs/local-ai/spec.md). Each 10.x build runs
+`build/v10/ai-service.sh`, which type-checks and tests it, builds a Node 22 single executable (Node SEA) for the
+runner's platform and copies it next to the app: `WorkSuite Office.app/Contents/MacOS/worksuite-ai` (signed with
+the app's identity and `ai-service/packaging/macos/worksuite-ai.entitlements`, then the app is re-sealed), the
+Windows install dir (`worksuite-ai.exe`, Authenticode-signed with the other executables) and the Linux app folder
+(packaged to `/opt/…`; the job checks each .deb holds it). Any failure stops the build. Engines and models are not
+bundled: the service downloads them as signed packages from the Update Center catalog.
+
 ## The 10.x builds: one upstream for all three platforms (NFR-19)
 
 On `office-v10` all three 10.x builds take their sources from **ONLYOFFICE**, at the one tag `OO_TAG`

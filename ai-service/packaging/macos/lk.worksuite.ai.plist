@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Optional per-user LaunchAgent (~/Library/LaunchAgents). The app normally launches worksuite-ai on demand;
+     this keeps it startable by launchd for other WorkSuite apps. -->
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>lk.worksuite.ai</string>
+  <key>ProgramArguments</key>
+  <array><string>/Applications/WorkSuite Office.app/Contents/MacOS/worksuite-ai</string></array>
+  <key>RunAtLoad</key><false/>
+  <key>KeepAlive</key><false/>
+  <key>ProcessType</key><string>Background</string>
+</dict>
+</plist>
