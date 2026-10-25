@@ -1,23 +1,18 @@
 /*
- * Finding the local worksuite-ai service (spec: Local service architecture, Discovery).
+ * Finding the local worksuite-ai service through the desktop shell (desktop-apps docs/local-ai-bridge.md).
  *
- * The service writes ~/.worksuite/ai/endpoint.json ({port, token, pid, apiVersion}, user-only). A plugin
- * frame cannot read files, so it asks the desktop shell:
+ * A plugin frame cannot read ~/.worksuite/ai/endpoint.json, so it asks the shell:
  *
- *   window.AscDesktopEditor.execCommand("worksuite:ai-endpoint", '{"start":true|false}')
+ *   AscDesktopEditor.execCommand("ws-ai:endpoint", '{"req":"<unique id>","start":true|false}')
  *
- * and the shell answers the editor that asked with sendCommandTo(<that view>, "worksuite:ai-endpoint",
- * <json>), which the editor page receives in window.on_native_message (web-apps' Desktop controller).
- * The plugin frame chains onto that function of the editor page (same file:// origin). The answer is
- *   {"ok":true, "port":47615, "token":"…", "apiVersion":"1.3", "pid":123, "started":false}
- *   {"ok":false, "error":"not_installed" | "starting" | "failed", "message"?}
- * With "start":true the shell launches the service when the file is missing or its pid is gone
- * ("starting" while it comes up; asked again until it is up).
- *
- * TODO(desktop-apps): the shell does not have "worksuite:ai-endpoint" yet (cascapplicationmanagerwrapper.cpp
- * and ASCCommonViewController.mm, next to "worksuite:policy", but answering the sender view, not only the
- * start page). Until it does, this falls back to a development service on 127.0.0.1:DEV_PORT whose token
- * is in localStorage "ws-ai:dev-token" (or none).
+ * The answer comes back as on_native_message("ws-ai:endpoint", json) in the editor's frame
+ * (frameEditor, this frame's parent), whose handler the editor owns: we chain onto it, and match our
+ * answers by `req` (every listener sees every answer).
+ *   {req, ok:true, port, token, pid, apiVersion, base:"http://127.0.0.1:<port>/v1", launched, policy}
+ *   {req, ok:false, reason:"disabled-by-policy"|"not-running"|"not-installed"|"start-failed"|"timeout", policy}
+ * With start:true the shell starts the service when it is not running and answers once it is up
+ * (at most 20 s). The policy in the answer lets the plugin lock features when no service runs.
+ * There is no fallback port: without the shell there is no service to talk to.
  */
 (function (root, factory) {
   var api = factory();
@@ -26,16 +21,15 @@
 })(typeof globalThis !== "undefined" ? globalThis : typeof self !== "undefined" ? self : this, function () {
   "use strict";
 
-  var COMMAND = "worksuite:ai-endpoint";
-  var DEV_PORT = 47615;
-  var DEV_TOKEN_KEY = "ws-ai:dev-token";
+  var COMMAND = "ws-ai:endpoint";
   var API_MAJOR = "1";
+  var REASONS = { "disabled-by-policy": "forbidden_by_policy", "not-running": "service_unavailable", "not-installed": "not_installed",
+    "start-failed": "service_unavailable", "timeout": "service_unavailable" };
 
-  function wait(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
-
-  function DiscoveryError(code, message) {
+  function DiscoveryError(code, message, reason) {
     var e = new Error(message || code);
     e.code = code;
+    e.reason = reason;
     return e;
   }
 
@@ -46,97 +40,81 @@
     return answer && typeof answer === "object" ? answer : null;
   }
 
-  function endpointFrom(data, source) {
+  var seq = 0;
+  function newReq() { return "ws-ai-" + Date.now().toString(36) + "-" + (++seq) + "-" + Math.random().toString(36).slice(2, 8); }
+
+  function endpointFrom(data) {
     var port = Number(data.port);
     if (!(port > 0 && port < 65536)) return null;
     var api = String(data.apiVersion || "1");
     if (api.split(".")[0] !== API_MAJOR) throw DiscoveryError("api_version", "worksuite-ai API " + api + " is not v1");
-    return { port: port, token: typeof data.token === "string" ? data.token : "", apiVersion: api,
-      base: "http://127.0.0.1:" + port + "/v1", source: source };
+    var base = typeof data.base === "string" && /^http:\/\/127\.0\.0\.1:\d+\/v1$/.test(data.base) ? data.base : "http://127.0.0.1:" + port + "/v1";
+    return { port: port, token: typeof data.token === "string" ? data.token : "", apiVersion: api, base: base,
+      launched: !!data.launched, policy: data.policy || null, source: "shell" };
   }
 
   /*
-   * opts: desktop (window.AscDesktopEditor), host (the editor page window, for on_native_message),
-   * storage (localStorage), fetch, devPort, timeoutMs, startRetries, startDelayMs
+   * opts: desktop (AscDesktopEditor), host (the editor frame, for on_native_message),
+   * timeoutMs (start:false, default 4 s), startTimeoutMs (start:true, default 25 s), onPolicy(policy)
    */
   function createDiscovery(opts) {
     opts = opts || {};
     var cached = null;
-    var pending = [];
-    var listening = false;
-    var timeoutMs = opts.timeoutMs || 3000;
+    var lastPolicy = null;
 
-    function listen() {
-      if (listening || !opts.host) return listening;
-      try {
-        var host = opts.host;
-        var previous = host.on_native_message;
-        host.on_native_message = function (cmd, param) {
+    function ask(start) {
+      var d = opts.desktop, host = opts.host;
+      if (!d || typeof d.execCommand !== "function" || !host) return Promise.resolve(null);
+      var req = newReq();
+      return new Promise(function (resolve) {
+        var previous, listener, timer;
+        function done(answer) {
+          clearTimeout(timer);
+          try { if (host.on_native_message === listener) host.on_native_message = previous; } catch (e) { /* gone */ }
+          resolve(answer);
+        }
+        listener = function (cmd, param) {
           if (cmd === COMMAND) {
-            var waiting = pending;
-            pending = [];
-            waiting.forEach(function (w) { w(param); });
+            var a = parse(param);
+            if (a && a.req === req) { done(a); return; }
           }
           if (typeof previous === "function") return previous.apply(this, arguments);
         };
-        listening = true;
-      } catch (e) { listening = false; } // another origin: no answers can reach us
-      return listening;
-    }
-
-    function askShell(start) {
-      var d = opts.desktop;
-      if (!d || typeof d.execCommand !== "function" || !listen()) return Promise.resolve(null);
-      return new Promise(function (resolve) {
-        var done = false;
-        function finish(v) { if (!done) { done = true; resolve(v); } }
-        pending.push(function (param) { finish(parse(param) || { ok: false, error: "failed" }); });
-        setTimeout(function () { finish(null); }, timeoutMs);
-        try { d.execCommand(COMMAND, JSON.stringify({ start: !!start })); } catch (e) { finish(null); }
+        try {
+          previous = host.on_native_message;
+          host.on_native_message = listener;
+        } catch (e) { resolve(null); return; } // another origin: no answer can reach us
+        timer = setTimeout(function () { done({ req: req, ok: false, reason: "timeout" }); },
+          start ? (opts.startTimeoutMs || 25000) : (opts.timeoutMs || 4000));
+        try { d.execCommand(COMMAND, JSON.stringify({ req: req, start: !!start })); } catch (e) { done(null); }
       });
-    }
-
-    function probeDev() {
-      var f = opts.fetch;
-      if (typeof f !== "function") return Promise.resolve(null);
-      var token = "";
-      try { token = (opts.storage && opts.storage.getItem(DEV_TOKEN_KEY)) || ""; } catch (e) { /* none */ }
-      var port = opts.devPort || DEV_PORT;
-      var headers = token ? { Authorization: "Bearer " + token } : {};
-      return f("http://127.0.0.1:" + port + "/v1/info", { headers: headers }).then(function (res) {
-        if (!res.ok) return null;
-        return res.json().then(function (info) {
-          return endpointFrom({ port: port, token: token, apiVersion: info && info.apiVersion }, "dev");
-        });
-      }, function () { return null; });
     }
 
     async function resolve(options) {
       var start = !!(options && options.start);
       if (cached && !(options && options.refresh)) return cached;
-      var retries = opts.startRetries === undefined ? 20 : opts.startRetries;
-      var answer = await askShell(start);
-      while (answer && !answer.ok && answer.error === "starting" && retries-- > 0) {
-        await wait(opts.startDelayMs || 500);
-        answer = await askShell(false);
+      var answer = await ask(start);
+      if (answer && answer.policy) {
+        lastPolicy = answer.policy;
+        if (opts.onPolicy) opts.onPolicy(answer.policy);
       }
       if (answer && answer.ok) {
-        var ep = endpointFrom(answer, "shell");
-        if (ep) return (cached = ep);
+        var ep = endpointFrom(answer);
+        if (ep) { cached = ep; if (opts.onEndpoint) opts.onEndpoint(ep); return ep; }
       }
-      var dev = await probeDev();
-      if (dev) return (cached = dev);
-      if (answer && answer.error === "not_installed") throw DiscoveryError("not_installed", "WorkSuite Local AI is not installed");
-      throw DiscoveryError("service_unavailable", "WorkSuite Local AI is not running");
+      if (!answer) throw DiscoveryError("service_unavailable", "No desktop shell to find WorkSuite Local AI", "no-shell");
+      var reason = answer.reason || "start-failed";
+      throw DiscoveryError(REASONS[reason] || "service_unavailable", reason, reason);
     }
 
     return {
       resolve: resolve,
       invalidate: function () { cached = null; },
       current: function () { return cached; },
+      policy: function () { return lastPolicy; },
       set: function (ep) { cached = ep; }
     };
   }
 
-  return { createDiscovery: createDiscovery, COMMAND: COMMAND, DEV_PORT: DEV_PORT, DEV_TOKEN_KEY: DEV_TOKEN_KEY };
+  return { createDiscovery: createDiscovery, COMMAND: COMMAND, REASONS: REASONS };
 });

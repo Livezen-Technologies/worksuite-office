@@ -149,9 +149,9 @@ rendered to the committed PNGs by `npm run icons` (Playwright). The Check workfl
 (`cd ai-plugin && npm test`). `npm run screenshots` renders the voice typing dock, the review panel and
 the read-aloud bar against a mocked service.
 
-The plugin finds the service through the desktop shell (`worksuite:ai-endpoint`, see
-`ai-plugin/plugin/src/lib/discovery.js`). Until desktop-apps answers that command, it falls back to a
-development service on `127.0.0.1:47615`.
+The plugin finds the service through the desktop shell: the `ws-ai:endpoint` command (desktop-apps
+`docs/local-ai-bridge.md`; `ai-plugin/plugin/src/lib/discovery.js`), which also starts it on demand.
+It shares the endpoint with Sinhala Tools as `window.WSAiEndpoint`.
 
 ## The 10.x builds: one upstream for all three platforms (NFR-19)
 

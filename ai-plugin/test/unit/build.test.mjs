@@ -44,13 +44,13 @@ test("the worklet registers its processor and turns 48 kHz into 640-sample frame
   assert.equal(posted[0].pcm.byteLength, 1280);
 });
 
-function loadPlugin(editorType, info) {
+function loadPlugin(editorType, parent) {
   const calls = [];
   const plugin = { info: { guid: "asc.{X}", editorType }, tr: (t) => t, executeMethod: (m, args) => calls.push([m, args]), attachToolbarMenuClickEvent: () => {}, callCommand() {} };
   const storage = new Map();
   const window = { Asc: { plugin, scope: {} }, localStorage: { getItem: (k) => storage.get(k) ?? null, setItem: (k, v) => storage.set(k, v), removeItem: (k) => storage.delete(k) },
     fetch: async () => { throw new TypeError("no"); }, setTimeout, clearTimeout, setInterval: () => 0, console };
-  window.window = window; window.self = window; window.parent = window;
+  window.window = window; window.self = window; window.parent = parent || window;
   const ctx = vm.createContext(Object.assign(window, { document: { getElementById: () => null } }));
   for (const f of ["lib/discovery.js", "lib/client.js", "lib/edits.js", "lib/ghost.js", "lib/policy.js", "lib/providers.js", "lib/text.js", "scripts/plugin.js"]) {
     vm.runInContext(readFileSync(join(a, f), "utf8"), ctx, { filename: f });
@@ -103,4 +103,18 @@ test("undo of several accepted edits: inverses in the text after them", () => {
   const edits = E.fromIssues(t, [{ start: 0, end: 3, replacements: ["the"] }, { start: 4, end: 7, replacements: ["kitten"] }, { start: 15, end: 18, replacements: ["the"] }]);
   const after = E.apply(t, edits);
   assert.equal(E.apply(after, ctx.WsAiPlugin.invertAll(edits)), t);
+});
+
+test("the endpoint from the shell is shared as WSAiEndpoint (this frame and the editor frame) for Sinhala Tools", async () => {
+  const frameEditor = { document: {}, on_native_message: () => {} };
+  frameEditor.AscDesktopEditor = { execCommand(cmd, p) {
+    const { req } = JSON.parse(p);
+    setTimeout(() => frameEditor.on_native_message(cmd, JSON.stringify({ req, ok: true, port: 47613, token: "tok", apiVersion: "1", base: "http://127.0.0.1:47613/v1" })), 1);
+  } };
+  const { ctx, plugin } = loadPlugin("word", frameEditor);
+  plugin.init();
+  await new Promise((r) => setTimeout(r, 50));
+  const want = { baseUrl: "http://127.0.0.1:47613", token: "tok" };
+  assert.deepEqual(JSON.parse(JSON.stringify(ctx.WSAiEndpoint)), want);
+  assert.deepEqual(JSON.parse(JSON.stringify(frameEditor.WSAiEndpoint)), want);
 });

@@ -135,6 +135,11 @@
       setState("error", tr("Sinhala voice typing is not available yet. Choose English or Auto."));
       return;
     }
+    if ((e.name === "NotAllowedError" || e.name === "SecurityError") && /Windows/.test(window.navigator.userAgent || "")) {
+      // Windows: the app cannot turn on CEF's media stream yet (it needs a desktop-sdk change)
+      setState("error", tr("Voice typing is not available on this Windows build yet."));
+      return;
+    }
     if (e.name === "NotAllowedError" || e.name === "SecurityError" || e.code === "mic_denied") {
       setState("error", tr("WorkSuite Office may not use the microphone."));
       var url = settingsUrl();

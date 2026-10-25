@@ -127,6 +127,7 @@
   "Verifying": "சரிபார்க்கிறது",
   "Voice": "குரல்",
   "Voice typing": "குரல் தட்டச்சு",
+  "Voice typing is not available on this Windows build yet.": "இந்த Windows பதிப்பில் குரல் தட்டச்சு இன்னும் கிடைக்கவில்லை.",
   "Voice typing listens through your microphone. The audio stays on this computer: WorkSuite Local AI turns it into text here and keeps no recording.": "குரல் தட்டச்சு உங்கள் ஒலிவாங்கி வழியாகக் கேட்கிறது. ஒலி இந்தக் கணினியிலேயே இருக்கும்: WorkSuite உள்ளூர் AI அதை இங்கேயே உரையாக மாற்றுகிறது, எந்தப் பதிவையும் வைத்திருப்பதில்லை.",
   "Volume": "ஒலியளவு",
   "Which languages the selection is in": "தேர்வு எந்த மொழிகளில் உள்ளது",

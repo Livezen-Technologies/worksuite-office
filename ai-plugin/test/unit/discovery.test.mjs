@@ -1,79 +1,72 @@
-// Discovery through the desktop shell (worksuite:ai-endpoint), start on demand, and the dev-port fallback.
+// Discovery through the desktop shell's "ws-ai:endpoint" (desktop-apps docs/local-ai-bridge.md).
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { lib, memoryStorage } from "./helpers.mjs";
+import { lib } from "./helpers.mjs";
 
-const { createDiscovery, COMMAND, DEV_PORT, DEV_TOKEN_KEY } = lib("discovery");
+const { createDiscovery, COMMAND } = lib("discovery");
 
-function shell(answers) {
-  const host = { on_native_message: null, calls: [] };
+// the editor frame: its own on_native_message, and a shell that answers each request by its req
+function shell(answer, opts = {}) {
   const editorHandled = [];
-  host.on_native_message = (cmd, p) => editorHandled.push(cmd); // the editor's own handler keeps working
-  const desktop = {
+  const host = { calls: [], on_native_message(cmd) { editorHandled.push(cmd); } };
+  host.AscDesktopEditor = {
     execCommand(cmd, param) {
-      host.calls.push([cmd, JSON.parse(param)]);
-      const a = answers.shift();
-      if (a !== undefined) setTimeout(() => host.on_native_message(COMMAND, JSON.stringify(a)), 1);
+      const p = JSON.parse(param);
+      host.calls.push([cmd, p]);
+      if (opts.silent) return;
+      setTimeout(() => {
+        if (opts.otherFirst) host.on_native_message(COMMAND, JSON.stringify({ req: "someone-else", ok: false, reason: "not-running" }));
+        host.on_native_message(COMMAND, JSON.stringify(Object.assign({ req: p.req }, answer(p))));
+      }, 1);
     }
   };
-  return { host, desktop, editorHandled };
+  return { host, desktop: host.AscDesktopEditor, editorHandled };
 }
 
-const noFetch = async () => { throw new TypeError("refused"); };
+const OK = { ok: true, port: 47613, token: "abc", pid: 1, apiVersion: "1", base: "http://127.0.0.1:47613/v1", launched: true, policy: { managed: false } };
 
-test("asks the shell and uses its endpoint", async () => {
-  const s = shell([{ ok: true, port: 41000, token: "abc", apiVersion: "1.3", pid: 1 }]);
-  const d = createDiscovery({ desktop: s.desktop, host: s.host, fetch: noFetch });
+test("asks with a unique req and start, uses the answer, and gives on_native_message back", async () => {
+  const s = shell(() => OK, { otherFirst: true });
+  const original = s.host.on_native_message;
+  const seen = [];
+  const d = createDiscovery({ desktop: s.desktop, host: s.host, onEndpoint: (e) => seen.push(e.port), onPolicy: (p) => seen.push(p) });
   const ep = await d.resolve({ start: true });
-  assert.deepEqual(ep, { port: 41000, token: "abc", apiVersion: "1.3", base: "http://127.0.0.1:41000/v1", source: "shell" });
-  assert.deepEqual(s.host.calls, [[COMMAND, { start: true }]]);
-  assert.deepEqual(s.editorHandled, [COMMAND]);
-  assert.equal(await d.resolve(), ep); // cached
+  assert.equal(ep.base, "http://127.0.0.1:47613/v1");
+  assert.equal(ep.token, "abc");
+  assert.equal(ep.launched, true);
+  assert.equal(s.host.calls[0][0], "ws-ai:endpoint");
+  assert.equal(s.host.calls[0][1].start, true);
+  assert.match(s.host.calls[0][1].req, /^ws-ai-/);
+  assert.equal(s.host.on_native_message, original);           // unchained after the answer
+  assert.deepEqual(s.editorHandled, [COMMAND]);                // someone else's answer still reached the editor
+  assert.deepEqual(seen, [{ managed: false }, 47613]);
+  assert.equal(await d.resolve(), ep);                         // cached
   assert.equal(s.host.calls.length, 1);
 });
 
-test("while the shell starts the service it asks again", async () => {
-  const s = shell([{ ok: false, error: "starting" }, { ok: false, error: "starting" }, { ok: true, port: 41001, token: "x", apiVersion: "1.0" }]);
-  const d = createDiscovery({ desktop: s.desktop, host: s.host, fetch: noFetch, startDelayMs: 1 });
-  const ep = await d.resolve({ start: true });
-  assert.equal(ep.port, 41001);
-  assert.deepEqual(s.host.calls.map((c) => c[1].start), [true, false, false]);
+test("the reasons become the plugin's error codes, with the policy kept", async () => {
+  for (const [reason, code] of [["disabled-by-policy", "forbidden_by_policy"], ["not-installed", "not_installed"], ["not-running", "service_unavailable"], ["start-failed", "service_unavailable"]]) {
+    const s = shell(() => ({ ok: false, reason, policy: { features: { stt: false } } }));
+    const d = createDiscovery({ desktop: s.desktop, host: s.host });
+    await assert.rejects(d.resolve({ start: true }), (e) => e.code === code && e.reason === reason);
+    assert.deepEqual(d.policy(), { features: { stt: false } });
+  }
 });
 
-test("a v2 service is refused", async () => {
-  const s = shell([{ ok: true, port: 41002, token: "x", apiVersion: "2.0" }]);
-  const d = createDiscovery({ desktop: s.desktop, host: s.host, fetch: noFetch });
+test("no answer in time is a timeout; no shell at all is service_unavailable", async () => {
+  const s = shell(null, { silent: true });
+  const d = createDiscovery({ desktop: s.desktop, host: s.host, timeoutMs: 20 });
+  await assert.rejects(d.resolve(), (e) => e.reason === "timeout");
+  assert.equal(typeof s.host.on_native_message, "function");
+  await assert.rejects(createDiscovery({}).resolve(), (e) => e.code === "service_unavailable" && e.reason === "no-shell");
+});
+
+test("a v2 service is refused; invalidate asks again", async () => {
+  let n = 0;
+  const s = shell(() => (++n === 1 ? Object.assign({}, OK, { apiVersion: "2.0" }) : OK));
+  const d = createDiscovery({ desktop: s.desktop, host: s.host });
   await assert.rejects(d.resolve(), (e) => e.code === "api_version");
-});
-
-test("no shell hook: the dev port, with the dev token from storage", async () => {
-  let asked = null;
-  const fetch = async (url, init) => { asked = { url, init }; return { ok: true, json: async () => ({ apiVersion: "1.3" }) }; };
-  const d = createDiscovery({ storage: memoryStorage({ [DEV_TOKEN_KEY]: "dev" }), fetch, timeoutMs: 10 });
-  const ep = await d.resolve();
-  assert.equal(asked.url, `http://127.0.0.1:${DEV_PORT}/v1/info`);
-  assert.equal(asked.init.headers.Authorization, "Bearer dev");
-  assert.equal(ep.source, "dev");
-  assert.equal(ep.token, "dev");
-});
-
-test("a shell that never answers times out to the fallback", async () => {
-  const s = shell([]);
-  const d = createDiscovery({ desktop: s.desktop, host: s.host, fetch: noFetch, timeoutMs: 20 });
-  await assert.rejects(d.resolve(), (e) => e.code === "service_unavailable");
-});
-
-test("not installed is reported as such", async () => {
-  const s = shell([{ ok: false, error: "not_installed" }]);
-  const d = createDiscovery({ desktop: s.desktop, host: s.host, fetch: noFetch });
-  await assert.rejects(d.resolve({ start: true }), (e) => e.code === "not_installed");
-});
-
-test("invalidate forgets the endpoint", async () => {
-  const s = shell([{ ok: true, port: 41003, token: "a" }, { ok: true, port: 41004, token: "b" }]);
-  const d = createDiscovery({ desktop: s.desktop, host: s.host, fetch: noFetch });
-  assert.equal((await d.resolve()).port, 41003);
+  assert.equal((await d.resolve()).port, 47613);
   d.invalidate();
   assert.equal(d.current(), null);
-  assert.equal((await d.resolve()).port, 41004);
 });

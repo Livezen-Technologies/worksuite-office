@@ -127,6 +127,7 @@
   "Verifying": "තහවුරු කරමින්",
   "Voice": "හඬ",
   "Voice typing": "හඬින් ටයිප් කිරීම",
+  "Voice typing is not available on this Windows build yet.": "හඬින් ටයිප් කිරීම මෙම Windows නිකුතුවේ තවම නොමැත.",
   "Voice typing listens through your microphone. The audio stays on this computer: WorkSuite Local AI turns it into text here and keeps no recording.": "හඬින් ටයිප් කිරීම ඔබේ මයික්‍රොෆෝනය හරහා සවන් දෙයි. ශ්‍රව්‍ය මෙම පරිගණකයේම රැඳේ: WorkSuite ස්ථානීය AI එය මෙහිදීම පෙළ බවට හරවන අතර කිසිදු පටිගත කිරීමක් තබා නොගනී.",
   "Volume": "ශබ්දය",
   "Which languages the selection is in": "තේරීම ඇති භාෂා මොනවාද",

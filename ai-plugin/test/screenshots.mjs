@@ -54,7 +54,7 @@ const server = http.createServer((req, res) => {
 await new Promise((r) => server.listen(0, "127.0.0.1", r));
 const base = `http://127.0.0.1:${server.address().port}/ws-ai/`;
 
-// the mocked service (port 47615, as discovery's dev fallback)
+// the mocked service
 const SERVICE = "http://127.0.0.1:47615/v1";
 const info = { apiVersion: "1.3", serviceVersion: "0.1.0", capabilities: ["speech.stt", "text.check", "text.transform", "translate", "tts", "assistant"], profile: "standard" };
 function wav(seconds) {
@@ -116,7 +116,7 @@ for (const theme of ["light", "dark"]) {
   await dock.waitForTimeout(400);
   await shot(dock, "dock" + (theme === "dark" ? "-dark" : ""));
   const ws = await dock.evaluate(() => window.__ws);
-  if (!/\/v1\/speech\/stream\?lang=auto&punctuate=true$/.test(ws.url) || ws.protocols[1] !== "bearer.mock") throw new Error("speech stream " + JSON.stringify(ws));
+  if (!/\/v1\/speech\/stream\?lang=auto&punctuate=true&token=mock$/.test(ws.url)) throw new Error("speech stream " + JSON.stringify(ws));
   await dock.close();
 }
 

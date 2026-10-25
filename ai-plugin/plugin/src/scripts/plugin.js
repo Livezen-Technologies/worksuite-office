@@ -42,8 +42,16 @@
   try { host = window.parent && window.parent !== window ? window.parent : null; void (host && host.document); } catch (e) { host = null; }
   var discovery = window.WsAiDiscovery.createDiscovery({
     desktop: window.AscDesktopEditor || (host && host.AscDesktopEditor), host: host,
-    storage: window.localStorage, fetch: window.fetch && window.fetch.bind(window)
+    onEndpoint: shareEndpoint,
+    onPolicy: function (p) { if (!policy) { policy = p; if (toolbarAdded) addToolbar(); } }
   });
+
+  /* for Sinhala Tools' optional suggestions (/v1/text/complete): both plugins live in this editor frame */
+  function shareEndpoint(ep) {
+    var shared = { baseUrl: ep.base.replace(/\/v1$/, ""), token: ep.token };
+    window.WSAiEndpoint = shared;
+    try { if (host) host.WSAiEndpoint = shared; } catch (e) { /* another origin */ }
+  }
   var client = window.WsAiClient.createClient({ discovery: discovery, autoStart: true });
   var quiet = window.WsAiClient.createClient({ discovery: discovery, autoStart: false });
   var info = null, policy = null, privacy = null;

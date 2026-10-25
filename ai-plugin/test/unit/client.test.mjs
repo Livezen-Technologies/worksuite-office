@@ -127,13 +127,12 @@ test("synthesize returns the audio bytes", async () => {
   assert.equal(Buffer.from(buf).toString(), "RIFF");
 });
 
-test("the speech stream: ws:// URL with the query, token as a subprotocol", async () => {
+test("the speech stream: ws:// URL with the query and ?token=", async () => {
   let made = null;
-  class FakeWS { constructor(url, protocols) { made = { url, protocols }; } }
+  class FakeWS { constructor(url) { made = { url }; } }
   const c = createClient({ discovery: discovery(), WebSocket: FakeWS });
   const ws = await c.speechStream({ lang: "en", punctuate: true, model: "" });
-  assert.equal(made.url, `ws://127.0.0.1:${port}/v1/speech/stream?lang=en&punctuate=true`);
-  assert.deepEqual(made.protocols, ["ws-ai.v1", "bearer." + token]);
+  assert.equal(made.url, `ws://127.0.0.1:${port}/v1/speech/stream?lang=en&punctuate=true&token=${token}`);
   assert.equal(ws.binaryType, "arraybuffer");
 });
 

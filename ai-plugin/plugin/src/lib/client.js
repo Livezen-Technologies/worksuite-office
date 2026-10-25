@@ -4,8 +4,8 @@
  * thrown as ServiceError. A 401 or a refused connection re-discovers the endpoint once (the service may
  * have restarted with a new port and token) and, when the caller allows, asks the shell to start it.
  *
- * WebSockets: a browser cannot set Authorization on a WebSocket, so the token goes as the subprotocol
- * "bearer.<token>" next to "ws-ai.v1" (the service must accept and echo "ws-ai.v1").
+ * WebSockets: a browser cannot set Authorization on a WebSocket, so the token goes as ?token= (the
+ * desktop bridge's convention, docs/local-ai-bridge.md in desktop-apps).
  */
 (function (root, factory) {
   var api = factory();
@@ -175,7 +175,7 @@
       speechStream: async function (params) {
         var WS = opts.WebSocket || (typeof WebSocket !== "undefined" ? WebSocket : null);
         var ep = await endpoint(true);
-        var ws = new WS(streamUrl(ep, "/speech/stream", params), ["ws-ai.v1", "bearer." + ep.token]);
+        var ws = new WS(streamUrl(ep, "/speech/stream", Object.assign({}, params, { token: ep.token })));
         ws.binaryType = "arraybuffer";
         return ws;
       },
