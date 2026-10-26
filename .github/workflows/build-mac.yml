@@ -272,7 +272,10 @@ jobs:
             "${sign[@]}" \
             URL_WEBAPPS_HELP="https://download.onlyoffice.com/install/desktop/editors/help/v$PRODUCT_VERSION/apps" \
             build | tee build/xcodebuild.log | grep -E "^(=== |\*\* |error|.*: error|.*warning: unable|Code Signing|CodeSign )" || true
-          test -d build/dd/Build/Products/Release/ONLYOFFICE.app || { tail -200 build/xcodebuild.log; exit 1; }
+          # a failed build can still leave a partial ONLYOFFICE.app (no Info.plist), so check xcodebuild's own verdict
+          grep -q '^\*\* BUILD SUCCEEDED \*\*' build/xcodebuild.log &&
+            test -f build/dd/Build/Products/Release/ONLYOFFICE.app/Contents/Info.plist ||
+            { grep -E ': error:' build/xcodebuild.log | head -50; tail -100 build/xcodebuild.log; exit 1; }
 
       - uses: actions/setup-node@v4
         with:
