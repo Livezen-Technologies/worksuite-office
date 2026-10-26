@@ -295,10 +295,7 @@ jobs:
             codesign --verify --deep --strict --verbose=2 "$app"
           else
             codesign --force --sign - --entitlements "$ent" "$app/Contents/MacOS/worksuite-ai"
-            # unsigned build: the app was never sealed (xcodebuild ran without an identity), so there is no seal to
-            # renew; an ad-hoc re-seal of the unsealed bundle fails ("bundle format unrecognized")
-            codesign --force --sign - --preserve-metadata=entitlements,requirements,flags "$app" 2>/dev/null ||
-              echo "unsigned build: the app is left unsealed, as before"
+            codesign --force --sign - --preserve-metadata=entitlements,requirements,flags "$app"
           fi
           lipo -archs "$app/Contents/MacOS/worksuite-ai"
           "$app/Contents/MacOS/worksuite-ai" --version
