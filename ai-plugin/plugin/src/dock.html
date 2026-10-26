@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Voice typing</title>
+  <meta charset="UTF-8" />
+  <link rel="stylesheet" href="../v1/plugins.css" />
+  <link rel="stylesheet" href="resources/ai.css" />
+  <script type="text/javascript" src="../v1/plugins.js"></script>
+  <script type="text/javascript" src="../v1/plugins-ui.js"></script>
+  <script type="text/javascript" src="lib/discovery.js"></script>
+  <script type="text/javascript" src="lib/client.js"></script>
+  <script type="text/javascript" src="lib/text.js"></script>
+  <script type="text/javascript" src="scripts/ui.js"></script>
+  <script type="text/javascript" src="lib/resampler.js"></script>
+  <script type="text/javascript" src="lib/policy.js"></script>
+  <script type="text/javascript" src="scripts/dock.js"></script>
+</head>
+<body class="ws-window">
+  <div class="ws-dock" id="dock" data-state="starting">
+    <div class="ws-row">
+      <span class="ws-dot" aria-hidden="true"></span>
+      <span id="status" class="ws-status" role="status" data-tr="Starting">Starting</span>
+      <select id="lang" class="form-control ws-lang" data-tr-title="Language">
+        <option value="auto" data-tr="Auto">Auto</option>
+        <option value="si" data-tr="Sinhala">Sinhala</option>
+        <option value="en" data-tr="English">English</option>
+      </select>
+      <div class="ws-meter" aria-hidden="true"><div id="meter"></div></div>
+      <button id="pause" class="btn-text-default ws-icon-btn" data-tr-title="Pause"><span class="ws-i ws-i-pause"></span></button>
+      <button id="stop" class="btn-text-default ws-primary" data-tr="Stop">Stop</button>
+    </div>
+    <div id="text" class="ws-dock-text" aria-live="polite"><span class="final" id="final"></span><span class="partial" id="partial"></span></div>
+    <div id="notice" class="ws-notice" hidden></div>
+    <div id="consent" class="ws-consent" hidden>
+      <p data-tr="Voice typing listens through your microphone. The audio stays on this computer: WorkSuite Local AI turns it into text here and keeps no recording.">Voice typing listens through your microphone. The audio stays on this computer: WorkSuite Local AI turns it into text here and keeps no recording.</p>
+      <button id="consentOk" class="btn-text-default ws-primary" data-tr="Continue">Continue</button>
+    </div>
+    <div id="install" class="ws-install" hidden>
+      <span data-tr="No speech model is installed.">No speech model is installed.</span>
+      <button id="installBtn" class="btn-text-default ws-primary" data-tr="Install Whisper small">Install Whisper small</button>
+      <div class="ws-progress" hidden id="installProgress"><div></div></div>
+    </div>
+    <div class="ws-hint" data-tr="Stop inserts the text; Esc discards it.">Stop inserts the text; Esc discards it.</div>
+  </div>
+</body>
+</html>

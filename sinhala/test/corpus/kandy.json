@@ -1,0 +1,65 @@
+{
+  "profile": "kandy",
+  "notes": "Written by hand for WorkSuite from the glyphs of Kandy, Lankanatha and Lankapura. The profile is provisional: no ි ී ු ූ, which these fonts write with ligature glyphs.",
+  "sets": {
+    "village": [
+      [
+        "gm sx ngry",
+        "ගම සහ නගරය"
+      ],
+      [
+        "rjy 2026 10 20",
+        "රජය 2026 10 20"
+      ],
+      [
+        "/ lAk`v",
+        "ශ්‍රී ලංකාව"
+      ]
+    ],
+    "vowels": [
+      [
+        "@p`W sx @p`w",
+        "පොත් සහ පොත"
+      ],
+      [
+        "@K O E",
+        "කේ ඕ ඒ"
+      ],
+      [
+        "a#w a$w a`v",
+        "ඇත ඈත ආව"
+      ],
+      [
+        ": | { [ ]",
+        "ෂ් ශ් ඨ ධ ළ"
+      ]
+    ]
+  },
+  "mixed": [
+    {
+      "title": "Kandy, Lankanatha and Lankapura beside English",
+      "runs": [
+        {
+          "font": "Kandy",
+          "text": "gm ",
+          "expect": "ගම "
+        },
+        {
+          "font": "Lankanatha",
+          "text": "sx ",
+          "expect": "සහ "
+        },
+        {
+          "font": "Lankapura",
+          "text": "ngry",
+          "expect": "නගරය"
+        },
+        {
+          "font": "Arial",
+          "text": "and English",
+          "expect": "and English"
+        }
+      ]
+    }
+  ]
+}

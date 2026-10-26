@@ -1,5 +1,110 @@
 # Change log
 
+## 10.1.5
+
+### New features
+
+#### Local AI
+
+* WorkSuite Local AI runs on this computer through the bundled worksuite-ai
+  service: voice typing, file transcription, read aloud, writing commands on
+  the AI tab with a review panel, and inline suggestions. Engines and models
+  download as signed packages from the Update Center, and nothing leaves the
+  computer unless cloud AI is allowed
+* Settings › AI models lists, downloads and removes models, shows their size
+  and storage, and follows the organisation's AI policy
+
+#### Home screen
+
+* Redesigned home screen: compact Create new cards (Document, Spreadsheet,
+  Presentation, PDF form, From template), one page scrollbar and full-width
+  sections
+* WorkSuite Drive on the home screen: Recent, Shared with me, Starred and My
+  Drive tabs, type filters, search, sort, list and grid views, multi-select,
+  and row and right-click menus that follow your permissions
+* Recent files: search, filters, sort, list and grid views, Remove from Recent
+  and Clear recent history
+* The home screen keeps its scroll position and filters when you come back
+  from an editor
+
+#### Clouds
+
+* Clouds › WorkSuite Drive is a full file browser once connected: My Drive,
+  Recent, Shared with me, Starred and Trash, with breadcrumbs, search,
+  sorting, resizable columns, list or grid, compact or comfortable rows and a
+  details panel with activity
+* Upload and download with progress, new folder, rename, move, copy, star,
+  share, version history, PDF preview, and delete or restore from Trash, each
+  offered only when your permissions allow it
+* Documents open in a new tab and save back to the same Drive file
+
+#### Templates
+
+* A redesigned Templates page: search, searchable Category, Purpose and
+  Language filters, sort, grid or list, and compact tabs
+* Template preview with Use Template and Favorite, plus Favorites, Recently
+  used, My Templates and organisation templates from WorkSuite accounts
+
+#### WorkSuite accounts
+
+* A full-width account panel with an account menu (switch account, add
+  account, Manage accounts, Disconnect) and a searchable organisation picker
+
+#### Updates
+
+* Settings › WorkSuite › Updates shows live download progress on macOS and
+  Windows, with Cancel and the download size. On Windows the installer's
+  length and Ed25519 signature are checked before it is kept
+
+#### Settings
+
+* A Document Preferences section ("Open file", spelling language detection),
+  sharing its values with Settings › General
+
+#### Sinhala Tools
+
+* Legacy fonts DL-Sarala, DL-Nisansala, FS-Kapila, FS-Dilrukshi, Kumudu,
+  Ranaviru, Hemawathy and Anuradha convert with the DL Manel map, are
+  recognised automatically and can be chosen as the target font
+* Provisional maps for Thara and Padma and for Kandy, Lankanatha and
+  Lankapura; characters a map does not cover yet are listed before anything
+  changes
+* Malithi Web is offered as a Unicode Sinhala font
+
+#### Design
+
+* The start page's WorkSuite screens use WorkSuite Desktop's colours, sizes,
+  buttons, menus and checkboxes, in light, dark and high contrast
+
+### Fixes
+
+#### WorkSuite accounts
+
+* An expired session shows "Session expired" with Reconnect, which signs the
+  same saved account in again and opens only one sign-in window
+* Two accounts on one WorkSuite server no longer share an editor session;
+  opening a document as the other account asks first
+* Disconnect asks first and keeps the account so you can reconnect
+
+#### Clouds
+
+* Clouds showed only a "WorkSuite Drive, Connect" row on an empty page
+
+#### Home screen
+
+* Recent files no longer scroll in their own box
+* Tooltips and menus stay attached to their buttons and appear above dialogs
+
+#### Templates
+
+* Thumbnails are no longer cut off, the page scrolls as one, and filters stay
+  set when switching tabs
+
+#### Sinhala Tools
+
+* A kombuva before a consonant with al-lakuna now converts to the right vowel
+  sign
+
 ## 10.1.4
 
 ### New features

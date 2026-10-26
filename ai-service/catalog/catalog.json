@@ -1,0 +1,871 @@
+{
+  "schema": 1,
+  "version": "2026.10.25-seed",
+  "generatedAt": "2026-10-25T00:00:00Z",
+  "comment": "Built-in fallback catalog of worksuite-ai. Unsigned seed: nothing here installs unless WS_AI_DEV=1. The Update Center serves the signed catalog at /api/v1/ai/catalog.",
+  "models": [
+    {
+      "id": "whisper-tiny-q5",
+      "name": "Whisper Tiny (q5)",
+      "version": "1.0.0",
+      "tasks": [
+        "stt"
+      ],
+      "languages": [
+        "en",
+        "si",
+        "ta",
+        "multi"
+      ],
+      "engine": "whisper.cpp",
+      "files": [
+        {
+          "path": "ggml-tiny-q5_1.bin",
+          "size": 32152673,
+          "sha256": "TODO"
+        }
+      ],
+      "ramMB": 180,
+      "backends": [
+        "cpu",
+        "metal",
+        "cuda",
+        "vulkan"
+      ],
+      "license": "MIT",
+      "source": "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny-q5_1.bin",
+      "download": {
+        "ggml-tiny-q5_1.bin": "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny-q5_1.bin"
+      },
+      "approved": false,
+      "description": "OpenAI Whisper tiny, whisper.cpp ggml q5_1 quantisation. Sinhala speech stays off until a model passes the WER<=0.25 gate. Seed entry: sha256 not pinned yet (huggingface.co was not reachable when the seed was written); not approved until the Update Center publishes it signed.",
+      "engineMin": "1.7.0"
+    },
+    {
+      "id": "whisper-base-q5",
+      "name": "Whisper Base (q5)",
+      "version": "1.0.0",
+      "tasks": [
+        "stt"
+      ],
+      "languages": [
+        "en",
+        "si",
+        "ta",
+        "multi"
+      ],
+      "engine": "whisper.cpp",
+      "files": [
+        {
+          "path": "ggml-base-q5_1.bin",
+          "size": 59707625,
+          "sha256": "TODO"
+        }
+      ],
+      "ramMB": 260,
+      "backends": [
+        "cpu",
+        "metal",
+        "cuda",
+        "vulkan"
+      ],
+      "license": "MIT",
+      "source": "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base-q5_1.bin",
+      "download": {
+        "ggml-base-q5_1.bin": "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base-q5_1.bin"
+      },
+      "approved": false,
+      "description": "OpenAI Whisper base, whisper.cpp ggml q5_1 quantisation. Sinhala speech stays off until a model passes the WER<=0.25 gate. Seed entry: sha256 not pinned yet (huggingface.co was not reachable when the seed was written); not approved until the Update Center publishes it signed.",
+      "engineMin": "1.7.0"
+    },
+    {
+      "id": "whisper-small-q5",
+      "name": "Whisper Small (q5)",
+      "version": "1.0.0",
+      "tasks": [
+        "stt"
+      ],
+      "languages": [
+        "en",
+        "si",
+        "ta",
+        "multi"
+      ],
+      "engine": "whisper.cpp",
+      "files": [
+        {
+          "path": "ggml-small-q5_1.bin",
+          "size": 190085487,
+          "sha256": "TODO"
+        }
+      ],
+      "ramMB": 600,
+      "backends": [
+        "cpu",
+        "metal",
+        "cuda",
+        "vulkan"
+      ],
+      "license": "MIT",
+      "source": "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small-q5_1.bin",
+      "download": {
+        "ggml-small-q5_1.bin": "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small-q5_1.bin"
+      },
+      "approved": false,
+      "description": "OpenAI Whisper small, whisper.cpp ggml q5_1 quantisation. Sinhala speech stays off until a model passes the WER<=0.25 gate. Seed entry: sha256 not pinned yet (huggingface.co was not reachable when the seed was written); not approved until the Update Center publishes it signed.",
+      "engineMin": "1.7.0",
+      "evaluation": {
+        "si": {
+          "wer": 0.31,
+          "set": "ws-si-stt-v1"
+        }
+      }
+    },
+    {
+      "id": "whisper-medium-q5",
+      "name": "Whisper Medium (q5)",
+      "version": "1.0.0",
+      "tasks": [
+        "stt"
+      ],
+      "languages": [
+        "en",
+        "si",
+        "ta",
+        "multi"
+      ],
+      "engine": "whisper.cpp",
+      "files": [
+        {
+          "path": "ggml-medium-q5_0.bin",
+          "size": 539212467,
+          "sha256": "TODO"
+        }
+      ],
+      "ramMB": 1400,
+      "backends": [
+        "cpu",
+        "metal",
+        "cuda",
+        "vulkan"
+      ],
+      "license": "MIT",
+      "source": "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-medium-q5_0.bin",
+      "download": {
+        "ggml-medium-q5_0.bin": "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-medium-q5_0.bin"
+      },
+      "approved": false,
+      "description": "OpenAI Whisper medium, whisper.cpp ggml q5_0 quantisation. Sinhala speech stays off until a model passes the WER<=0.25 gate. Seed entry: sha256 not pinned yet (huggingface.co was not reachable when the seed was written); not approved until the Update Center publishes it signed.",
+      "engineMin": "1.7.0"
+    },
+    {
+      "id": "whisper-small-en-tdrz",
+      "name": "Whisper Small English with speaker turns (tinydiarize)",
+      "version": "1.0.0",
+      "tasks": [
+        "diarization",
+        "stt"
+      ],
+      "languages": [
+        "en"
+      ],
+      "engine": "whisper.cpp",
+      "files": [
+        {
+          "path": "ggml-small.en-tdrz.bin",
+          "size": 487601967,
+          "sha256": "TODO"
+        }
+      ],
+      "ramMB": 700,
+      "backends": [
+        "cpu",
+        "metal",
+        "cuda",
+        "vulkan"
+      ],
+      "license": "MIT",
+      "source": "https://huggingface.co/akashmjn/tinydiarize-whisper.cpp/resolve/main/ggml-small.en-tdrz.bin",
+      "download": {
+        "ggml-small.en-tdrz.bin": "https://huggingface.co/akashmjn/tinydiarize-whisper.cpp/resolve/main/ggml-small.en-tdrz.bin"
+      },
+      "approved": false,
+      "description": "Speaker-turn detection for English transcription (whisper.cpp -tdrz). Labels speakers by turn, not by voice identity. Seed entry: sha256 not pinned yet (huggingface.co was not reachable when the seed was written); not approved until the Update Center publishes it signed.",
+      "engineMin": "1.7.0"
+    },
+    {
+      "id": "qwen2.5-1.5b-instruct-q4km",
+      "name": "Qwen2.5 1.5B Instruct (Q4_K_M)",
+      "version": "1.0.0",
+      "tasks": [
+        "correction",
+        "suggestions",
+        "translation",
+        "assistant"
+      ],
+      "languages": [
+        "en",
+        "si",
+        "ta"
+      ],
+      "engine": "llama.cpp",
+      "files": [
+        {
+          "path": "qwen2.5-1.5b-instruct-q4_k_m.gguf",
+          "size": 1117320736,
+          "sha256": "TODO"
+        }
+      ],
+      "ramMB": 1800,
+      "backends": [
+        "cpu",
+        "metal",
+        "cuda",
+        "vulkan"
+      ],
+      "license": "Apache-2.0",
+      "source": "https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF",
+      "download": {
+        "qwen2.5-1.5b-instruct-q4_k_m.gguf": "https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/main/qwen2.5-1.5b-instruct-q4_k_m.gguf"
+      },
+      "approved": false,
+      "description": "Qwen2.5 1.5B Instruct, llama.cpp GGUF Q4_K_M. Sinhala grammar and rewrite stay off until a model passes the grammar gate. Seed entry: sha256 not pinned yet (huggingface.co was not reachable when the seed was written); not approved until the Update Center publishes it signed.",
+      "engineMin": "b4000",
+      "contextSize": 4096
+    },
+    {
+      "id": "qwen2.5-3b-instruct-q4km",
+      "name": "Qwen2.5 3B Instruct (Q4_K_M)",
+      "version": "1.0.0",
+      "tasks": [
+        "correction",
+        "suggestions",
+        "translation",
+        "assistant"
+      ],
+      "languages": [
+        "en",
+        "si",
+        "ta"
+      ],
+      "engine": "llama.cpp",
+      "files": [
+        {
+          "path": "qwen2.5-3b-instruct-q4_k_m.gguf",
+          "size": 2104932768,
+          "sha256": "TODO"
+        }
+      ],
+      "ramMB": 3200,
+      "backends": [
+        "cpu",
+        "metal",
+        "cuda",
+        "vulkan"
+      ],
+      "license": "Qwen-Research (non-commercial; confirm before listing)",
+      "source": "https://huggingface.co/Qwen/Qwen2.5-3B-Instruct-GGUF",
+      "download": {
+        "qwen2.5-3b-instruct-q4_k_m.gguf": "https://huggingface.co/Qwen/Qwen2.5-3B-Instruct-GGUF/resolve/main/qwen2.5-3b-instruct-q4_k_m.gguf"
+      },
+      "approved": false,
+      "description": "Qwen2.5 3B Instruct, llama.cpp GGUF Q4_K_M. Sinhala grammar and rewrite stay off until a model passes the grammar gate. Seed entry: sha256 not pinned yet (huggingface.co was not reachable when the seed was written); not approved until the Update Center publishes it signed.",
+      "engineMin": "b4000",
+      "contextSize": 4096
+    },
+    {
+      "id": "qwen2.5-7b-instruct-q4km",
+      "name": "Qwen2.5 7B Instruct (Q4_K_M)",
+      "version": "1.0.0",
+      "tasks": [
+        "correction",
+        "suggestions",
+        "translation",
+        "assistant"
+      ],
+      "languages": [
+        "en",
+        "si",
+        "ta"
+      ],
+      "engine": "llama.cpp",
+      "files": [
+        {
+          "path": "qwen2.5-7b-instruct-q4_k_m-00001-of-00002.gguf",
+          "size": 3993201344,
+          "sha256": "TODO"
+        },
+        {
+          "path": "qwen2.5-7b-instruct-q4_k_m-00002-of-00002.gguf",
+          "size": 689872288,
+          "sha256": "TODO"
+        }
+      ],
+      "ramMB": 6500,
+      "backends": [
+        "cpu",
+        "metal",
+        "cuda",
+        "vulkan"
+      ],
+      "license": "Apache-2.0",
+      "source": "https://huggingface.co/Qwen/Qwen2.5-7B-Instruct-GGUF",
+      "download": {
+        "qwen2.5-7b-instruct-q4_k_m-00001-of-00002.gguf": "https://huggingface.co/Qwen/Qwen2.5-7B-Instruct-GGUF/resolve/main/qwen2.5-7b-instruct-q4_k_m-00001-of-00002.gguf",
+        "qwen2.5-7b-instruct-q4_k_m-00002-of-00002.gguf": "https://huggingface.co/Qwen/Qwen2.5-7B-Instruct-GGUF/resolve/main/qwen2.5-7b-instruct-q4_k_m-00002-of-00002.gguf"
+      },
+      "approved": false,
+      "description": "Qwen2.5 7B Instruct, llama.cpp GGUF Q4_K_M. Sinhala grammar and rewrite stay off until a model passes the grammar gate. Seed entry: sha256 not pinned yet (huggingface.co was not reachable when the seed was written); not approved until the Update Center publishes it signed.",
+      "engineMin": "b4000",
+      "contextSize": 8192
+    },
+    {
+      "id": "piper-en-us-lessac-medium",
+      "name": "English (US) — Lessac, medium (Piper)",
+      "version": "1.0.0",
+      "tasks": [
+        "tts"
+      ],
+      "languages": [
+        "en"
+      ],
+      "engine": "piper",
+      "files": [
+        {
+          "path": "en_US-lessac-medium.onnx",
+          "size": 63201294,
+          "sha256": "TODO"
+        },
+        {
+          "path": "en_US-lessac-medium.onnx.json",
+          "size": 4885,
+          "sha256": "TODO"
+        }
+      ],
+      "ramMB": 200,
+      "backends": [
+        "cpu"
+      ],
+      "license": "MIT (Piper); voice dataset terms to confirm before listing",
+      "source": "https://huggingface.co/rhasspy/piper-voices",
+      "download": {
+        "en_US-lessac-medium.onnx": "https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/en/en_US/lessac/medium/en_US-lessac-medium.onnx",
+        "en_US-lessac-medium.onnx.json": "https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/en/en_US/lessac/medium/en_US-lessac-medium.onnx.json"
+      },
+      "approved": false,
+      "description": "Piper neural voice, 22.05 kHz. Seed entry: sha256 not pinned yet (huggingface.co was not reachable when the seed was written); not approved until the Update Center publishes it signed.",
+      "voice": {
+        "lang": "en",
+        "gender": "female",
+        "quality": "medium",
+        "sampleRate": 22050
+      }
+    }
+  ],
+  "engines": [
+    {
+      "engine": "whisper.cpp",
+      "version": "1.7.6",
+      "platform": "darwin-arm64",
+      "backend": "metal",
+      "exec": "whisper-server",
+      "unpack": "tar",
+      "files": [
+        {
+          "path": "whisper.cpp-1.7.6-darwin-arm64-metal.tar",
+          "size": 0,
+          "sha256": "TODO"
+        }
+      ],
+      "download": {
+        "whisper.cpp-1.7.6-darwin-arm64-metal.tar": "https://download.worksuitecloud.com/ai/engines/whisper.cpp/1.7.6/whisper.cpp-1.7.6-darwin-arm64-metal.tar"
+      },
+      "license": "MIT",
+      "source": "https://github.com/ggml-org/whisper.cpp/releases/tag/v1.7.6",
+      "approved": false
+    },
+    {
+      "engine": "llama.cpp",
+      "version": "b6500",
+      "platform": "darwin-arm64",
+      "backend": "metal",
+      "exec": "llama-server",
+      "unpack": "tar",
+      "files": [
+        {
+          "path": "llama.cpp-b6500-darwin-arm64-metal.tar",
+          "size": 0,
+          "sha256": "TODO"
+        }
+      ],
+      "download": {
+        "llama.cpp-b6500-darwin-arm64-metal.tar": "https://download.worksuitecloud.com/ai/engines/llama.cpp/b6500/llama.cpp-b6500-darwin-arm64-metal.tar"
+      },
+      "license": "MIT",
+      "source": "https://github.com/ggml-org/llama.cpp/releases/tag/b6500",
+      "approved": false
+    },
+    {
+      "engine": "piper",
+      "version": "2023.11.14-2",
+      "platform": "darwin-arm64",
+      "backend": "cpu",
+      "exec": "piper/piper",
+      "unpack": "tar",
+      "files": [
+        {
+          "path": "piper-2023.11.14-2-darwin-arm64-cpu.tar",
+          "size": 0,
+          "sha256": "TODO"
+        }
+      ],
+      "download": {
+        "piper-2023.11.14-2-darwin-arm64-cpu.tar": "https://download.worksuitecloud.com/ai/engines/piper/2023.11.14-2/piper-2023.11.14-2-darwin-arm64-cpu.tar"
+      },
+      "license": "MIT",
+      "source": "https://github.com/rhasspy/piper/releases/tag/2023.11.14-2",
+      "approved": false
+    },
+    {
+      "engine": "ffmpeg",
+      "version": "7.1",
+      "platform": "darwin-arm64",
+      "backend": "cpu",
+      "exec": "ffmpeg",
+      "unpack": "tar",
+      "files": [
+        {
+          "path": "ffmpeg-7.1-darwin-arm64-cpu.tar",
+          "size": 0,
+          "sha256": "TODO"
+        }
+      ],
+      "download": {
+        "ffmpeg-7.1-darwin-arm64-cpu.tar": "https://download.worksuitecloud.com/ai/engines/ffmpeg/7.1/ffmpeg-7.1-darwin-arm64-cpu.tar"
+      },
+      "license": "LGPL-2.1-or-later (LGPL build)",
+      "source": "https://ffmpeg.org/download.html",
+      "approved": false
+    },
+    {
+      "engine": "whisper.cpp",
+      "version": "1.7.6",
+      "platform": "darwin-x64",
+      "backend": "cpu",
+      "exec": "whisper-server",
+      "unpack": "tar",
+      "files": [
+        {
+          "path": "whisper.cpp-1.7.6-darwin-x64-cpu.tar",
+          "size": 0,
+          "sha256": "TODO"
+        }
+      ],
+      "download": {
+        "whisper.cpp-1.7.6-darwin-x64-cpu.tar": "https://download.worksuitecloud.com/ai/engines/whisper.cpp/1.7.6/whisper.cpp-1.7.6-darwin-x64-cpu.tar"
+      },
+      "license": "MIT",
+      "source": "https://github.com/ggml-org/whisper.cpp/releases/tag/v1.7.6",
+      "approved": false
+    },
+    {
+      "engine": "llama.cpp",
+      "version": "b6500",
+      "platform": "darwin-x64",
+      "backend": "cpu",
+      "exec": "llama-server",
+      "unpack": "tar",
+      "files": [
+        {
+          "path": "llama.cpp-b6500-darwin-x64-cpu.tar",
+          "size": 0,
+          "sha256": "TODO"
+        }
+      ],
+      "download": {
+        "llama.cpp-b6500-darwin-x64-cpu.tar": "https://download.worksuitecloud.com/ai/engines/llama.cpp/b6500/llama.cpp-b6500-darwin-x64-cpu.tar"
+      },
+      "license": "MIT",
+      "source": "https://github.com/ggml-org/llama.cpp/releases/tag/b6500",
+      "approved": false
+    },
+    {
+      "engine": "piper",
+      "version": "2023.11.14-2",
+      "platform": "darwin-x64",
+      "backend": "cpu",
+      "exec": "piper/piper",
+      "unpack": "tar",
+      "files": [
+        {
+          "path": "piper-2023.11.14-2-darwin-x64-cpu.tar",
+          "size": 0,
+          "sha256": "TODO"
+        }
+      ],
+      "download": {
+        "piper-2023.11.14-2-darwin-x64-cpu.tar": "https://download.worksuitecloud.com/ai/engines/piper/2023.11.14-2/piper-2023.11.14-2-darwin-x64-cpu.tar"
+      },
+      "license": "MIT",
+      "source": "https://github.com/rhasspy/piper/releases/tag/2023.11.14-2",
+      "approved": false
+    },
+    {
+      "engine": "ffmpeg",
+      "version": "7.1",
+      "platform": "darwin-x64",
+      "backend": "cpu",
+      "exec": "ffmpeg",
+      "unpack": "tar",
+      "files": [
+        {
+          "path": "ffmpeg-7.1-darwin-x64-cpu.tar",
+          "size": 0,
+          "sha256": "TODO"
+        }
+      ],
+      "download": {
+        "ffmpeg-7.1-darwin-x64-cpu.tar": "https://download.worksuitecloud.com/ai/engines/ffmpeg/7.1/ffmpeg-7.1-darwin-x64-cpu.tar"
+      },
+      "license": "LGPL-2.1-or-later (LGPL build)",
+      "source": "https://ffmpeg.org/download.html",
+      "approved": false
+    },
+    {
+      "engine": "whisper.cpp",
+      "version": "1.7.6",
+      "platform": "win-x64",
+      "backend": "cpu",
+      "exec": "whisper-server.exe",
+      "unpack": "tar",
+      "files": [
+        {
+          "path": "whisper.cpp-1.7.6-win-x64-cpu.tar",
+          "size": 0,
+          "sha256": "TODO"
+        }
+      ],
+      "download": {
+        "whisper.cpp-1.7.6-win-x64-cpu.tar": "https://download.worksuitecloud.com/ai/engines/whisper.cpp/1.7.6/whisper.cpp-1.7.6-win-x64-cpu.tar"
+      },
+      "license": "MIT",
+      "source": "https://github.com/ggml-org/whisper.cpp/releases/tag/v1.7.6",
+      "approved": false
+    },
+    {
+      "engine": "llama.cpp",
+      "version": "b6500",
+      "platform": "win-x64",
+      "backend": "cpu",
+      "exec": "llama-server.exe",
+      "unpack": "tar",
+      "files": [
+        {
+          "path": "llama.cpp-b6500-win-x64-cpu.tar",
+          "size": 0,
+          "sha256": "TODO"
+        }
+      ],
+      "download": {
+        "llama.cpp-b6500-win-x64-cpu.tar": "https://download.worksuitecloud.com/ai/engines/llama.cpp/b6500/llama.cpp-b6500-win-x64-cpu.tar"
+      },
+      "license": "MIT",
+      "source": "https://github.com/ggml-org/llama.cpp/releases/tag/b6500",
+      "approved": false
+    },
+    {
+      "engine": "whisper.cpp",
+      "version": "1.7.6",
+      "platform": "win-x64",
+      "backend": "cuda",
+      "exec": "whisper-server.exe",
+      "unpack": "tar",
+      "files": [
+        {
+          "path": "whisper.cpp-1.7.6-win-x64-cuda.tar",
+          "size": 0,
+          "sha256": "TODO"
+        }
+      ],
+      "download": {
+        "whisper.cpp-1.7.6-win-x64-cuda.tar": "https://download.worksuitecloud.com/ai/engines/whisper.cpp/1.7.6/whisper.cpp-1.7.6-win-x64-cuda.tar"
+      },
+      "license": "MIT",
+      "source": "https://github.com/ggml-org/whisper.cpp/releases/tag/v1.7.6",
+      "approved": false
+    },
+    {
+      "engine": "llama.cpp",
+      "version": "b6500",
+      "platform": "win-x64",
+      "backend": "cuda",
+      "exec": "llama-server.exe",
+      "unpack": "tar",
+      "files": [
+        {
+          "path": "llama.cpp-b6500-win-x64-cuda.tar",
+          "size": 0,
+          "sha256": "TODO"
+        }
+      ],
+      "download": {
+        "llama.cpp-b6500-win-x64-cuda.tar": "https://download.worksuitecloud.com/ai/engines/llama.cpp/b6500/llama.cpp-b6500-win-x64-cuda.tar"
+      },
+      "license": "MIT",
+      "source": "https://github.com/ggml-org/llama.cpp/releases/tag/b6500",
+      "approved": false
+    },
+    {
+      "engine": "whisper.cpp",
+      "version": "1.7.6",
+      "platform": "win-x64",
+      "backend": "vulkan",
+      "exec": "whisper-server.exe",
+      "unpack": "tar",
+      "files": [
+        {
+          "path": "whisper.cpp-1.7.6-win-x64-vulkan.tar",
+          "size": 0,
+          "sha256": "TODO"
+        }
+      ],
+      "download": {
+        "whisper.cpp-1.7.6-win-x64-vulkan.tar": "https://download.worksuitecloud.com/ai/engines/whisper.cpp/1.7.6/whisper.cpp-1.7.6-win-x64-vulkan.tar"
+      },
+      "license": "MIT",
+      "source": "https://github.com/ggml-org/whisper.cpp/releases/tag/v1.7.6",
+      "approved": false
+    },
+    {
+      "engine": "llama.cpp",
+      "version": "b6500",
+      "platform": "win-x64",
+      "backend": "vulkan",
+      "exec": "llama-server.exe",
+      "unpack": "tar",
+      "files": [
+        {
+          "path": "llama.cpp-b6500-win-x64-vulkan.tar",
+          "size": 0,
+          "sha256": "TODO"
+        }
+      ],
+      "download": {
+        "llama.cpp-b6500-win-x64-vulkan.tar": "https://download.worksuitecloud.com/ai/engines/llama.cpp/b6500/llama.cpp-b6500-win-x64-vulkan.tar"
+      },
+      "license": "MIT",
+      "source": "https://github.com/ggml-org/llama.cpp/releases/tag/b6500",
+      "approved": false
+    },
+    {
+      "engine": "piper",
+      "version": "2023.11.14-2",
+      "platform": "win-x64",
+      "backend": "cpu",
+      "exec": "piper/piper.exe",
+      "unpack": "tar",
+      "files": [
+        {
+          "path": "piper-2023.11.14-2-win-x64-cpu.tar",
+          "size": 0,
+          "sha256": "TODO"
+        }
+      ],
+      "download": {
+        "piper-2023.11.14-2-win-x64-cpu.tar": "https://download.worksuitecloud.com/ai/engines/piper/2023.11.14-2/piper-2023.11.14-2-win-x64-cpu.tar"
+      },
+      "license": "MIT",
+      "source": "https://github.com/rhasspy/piper/releases/tag/2023.11.14-2",
+      "approved": false
+    },
+    {
+      "engine": "ffmpeg",
+      "version": "7.1",
+      "platform": "win-x64",
+      "backend": "cpu",
+      "exec": "ffmpeg.exe",
+      "unpack": "tar",
+      "files": [
+        {
+          "path": "ffmpeg-7.1-win-x64-cpu.tar",
+          "size": 0,
+          "sha256": "TODO"
+        }
+      ],
+      "download": {
+        "ffmpeg-7.1-win-x64-cpu.tar": "https://download.worksuitecloud.com/ai/engines/ffmpeg/7.1/ffmpeg-7.1-win-x64-cpu.tar"
+      },
+      "license": "LGPL-2.1-or-later (LGPL build)",
+      "source": "https://ffmpeg.org/download.html",
+      "approved": false
+    },
+    {
+      "engine": "whisper.cpp",
+      "version": "1.7.6",
+      "platform": "linux-x64",
+      "backend": "cpu",
+      "exec": "whisper-server",
+      "unpack": "tar",
+      "files": [
+        {
+          "path": "whisper.cpp-1.7.6-linux-x64-cpu.tar",
+          "size": 0,
+          "sha256": "TODO"
+        }
+      ],
+      "download": {
+        "whisper.cpp-1.7.6-linux-x64-cpu.tar": "https://download.worksuitecloud.com/ai/engines/whisper.cpp/1.7.6/whisper.cpp-1.7.6-linux-x64-cpu.tar"
+      },
+      "license": "MIT",
+      "source": "https://github.com/ggml-org/whisper.cpp/releases/tag/v1.7.6",
+      "approved": false
+    },
+    {
+      "engine": "llama.cpp",
+      "version": "b6500",
+      "platform": "linux-x64",
+      "backend": "cpu",
+      "exec": "llama-server",
+      "unpack": "tar",
+      "files": [
+        {
+          "path": "llama.cpp-b6500-linux-x64-cpu.tar",
+          "size": 0,
+          "sha256": "TODO"
+        }
+      ],
+      "download": {
+        "llama.cpp-b6500-linux-x64-cpu.tar": "https://download.worksuitecloud.com/ai/engines/llama.cpp/b6500/llama.cpp-b6500-linux-x64-cpu.tar"
+      },
+      "license": "MIT",
+      "source": "https://github.com/ggml-org/llama.cpp/releases/tag/b6500",
+      "approved": false
+    },
+    {
+      "engine": "whisper.cpp",
+      "version": "1.7.6",
+      "platform": "linux-x64",
+      "backend": "cuda",
+      "exec": "whisper-server",
+      "unpack": "tar",
+      "files": [
+        {
+          "path": "whisper.cpp-1.7.6-linux-x64-cuda.tar",
+          "size": 0,
+          "sha256": "TODO"
+        }
+      ],
+      "download": {
+        "whisper.cpp-1.7.6-linux-x64-cuda.tar": "https://download.worksuitecloud.com/ai/engines/whisper.cpp/1.7.6/whisper.cpp-1.7.6-linux-x64-cuda.tar"
+      },
+      "license": "MIT",
+      "source": "https://github.com/ggml-org/whisper.cpp/releases/tag/v1.7.6",
+      "approved": false
+    },
+    {
+      "engine": "llama.cpp",
+      "version": "b6500",
+      "platform": "linux-x64",
+      "backend": "cuda",
+      "exec": "llama-server",
+      "unpack": "tar",
+      "files": [
+        {
+          "path": "llama.cpp-b6500-linux-x64-cuda.tar",
+          "size": 0,
+          "sha256": "TODO"
+        }
+      ],
+      "download": {
+        "llama.cpp-b6500-linux-x64-cuda.tar": "https://download.worksuitecloud.com/ai/engines/llama.cpp/b6500/llama.cpp-b6500-linux-x64-cuda.tar"
+      },
+      "license": "MIT",
+      "source": "https://github.com/ggml-org/llama.cpp/releases/tag/b6500",
+      "approved": false
+    },
+    {
+      "engine": "whisper.cpp",
+      "version": "1.7.6",
+      "platform": "linux-x64",
+      "backend": "vulkan",
+      "exec": "whisper-server",
+      "unpack": "tar",
+      "files": [
+        {
+          "path": "whisper.cpp-1.7.6-linux-x64-vulkan.tar",
+          "size": 0,
+          "sha256": "TODO"
+        }
+      ],
+      "download": {
+        "whisper.cpp-1.7.6-linux-x64-vulkan.tar": "https://download.worksuitecloud.com/ai/engines/whisper.cpp/1.7.6/whisper.cpp-1.7.6-linux-x64-vulkan.tar"
+      },
+      "license": "MIT",
+      "source": "https://github.com/ggml-org/whisper.cpp/releases/tag/v1.7.6",
+      "approved": false
+    },
+    {
+      "engine": "llama.cpp",
+      "version": "b6500",
+      "platform": "linux-x64",
+      "backend": "vulkan",
+      "exec": "llama-server",
+      "unpack": "tar",
+      "files": [
+        {
+          "path": "llama.cpp-b6500-linux-x64-vulkan.tar",
+          "size": 0,
+          "sha256": "TODO"
+        }
+      ],
+      "download": {
+        "llama.cpp-b6500-linux-x64-vulkan.tar": "https://download.worksuitecloud.com/ai/engines/llama.cpp/b6500/llama.cpp-b6500-linux-x64-vulkan.tar"
+      },
+      "license": "MIT",
+      "source": "https://github.com/ggml-org/llama.cpp/releases/tag/b6500",
+      "approved": false
+    },
+    {
+      "engine": "piper",
+      "version": "2023.11.14-2",
+      "platform": "linux-x64",
+      "backend": "cpu",
+      "exec": "piper/piper",
+      "unpack": "tar",
+      "files": [
+        {
+          "path": "piper-2023.11.14-2-linux-x64-cpu.tar",
+          "size": 0,
+          "sha256": "TODO"
+        }
+      ],
+      "download": {
+        "piper-2023.11.14-2-linux-x64-cpu.tar": "https://download.worksuitecloud.com/ai/engines/piper/2023.11.14-2/piper-2023.11.14-2-linux-x64-cpu.tar"
+      },
+      "license": "MIT",
+      "source": "https://github.com/rhasspy/piper/releases/tag/2023.11.14-2",
+      "approved": false
+    },
+    {
+      "engine": "ffmpeg",
+      "version": "7.1",
+      "platform": "linux-x64",
+      "backend": "cpu",
+      "exec": "ffmpeg",
+      "unpack": "tar",
+      "files": [
+        {
+          "path": "ffmpeg-7.1-linux-x64-cpu.tar",
+          "size": 0,
+          "sha256": "TODO"
+        }
+      ],
+      "download": {
+        "ffmpeg-7.1-linux-x64-cpu.tar": "https://download.worksuitecloud.com/ai/engines/ffmpeg/7.1/ffmpeg-7.1-linux-x64-cpu.tar"
+      },
+      "license": "LGPL-2.1-or-later (LGPL build)",
+      "source": "https://ffmpeg.org/download.html",
+      "approved": false
+    }
+  ]
+}

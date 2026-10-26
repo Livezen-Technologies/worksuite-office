@@ -102,7 +102,8 @@ export function toUnicode(input: string, profile: Profile): ConvertResult {
     out.push(tok.text);
   }
 
-  let text = out.join("");
+  // a kombuva moved past a glyph that is consonant + al-lakuna (Kandy's "K" = ක්) goes before the al-lakuna
+  let text = out.join("").replace(/([\u0D9A-\u0DC6])\u0DCA\u0DD9/g, "$1\u0DD9\u0DCA");
   for (const [seq, composed] of profile.compose) text = text.split(seq).join(composed);
   text = text.normalize("NFC");
   return { text, unmapped, profile: profile.id, profileVersion: profile.version, direction: "toUnicode" };

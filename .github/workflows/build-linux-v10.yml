@@ -12,7 +12,7 @@ on:
   # a new workflow can only be dispatched once it is on the default branch: until then, pushes to office-v10 run it
   push:
     branches: [office-v10]
-    paths: ['.github/workflows/build-linux-v10.yml', 'build/v10/**', 'sinhala/**']
+    paths: ['.github/workflows/build-linux-v10.yml', 'build/v10/**', 'sinhala/**', 'ai-service/**', 'ai-plugin/**']
   workflow_dispatch:
     inputs:
       build_number:
@@ -24,8 +24,8 @@ env:
   OO_TAG: v10.0.0.176
   BUILD_TOOLS_REF: release/v9.4.0
   BUILD_TOOLS_SHA: cf4cac0846d03e2e00a6fec5d1ecd4e9463086d5
-  DESKTOP_APPS_REF: ba68c862aa573a4adfa3d67ed8e6c86ce3c1525a
-  PRODUCT_VERSION: 10.1.4
+  DESKTOP_APPS_REF: a018c25725aafa0fb93b6a84670b9981e1a205b1
+  PRODUCT_VERSION: 10.1.5
   # depot_tools (V8) stays at the pinned commit: its self-update collides with build_tools' bootstrap edits
   DEPOT_TOOLS_UPDATE: '0'
 
@@ -102,7 +102,15 @@ jobs:
           $py make.py
           ls -la out/linux_64/onlyoffice/desktopeditors
           test -f "out/linux_64/onlyoffice/desktopeditors/editors/sdkjs-plugins/{B50BAEE2-4EAC-4298-9DD2-73CC3223FFFA}/config.json" || { echo "::error::Sinhala Tools is not in the editors"; exit 1; }
+          test -f "out/linux_64/onlyoffice/desktopeditors/editors/sdkjs-plugins/{7A1E5C0D-3B2F-4D6A-9E81-5C4F2B7D0A11}/config.json" || { echo "::error::WorkSuite Local AI is not in the editors"; exit 1; }
           ls out/linux_64/onlyoffice/desktopeditors/fonts/worksuite-sinhala
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Local AI service (worksuite-ai) next to the app
+        run: bash worksuite-office/build/v10/ai-service.sh "$GITHUB_WORKSPACE/worksuite-office" "$GITHUB_WORKSPACE/oo/build_tools/out/linux_64/onlyoffice/desktopeditors"
 
       - name: Package (deb, rpm, tar)
         working-directory: oo/desktop-apps/package
@@ -121,6 +129,7 @@ jobs:
           find deb rpm tar -maxdepth 4 -type f \( -name '*.deb' -o -name '*.rpm' -o -name '*.tar.xz' \) -exec ls -la {} +
           [ -z "$failed" ] || echo "::warning::package types that failed:$failed"
           ls deb/*.deb >/dev/null 2>&1 || { echo "::error::no .deb was made"; exit 1; }
+          for d in deb/*.deb; do dpkg-deb -c "$d" | grep -q '/worksuite-ai$' || { echo "::error::$d has no worksuite-ai"; exit 1; }; done
 
       - uses: actions/upload-artifact@v4
         if: always()
