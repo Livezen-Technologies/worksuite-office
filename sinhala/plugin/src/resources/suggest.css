@@ -1,0 +1,11 @@
+/* Sinhala Tools › Suggestions › Settings (suggest.html), on top of legacy.css. */
+.sg { gap: 10px; }
+.sg-group { border: 1px solid var(--lg-border, #cfcfcf); border-radius: 4px; margin: 0; padding: 6px 10px 8px; display: flex; flex-direction: column; gap: 4px; }
+.sg-group legend { padding: 0 4px; font-weight: 600; }
+.sg-group label { display: flex; align-items: center; gap: 6px; }
+.sg-grid { display: grid; grid-template-columns: 1fr auto; gap: 6px 10px; align-items: center; }
+.sg-add { display: flex; gap: 6px; }
+.sg-add input { flex: 1; }
+.sg-words { display: flex; flex-wrap: wrap; gap: 4px; min-height: 22px; }
+.sg-words button { border: 1px solid var(--lg-border, #cfcfcf); background: transparent; color: inherit; border-radius: 10px; padding: 1px 8px; cursor: pointer; }
+.sg-note { display: flex; justify-content: space-between; align-items: center; gap: 8px; opacity: 0.85; }

@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Suggestion settings</title>
+  <link rel="stylesheet" href="../v1/plugins.css" />
+  <link rel="stylesheet" href="resources/legacy.css" />
+  <link rel="stylesheet" href="resources/suggest.css" />
+  <script type="text/javascript" src="../v1/plugins.js"></script>
+  <script type="text/javascript" src="../v1/plugins-ui.js"></script>
+  <script type="text/javascript" src="scripts/suggest.js"></script>
+</head>
+<body>
+  <form class="lg sg" id="form" novalidate>
+    <fieldset class="sg-group">
+      <legend data-tr="Suggestions">Suggestions</legend>
+      <label><input type="checkbox" name="english" /> <span data-tr="English suggestions">English suggestions</span></label>
+      <label><input type="checkbox" name="sinhala" /> <span data-tr="Sinhala suggestions">Sinhala suggestions</span></label>
+      <label><input type="checkbox" name="autocomplete" /> <span data-tr="Complete the word being typed">Complete the word being typed</span></label>
+      <label><input type="checkbox" name="nextWord" /> <span data-tr="Predict the next word">Predict the next word</span></label>
+      <label><input type="checkbox" name="spelling" /> <span data-tr="Spelling corrections">Spelling corrections</span></label>
+      <label><input type="checkbox" name="grammar" /> <span data-tr="Grammar and capital letters">Grammar and capital letters</span></label>
+      <label><input type="checkbox" name="ghost" /> <span data-tr="Show the rest of the word (ghost text)">Show the rest of the word (ghost text)</span></label>
+      <label><input type="checkbox" name="personal" /> <span data-tr="Learn my words (personal dictionary)">Learn my words (personal dictionary)</span></label>
+      <label><input type="checkbox" name="mixed" /> <span data-tr="Mixed Sinhala and English typing">Mixed Sinhala and English typing</span></label>
+      <label><input type="checkbox" name="ai" /> <span data-tr="Local AI suggestions (when the AI service runs)">Local AI suggestions (when the AI service runs)</span></label>
+    </fieldset>
+    <div class="sg-grid">
+      <label for="maxItems" data-tr="Words in the list">Words in the list</label>
+      <select id="maxItems" name="maxItems"><option value="5">5</option><option value="6">6</option><option value="7">7</option></select>
+      <label for="delay" data-tr="Delay before showing">Delay before showing</label>
+      <select id="delay" name="delay"><option value="0" data-tr="None">None</option><option value="100">100 ms</option><option value="250">250 ms</option><option value="500">500 ms</option></select>
+      <label for="acceptKey" data-tr="Accept with">Accept with</label>
+      <select id="acceptKey" name="acceptKey"><option value="tab" data-tr="Tab">Tab</option><option value="enter" data-tr="Enter">Enter</option><option value="both" data-tr="Tab or Enter">Tab or Enter</option></select>
+      <label for="output" data-tr="Sinhala is written in">Sinhala is written in</label>
+      <select id="output" name="output"><option value="unicode" data-tr="a Unicode font">a Unicode font</option><option value="legacy" data-tr="a legacy font">a legacy font</option></select>
+    </div>
+    <fieldset class="sg-group">
+      <legend data-tr="My dictionary">My dictionary</legend>
+      <div class="sg-add"><input id="word" class="lg-search" type="text" autocomplete="off" /><button type="button" id="add" class="lg-btn" data-tr="Add">Add</button></div>
+      <div id="words" class="sg-words"></div>
+      <div class="sg-note"><span id="learned"></span> <button type="button" id="forget" class="lg-btn" data-tr="Forget what was learned">Forget what was learned</button></div>
+    </fieldset>
+    <div class="lg-actions">
+      <button type="button" id="reset" class="lg-btn" data-tr="Defaults">Defaults</button>
+      <button type="button" id="cancel" class="lg-btn" data-tr="Cancel">Cancel</button>
+      <button type="submit" id="apply" class="lg-btn lg-primary" data-tr="Save">Save</button>
+    </div>
+  </form>
+</body>
+</html>

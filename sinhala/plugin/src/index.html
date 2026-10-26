@@ -9,12 +9,13 @@
   <script type="text/javascript" src="scripts/sinhala-core.js"></script>
   <script type="text/javascript" src="scripts/sinhala-words.js"></script>
   <script type="text/javascript" src="scripts/english-words.js"></script>
+  <script type="text/javascript" src="scripts/smart-data.js"></script>
   <script type="text/javascript" src="scripts/toolbar.js"></script>
   <script type="text/javascript" src="scripts/plugin.js"></script>
   <script type="text/javascript" src="scripts/ime.js"></script>
 </head>
 <body>
-  <!-- this frame is the Sinhala input candidate window when the editor shows it as an input helper -->
-  <div id="ime" class="ime" role="listbox" aria-live="polite"><div id="ime-latin" class="ime-latin"></div><ol id="ime-items" class="ime-items"></ol></div>
+  <!-- this frame is the Smart Typing popup when the editor shows it as an input helper at the caret -->
+  <div id="ime" class="ime" role="listbox" aria-live="polite"><div id="ime-latin" class="ime-latin"></div><ol id="ime-items" class="ime-items"></ol><div id="ime-foot" class="ime-foot"></div></div>
 </body>
 </html>

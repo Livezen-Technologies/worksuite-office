@@ -586,8 +586,41 @@
         { id: "ws-sinhala-font-more", text: tr("All fonts…"), separator: true }
       ];
     }
+    if (id === "suggestions") {
+      menuIds["suggest-english"] = function () { if (ime()) ime().set({ english: !ime().settings().english }); };
+      menuIds["suggest-sinhala"] = function () { if (ime()) ime().set({ sinhala: !ime().settings().sinhala }); };
+      menuIds["suggest-settings"] = openSuggestSettings;
+      return [
+        { id: "ws-sinhala-suggest-english", text: mark(tr("English suggestions"), st.english !== false) },
+        { id: "ws-sinhala-suggest-sinhala", text: mark(tr("Sinhala suggestions"), st.sinhala !== false) },
+        { id: "ws-sinhala-suggest-settings", text: tr("Settings…"), separator: true }
+      ];
+    }
     return null;
   }
+
+  // Sinhala Tools › Suggestions › Settings (suggest.html), a modal: the toggles, the number of words, the
+  // delay, the key that accepts, the preferred Sinhala output, and the custom dictionary. Saved by ime.js
+  // with the other typing settings (this plugin's localStorage).
+  var suggestWindow = null;
+  function openSuggestSettings() {
+    if (!ime()) return;
+    if (suggestWindow) { try { suggestWindow.close(); } catch (e) { /* closed */ } }
+    var w = suggestWindow = new window.Asc.PluginWindow();
+    var init = function () { return { settings: ime().settings(), defaults: ime().defaults(), custom: ime().customWords(), learned: ime().learnedCount() }; };
+    w.attachEvent("onSuggestReady", function () { w.command("onSuggestInit", init()); });
+    w.attachEvent("onSuggestApply", function (data) { if (data && data.values) ime().set(data.values); closeSuggest(); });
+    w.attachEvent("onSuggestWord", function (data) {
+      if (!data || typeof data.word !== "string") return;
+      if (data.remove) ime().removeWord(data.word); else ime().addWord(data.word);
+      w.command("onSuggestInit", init());
+    });
+    w.attachEvent("onSuggestForget", function () { ime().forget(); w.command("onSuggestInit", init()); });
+    w.attachEvent("onSuggestCancel", closeSuggest);
+    w.show({ url: "suggest.html", description: tr("Suggestion settings"), isVisual: true, isModal: true, buttons: [],
+      EditorsSupport: ["word", "cell", "slide"], size: [420, 560] });
+  }
+  function closeSuggest() { if (suggestWindow) { try { suggestWindow.close(); } catch (e) { /* closed */ } } suggestWindow = null; }
 
   function toolbar() {
     var t = ime();
@@ -615,7 +648,7 @@
             item.enableToggle = true;
             item.pressed = on;
           }
-          if (b.id === "suggestions") { item.enableToggle = true; item.pressed = !!st.suggestions; }
+          if (b.id === "suggestions") { item.enableToggle = true; item.pressed = !!st.suggestions; item.split = true; }
           return item;
         })
       }]

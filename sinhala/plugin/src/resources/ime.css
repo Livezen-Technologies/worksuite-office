@@ -1,11 +1,23 @@
-/* The Sinhala input candidate window (the plugin's own frame, shown by the editor as an input helper). */
-html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: var(--ime-bg, #ffffff); }
-.ime { box-sizing: border-box; height: 100%; border: 1px solid var(--ime-border, #cfcfcf); font: 12px "Helvetica Neue", Helvetica, Arial, sans-serif; color: var(--ime-text, #373737); user-select: none; }
-.ime-latin { padding: 3px 8px; height: 18px; line-height: 18px; border-bottom: 1px solid var(--ime-border, #cfcfcf); color: var(--ime-muted, #7a7a7a); font-family: monospace; white-space: nowrap; overflow: hidden; }
-.ime-items { list-style: none; margin: 0; padding: 0; }
-.ime-items li { display: flex; align-items: baseline; gap: 8px; padding: 0 8px; height: 26px; line-height: 26px; cursor: default; white-space: nowrap; }
-.ime-items li .n { color: var(--ime-muted, #7a7a7a); width: 10px; text-align: end; }
-.ime-items li .w { font-family: "Noto Sans Sinhala", "Iskoola Pota", sans-serif; font-size: 15px; }
-.ime-items li.completion .w { font-style: normal; color: var(--ime-completion, #4a4a4a); }
-.ime-items li.completion::after { content: "…"; color: var(--ime-muted, #7a7a7a); }
-.ime-items li.selected, .ime-items li:hover { background: var(--ime-selected, #d8dadc); }
+/* The Smart Typing popup (the plugin's own frame, shown by the editor as an input helper at the caret).
+ * Colours are the editor theme's tokens (ime.js onThemeChanged), with WorkSuite light and dark fallbacks. */
+:root { --ime-bg: #ffffff; --ime-text: #373737; --ime-muted: #7a7a7a; --ime-border: #cfcfcf; --ime-selected: #cbe1f7; --ime-hover: #e9eaeb; --ime-accent: #446995; --ime-completion: #4a4a4a; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --ime-bg: #333333; --ime-text: #e8e8e8; --ime-muted: #a5a5a5; --ime-border: #505050; --ime-selected: #2a4b6e; --ime-hover: #424242; --ime-accent: #8ab4e8; --ime-completion: #d6d6d6; }
+}
+:root[data-theme="dark"] { --ime-bg: #333333; --ime-text: #e8e8e8; --ime-muted: #a5a5a5; --ime-border: #505050; --ime-selected: #2a4b6e; --ime-hover: #424242; --ime-accent: #8ab4e8; --ime-completion: #d6d6d6; }
+html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: var(--ime-bg); }
+.ime { box-sizing: border-box; height: 100%; border: 1px solid var(--ime-border); font: 12px "Helvetica Neue", Helvetica, Arial, sans-serif; color: var(--ime-text); user-select: none; display: flex; flex-direction: column; }
+.ime-latin { padding: 3px 8px; height: 18px; line-height: 18px; border-bottom: 1px solid var(--ime-border); color: var(--ime-text); font-family: ui-monospace, Menlo, Consolas, monospace; white-space: nowrap; overflow: hidden; }
+.ime-latin .ghost { color: var(--ime-muted); opacity: 0.7; }
+.ime-items { list-style: none; margin: 0; padding: 0; flex: 1; }
+.ime-items li { display: flex; align-items: baseline; gap: 8px; padding-inline: 8px; height: 26px; line-height: 26px; cursor: default; white-space: nowrap; }
+.ime-items li .n { color: var(--ime-muted); width: 10px; text-align: end; }
+.ime-items li .w { font-size: 14px; flex: 1; overflow: hidden; text-overflow: ellipsis; }
+.ime-items li.lang-si .w { font-family: "Noto Sans Sinhala", "Iskoola Pota", sans-serif; font-size: 15px; }
+.ime-items li.completion.lang-si .w::after { content: "…"; color: var(--ime-muted); }
+.ime-items li .tag { font-size: 10px; color: var(--ime-muted); border: 1px solid var(--ime-border); border-radius: 3px; padding: 0 4px; line-height: 14px; }
+.ime-items li.correction .tag, .ime-items li.grammar .tag { color: var(--ime-accent); border-color: var(--ime-accent); }
+.ime-items li:hover { background: var(--ime-hover); }
+.ime-items li.default { box-shadow: inset 2px 0 0 var(--ime-accent); }
+.ime-items li.selected { background: var(--ime-selected); box-shadow: inset 2px 0 0 var(--ime-accent); }
+.ime-foot { height: 19px; line-height: 19px; padding-inline: 8px; border-top: 1px solid var(--ime-border); color: var(--ime-muted); font-size: 10px; white-space: nowrap; overflow: hidden; }

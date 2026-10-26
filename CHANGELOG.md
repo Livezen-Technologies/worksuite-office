@@ -1,5 +1,41 @@
 # Change log
 
+## 10.1.6
+
+### New features
+
+#### Sinhala Tools
+
+* Smart Typing: English and Sinhala word suggestions in a popup at the caret,
+  in documents, presentations and spreadsheet text cells. They work with
+  Sinhala input off (English), on (Singlish), and for Sinhala typed with the
+  system keyboard
+* English: completion, next-word prediction, spelling correction (recieve →
+  receive), capitalisation and light grammar (a/an, repeated words, "could
+  of"), and a business and technical vocabulary
+* Sinhala: Singlish ranking that puts known words and inflections first
+  (kanna → කන්න, කන්නට, කන්නේ), Unicode completion (ලිය → ලියන්න, ලියනවා,
+  ලියවිල්ල), normalisation fixes and alternative spellings; legacy font output
+  still works
+* Smart Mixed input mode (was Smart Auto): English or Singlish decided word by
+  word ("meeting eka" → meeting එක), with code-switch markers, context and
+  learned choices
+* Keys: Tab accepts, Enter accepts only a selected item, Space writes Singlish
+  as configured, Esc closes, Ctrl/Cmd+Space opens the suggestions
+* Sinhala Tools › Suggestions › Settings: source toggles, word count, delay,
+  accept key, Unicode or legacy output, and a personal dictionary that learns
+  your words (kept on this computer)
+* Optional local AI suggestions, asked once per pause in typing and cancelled
+  by the next key
+
+### Fixes
+
+#### Sinhala Tools
+
+* Suggestions no longer stop when Sinhala input is off
+* Enter with no suggestion selected is a normal Enter (documents)
+* No suggestions while a spreadsheet formula is typed
+
 ## 10.1.5
 
 ### New features

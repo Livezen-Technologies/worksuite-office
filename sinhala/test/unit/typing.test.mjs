@@ -1,5 +1,5 @@
 // Singlish typing in the plugin frame: the input modes, the font typed words get (Unicode, or a legacy
-// font with the word encoded by its map, in one editor command), Smart Auto, the candidate window's keys,
+// font with the word encoded by its map, in one editor command), Smart Mixed, the candidate window's keys,
 // the optional local AI service, the ribbon's menus, and what is remembered.
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -27,6 +27,7 @@ function documentModel(font = "Calibri") {
     GetDocument: () => ({
       MoveCursorLeft(n, select) { const to = Math.max(0, d.cursor - n); d.sel = select ? [to, d.cursor] : null; if (!select) d.cursor = to; return true; },
       GetRangeBySelect: () => d.sel ? { SetFontFamily: (f) => { for (let i = d.sel[0]; i < d.sel[1]; i++) d.chars[i].font = f; return true; } } : null,
+      InsertParagraphBreak() { d.key("\n"); return true; },
       EnterText(t) {
         let at = d.cursor;
         let f = at > 0 ? d.chars[at - 1].font : d.defaultFont;
@@ -90,7 +91,7 @@ function harness({ storage = new Map(), editorType = "word", fetch, endpoint, fo
   const document = { getElementById: (id) => nodes[id], createElement: el, documentElement: { style: { setProperty() {} } } };
   const ctx = vm.createContext({ window, document, JSON, Object, Math, String, Number, Array, Promise });
   for (const [f, names] of [["scripts/sinhala-core.js", ["WorkSuiteSinhala", "__worksuiteSinhalaFactory"]], ["scripts/sinhala-words.js", ["WorkSuiteSinhalaWords"]],
-    ["scripts/english-words.js", ["WorkSuiteEnglishWords"]], ["scripts/toolbar.js", ["WorkSuiteSinhalaToolbar"]]]) {
+    ["scripts/english-words.js", ["WorkSuiteEnglishWords"]], ["scripts/smart-data.js", ["WorkSuiteSmartData"]], ["scripts/toolbar.js", ["WorkSuiteSinhalaToolbar"]]]) {
     vm.runInContext(readFileSync(join(out, f), "utf8") + "\n" + names.map((n) => `window.${n} = ${n};`).join(" "), ctx);
   }
   vm.runInContext(readFileSync(join(out, "scripts", "plugin.js"), "utf8"), ctx);
@@ -181,7 +182,7 @@ test("spreadsheets and presentations: InputText (the font cannot be set there)",
   assert.deepEqual(h.calls.filter((c) => c[0] === "InputText").at(-1)[1], ["මම ", "mama "]);
 });
 
-test("Smart Auto: English words stay English, Singlish words are offered as Sinhala", () => {
+test("Smart Mixed: English words stay English (with English suggestions), Singlish words are offered as Sinhala", () => {
   const english = new S.EnglishWords(englishList);
   for (const w of ["the", "hello", "man", "bath", "pan", "to", "me"]) assert.deepEqual(S.smartDecision(w, english).suggest, false, w);
   for (const w of ["mama", "oyata", "kohomada", "suba", "sri", "lankawa", "amma", "gedara"]) assert.equal(S.smartDecision(w, english).suggest, true, w);
@@ -189,8 +190,8 @@ test("Smart Auto: English words stay English, Singlish words are offered as Sinh
   const h = harness();
   h.ime.setMode("smart");
   h.type("hello the ");
-  assert.equal(h.doc.text(), "hello the ");
-  assert.equal(h.shown(), 0, "no window for English words");
+  assert.equal(h.doc.text(), "hello the ", "Space after an English word keeps it as typed");
+  assert.ok(h.calls.filter((c) => c[0] === "ShowInputHelper").length > 0, "English words get English suggestions");
   h.type("kohomada ");
   assert.equal(h.doc.text(), "hello the කොහොමද ");
 });
@@ -269,10 +270,10 @@ test("the ribbon: eleven buttons in four groups, mode and font menus with the ch
   assert.deepEqual(items.map((i) => !!i.separator), [false, false, false, false, true, false, false, false, true, false, true]);
   assert.equal(new Set(items.map((i) => i.icons)).size, items.length);
   assert.equal(items[0].text, "English");
-  assert.deepEqual(items[0].items.map((m) => m.text), ["✓ English", "  Sinhala Unicode", "  Sinhala legacy font", "  Smart Auto"]);
+  assert.deepEqual(items[0].items.map((m) => m.text), ["✓ English", "  Sinhala Unicode", "  Sinhala legacy font", "  Smart Mixed"]);
   h.clicks["ws-sinhala-mode-smart"]();
   let t = h.lastToolbar().tabs[0].items;
-  assert.equal(t[0].text, "Smart Auto");
+  assert.equal(t[0].text, "Smart Mixed");
   assert.equal(t[2].text, "Singlish: on");
   assert.equal(t[2].pressed, true);
   const font = t[1];
@@ -306,23 +307,26 @@ test("the font picker: Unicode and mapped legacy fonts, others listed without a 
   assert.equal(h.ime.mode(), "unicode");
 });
 
-test("the local AI service: spec contract, off without the bridge's endpoint, 120 ms cap, cancelled by the next key", async () => {
+test("the local AI service: spec contract, off without the bridge's endpoint, debounced, cancelled by the next key", async () => {
   const seen = [];
   const fast = async (url, opts) => { seen.push({ url, opts }); return { json: async () => ({ words: [{ text: "මමත්", source: "model", score: 0.9 }, { text: "not sinhala" }], ghost: { text: "x", score: 0.1 } }) }; };
   let h = harness({ fetch: fast });
   h.ime.setMode("unicode");
   h.ime.set({ ai: true });
   h.type("mama");
-  await new Promise((r) => setTimeout(r, 20));
+  await new Promise((r) => setTimeout(r, 300));
   assert.equal(seen.length, 0, "no WSAiEndpoint: off");
   h = harness({ fetch: fast, endpoint: { baseUrl: "http://127.0.0.1:5123/", token: "t0k" } });
   h.ime.setMode("unicode");
   h.type("mama");
-  await new Promise((r) => setTimeout(r, 20));
+  await new Promise((r) => setTimeout(r, 300));
   assert.equal(seen.length, 0, "the setting is off by default");
   h.ime.set({ ai: true });
   h.type("a");
-  await new Promise((r) => setTimeout(r, 30));
+  await new Promise((r) => setTimeout(r, 50));
+  assert.equal(seen.length, 0, "never per keystroke: it waits for a pause");
+  await new Promise((r) => setTimeout(r, 300));
+  assert.equal(seen.length, 1, "one request after the pause");
   const last = seen.at(-1);
   assert.equal(last.url, "http://127.0.0.1:5123/v1/text/complete");
   assert.equal(last.opts.method, "POST");
@@ -341,8 +345,143 @@ test("the local AI service: spec contract, off without the bridge's endpoint, 12
   h.ime.setMode("unicode");
   h.ime.set({ ai: true });
   h.type("ma");
-  assert.equal(aborted.length, 1, "the second key cancels the first request");
-  await new Promise((r) => setTimeout(r, 250));
-  assert.equal(aborted.length, 2, "the 120 ms cap cancels the last one");
+  await new Promise((r) => setTimeout(r, 300));
+  h.type("m");
+  assert.equal(aborted.length, 1, "the next key cancels the request in flight");
+  await new Promise((r) => setTimeout(r, 150));
   assert.ok(!h.nodes["ime-items"].children.some((li) => li.children[1].textContent === "මමයි"));
+});
+
+// --- Smart Typing in the plugin frame ----------------------------------------------------------------
+const items = (h) => h.nodes["ime-items"].children.map((li) => li.children[1].textContent);
+
+test("Sinhala input off: English suggestions still show; Tab writes the word in one command, formatting kept", () => {
+  const h = harness();
+  assert.equal(h.ime.mode(), "english");
+  h.type("docu");
+  assert.deepEqual(items(h).slice(0, 3).sort(), ["document", "documentation", "documents"]);
+  assert.equal(h.nodes["ime-latin"].children.map((c) => c.textContent).join(""), "document", "header: the typed word and its ghost");
+  const before = h.doc.commands;
+  h.key(9);
+  assert.equal(h.doc.text(), "document");
+  assert.equal(h.doc.commands - before, 1, "one editor command: one undo step");
+  assert.ok(h.doc.fonts().every((f) => f === "Calibri"), "an English word keeps the formatting");
+});
+
+test("Enter with nothing selected is a normal Enter (a paragraph break), with a selection it accepts", () => {
+  let h = harness();
+  h.type("docu");
+  h.key(13);
+  assert.equal(h.doc.text(), "docu\n");
+  assert.deepEqual(h.calls.filter((c) => c[0] === "UnShowInputHelper").at(-1)[1].slice(1), [false]);
+  h = harness();
+  h.type("docu");
+  h.key(40); h.key(40); h.key(13);
+  assert.match(h.doc.text(), /^document/);
+  assert.notEqual(h.doc.text(), "docu\n");
+});
+
+test("Space never replaces an English word; spelling fixes are offered, not forced", () => {
+  const h = harness();
+  h.type("recieve");
+  assert.equal(items(h)[0], "receive");
+  h.type(" ");
+  assert.equal(h.doc.text(), "recieve ");
+});
+
+test("switching modes updates the suggestions at once", () => {
+  const h = harness();
+  h.type("kanna");
+  assert.ok(!items(h).some((t) => /[\u0D80-\u0DFF]/.test(t)));
+  h.ime.setMode("unicode");
+  assert.deepEqual(items(h).slice(0, 3), ["කන්න", "කන්නට", "කන්නේ"], "the same letters, now Singlish");
+  h.ime.setMode("smart");
+  assert.equal(items(h)[0], "කන්න");
+});
+
+test("Sinhala Unicode typed with Sinhala input off gets Sinhala completions in the Sinhala font", () => {
+  const h = harness();
+  h.type("ලිය");
+  assert.deepEqual(items(h).slice(0, 3), ["ලියන්න", "ලියනවා", "ලියවිල්ල"]);
+  h.key(9);
+  assert.equal(h.doc.text(), "ලියන්න");
+  assert.ok(h.doc.fonts().every((f) => f === "Noto Sans Sinhala"));
+});
+
+test("Smart Mixed: meeting eka writes එක after the English word; legacy output encodes only the Sinhala", () => {
+  let h = harness();
+  h.ime.setMode("smart");
+  h.type("meeting eka ");
+  assert.equal(h.doc.text(), "meeting එක ");
+  h = harness();
+  h.ime.setMode("legacy");
+  h.type("kanna ");
+  const fm = S.getProfile("fm-abhaya");
+  assert.equal(h.doc.text(), S.toLegacy("කන්න ", fm).text);
+});
+
+test("spreadsheets: no suggestions while a formula is typed", () => {
+  const h = harness({ editorType: "cell" });
+  h.type("=SUM");
+  assert.equal(h.shown(), 0);
+  const g = harness({ editorType: "cell" });
+  g.type("docu");
+  assert.ok(g.shown() > 0);
+});
+
+test("Ctrl/Cmd+Space opens the suggestions by hand, next words included; a click in the document closes them", () => {
+  const h = harness({ editorType: "slide" });
+  h.type("thank ");
+  const n = h.shown();
+  h.key(32, { ctrlKey: true });
+  assert.equal(h.shown(), n + 1);
+  assert.equal(items(h)[0], "you");
+  h.key(9);
+  assert.deepEqual(h.calls.filter((c) => c[0] === "InputText").at(-1)[1], ["you", ""]);
+  h.type("docu");
+  h.key(32, { metaKey: true });
+  assert.equal(h.calls.at(-1)[0], "ShowInputHelper");
+  h.plugin.event_onClick();
+  assert.equal(h.calls.at(-1)[0], "UnShowInputHelper");
+});
+
+test("Suggestions › Settings: the window shows the settings, Save keeps them across sessions", () => {
+  const storage = new Map();
+  let h = harness({ storage });
+  const menu = h.lastToolbar().tabs[0].items.find((i) => i.id === "ws-sinhala-suggestions");
+  assert.deepEqual(menu.items.map((m) => m.text), ["✓ English suggestions", "✓ Sinhala suggestions", "Settings…"]);
+  assert.equal(menu.split, true);
+  h.clicks["ws-sinhala-suggest-settings"]();
+  const w = h.windows.at(-1);
+  assert.equal(w.options.url, "suggest.html");
+  w.events.onSuggestReady();
+  const init = w.commands.at(-1)[1];
+  for (const k of ["english", "sinhala", "autocomplete", "nextWord", "spelling", "grammar", "ghost", "personal", "mixed", "maxItems", "delay", "acceptKey", "output"]) assert.ok(k in init.settings, k);
+  w.events.onSuggestWord({ word: "Livezen" });
+  assert.deepEqual(JSON.parse(JSON.stringify(w.commands.at(-1)[1].custom)), ["Livezen"]);
+  w.events.onSuggestApply({ values: { english: true, maxItems: 5, acceptKey: "both", output: "legacy", spelling: false, bogus: 1 } });
+  assert.ok(w.closed);
+  h = harness({ storage });
+  const st = h.ime.settings();
+  assert.deepEqual([st.maxItems, st.acceptKey, st.output, st.spelling, st.lastSinhala], [5, "both", "legacy", false, "legacy"]);
+  assert.equal("bogus" in st, false);
+  h.type("Live");
+  assert.equal(items(h)[0], "Livezen", "the custom dictionary was kept too");
+  assert.equal(items(h).length <= 5, true);
+  h.key(89, { ctrlKey: true, shiftKey: true });
+  assert.equal(h.ime.mode(), "legacy", "Sinhala input turns on to the preferred output");
+  h.clicks["ws-sinhala-suggest-english"]();
+  assert.equal(h.ime.settings().english, false);
+});
+
+test("what is written is learned (this frame only) and ranks first next time", () => {
+  const storage = new Map();
+  let h = harness({ storage });
+  for (let i = 0; i < 4; i++) { h.type("complian"); h.key(9); h.type(" "); }
+  const chosen = "compliance";
+  assert.equal(h.doc.text(), "compliance ".repeat(4));
+  h = harness({ storage });
+  h.type("comp");
+  assert.equal(items(h)[0], chosen);
+  assert.ok(JSON.parse(storage.get("worksuite-sinhala-personal")).words[chosen] >= 4);
 });

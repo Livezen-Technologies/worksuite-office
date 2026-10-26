@@ -1,0 +1,53 @@
+{
+  "comment": "Smart Typing data (scripts/smartdata.mjs checks each sha256; the plugin build writes scripts/smart-data.js). All written for WorkSuite Office. si-forms.txt is a Sinhala word list and is listed in ../sources.json.",
+  "lists": [
+    {
+      "file": "en-frequent.txt",
+      "name": "English common words",
+      "format": "words",
+      "licence": "AGPL-3.0-only",
+      "source": "Written for WorkSuite Office (sinhala/wordlist/smart)",
+      "sha256": "9d3e867f2aa0f20da8c19d7728d0b9ad4663e7eb09cf44bb8555714bcf04c8cb"
+    },
+    {
+      "file": "en-business.txt",
+      "name": "English business and technical vocabulary",
+      "format": "words",
+      "licence": "AGPL-3.0-only",
+      "source": "Written for WorkSuite Office (sinhala/wordlist/smart)",
+      "sha256": "99c6b98aab223241e102c8096c531a87566f4f6bea12ef23007d2676f2ffe077"
+    },
+    {
+      "file": "en-misspellings.txt",
+      "name": "English misspellings",
+      "format": "pairs",
+      "licence": "AGPL-3.0-only",
+      "source": "Written for WorkSuite Office (sinhala/wordlist/smart)",
+      "sha256": "da0dfd39c6e80c0cf2845e15f50dc1e6c001945026b3b309a3c0fdca9a4fa6cb"
+    },
+    {
+      "file": "en-bigrams.txt",
+      "name": "English word pairs (next-word)",
+      "format": "pairs",
+      "licence": "AGPL-3.0-only",
+      "source": "Written for WorkSuite Office (sinhala/wordlist/smart)",
+      "sha256": "d4894925f61b081dd5536847b2b8302f8ab58ebe3818ebad89b3130ece47e6b0"
+    },
+    {
+      "file": "si-bigrams.txt",
+      "name": "Sinhala and mixed word pairs (next-word)",
+      "format": "pairs",
+      "licence": "AGPL-3.0-only",
+      "source": "Written for WorkSuite Office (sinhala/wordlist/smart)",
+      "sha256": "a0f25b336d1c37cb8680d40a95cccd79740fd121b561306e6226340b6d3fe8f2"
+    },
+    {
+      "file": "mixed.txt",
+      "name": "Singlish code-switch markers and loanwords",
+      "format": "triples",
+      "licence": "AGPL-3.0-only",
+      "source": "Written for WorkSuite Office (sinhala/wordlist/smart)",
+      "sha256": "3960e57232610188660c4505ab198cbb4dd2a915f8b61c7b6db7adfc14ae3ee0"
+    }
+  ]
+}

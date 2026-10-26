@@ -1,2 +1,2 @@
 # Third-party word lists are sha256-pinned: keep their bytes as committed (no CRLF on Windows)
-sinhala/wordlist/*.txt -text
+sinhala/wordlist/**/*.txt -text
