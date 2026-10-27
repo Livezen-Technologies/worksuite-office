@@ -36,8 +36,8 @@ env:
   OO_TAG: v10.0.0.176
   BUILD_TOOLS_REF: release/v9.4.0
   BUILD_TOOLS_SHA: cf4cac0846d03e2e00a6fec5d1ecd4e9463086d5
-  DESKTOP_APPS_REF: a018c25725aafa0fb93b6a84670b9981e1a205b1
-  PRODUCT_VERSION: 10.1.6
+  DESKTOP_APPS_REF: 88f05ae0e0eeaa837e87edc6b89535e71be8ebf7
+  PRODUCT_VERSION: 10.1.7
   # depot_tools (V8) stays at the pinned commit: its self-update collides with build_tools' bootstrap edits
   DEPOT_TOOLS_UPDATE: '0'
   # build/v10/prepare.sh: CMake builds use VS 2022's generator with the 2019 toolset (v142)

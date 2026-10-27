@@ -1,5 +1,26 @@
 # Change log
 
+## 10.1.7
+
+### New features
+
+#### WorkSuite Cloud
+
+* Sign in with WorkSuite Cloud: a Personal account signs in from the start
+  page's sign-in dialog or Settings › WorkSuite › Add account, in your web
+  browser at account.worksuitecloud.com, with two-step verification or a
+  passkey if your account uses them. WorkSuite Office never sees your
+  password
+* Your personal cloud: after signing in, WorkSuite Office opens your
+  WorkSuite Cloud workspace by itself and its Drive is on the home screen.
+  Documents open, edit and save there like any WorkSuite Drive document, and
+  every save is a new version
+* Settings › WorkSuite lists your WorkSuite Cloud account with the state
+  and storage of its workspace, Open my cloud, and Sign out of WorkSuite
+  Cloud, which also signs its workspace out
+* A workspace that is still being set up, or waits for your email address to
+  be confirmed, says so instead of failing
+
 ## 10.1.6
 
 ### New features
