@@ -36,6 +36,11 @@
 * Enter with no suggestion selected is a normal Enter (documents)
 * No suggestions while a spreadsheet formula is typed
 
+#### Builds
+
+* The macOS build now runs on a push to office-v10, like the Windows and Linux
+  builds; it was dispatch-only, so a release could be cut with only two platforms
+
 ## 10.1.5
 
 ### New features

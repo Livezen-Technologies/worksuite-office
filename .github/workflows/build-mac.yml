@@ -24,6 +24,10 @@ name: Build WorkSuite Office (macOS)
 # beta channel takes it. Secret names: build/README.md, "Signing and updates".
 
 on:
+  # a new workflow can only be dispatched once it is on the default branch: until then, pushes to office-v10 run it
+  push:
+    branches: [office-v10]
+    paths: ['.github/workflows/build-mac.yml', 'build/v10/**', 'sinhala/**', 'ai-service/**', 'ai-plugin/**']
   workflow_dispatch:
     inputs:
       channel:
