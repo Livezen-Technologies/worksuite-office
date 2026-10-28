@@ -1,5 +1,18 @@
 # Change log
 
+## 10.1.8
+
+### New features
+
+#### WorkSuite Cloud
+
+* Your personal cloud opens without a second trip to the browser: once you
+  have signed in to WorkSuite Cloud, WorkSuite Office opens its workspace
+  through WorkSuite Cloud itself, when WorkSuite Cloud offers it
+* When the workspace does not know your account yet, or WorkSuite Cloud
+  cannot open it, the sign-in page of the workspace opens in the browser as
+  before
+
 ## 10.1.7
 
 ### New features
