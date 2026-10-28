@@ -45,8 +45,8 @@ env:
   BUILD_TOOLS_REF: release/v9.4.0
   BUILD_TOOLS_SHA: cf4cac0846d03e2e00a6fec5d1ecd4e9463086d5
   # desktop-apps' v10 branch, the same commit as the Windows and Linux 10 builds
-  DESKTOP_APPS_REF: 72582e0ec6b994b55a34550b5c7534acfe4403b2
-  PRODUCT_VERSION: 10.1.8
+  DESKTOP_APPS_REF: 4b0d7a7622d85e8ba4f51fa75838dbe34f1d07c0
+  PRODUCT_VERSION: 10.1.9
   COMPANY_NAME: WorkSuite
   UPDATE_CENTER: https://download.worksuitecloud.com
   UPDATE_APP_ID: lk.worksuite.office
@@ -320,7 +320,7 @@ jobs:
           /usr/libexec/PlistBuddy -c "Print :CFBundleName" -c "Print :CFBundleIdentifier" -c "Print :CFBundleShortVersionString" -c "Print :SUFeedURL" "build/stage/WorkSuite Office.app/Contents/Info.plist"
           built=$(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "build/stage/WorkSuite Office.app/Contents/Info.plist")
           [ "$built" = "$BUILD_NUMBER" ] || { echo "::error::the app's CFBundleVersion is $built, not $BUILD_NUMBER"; exit 1; }
-          archs=$(lipo -archs "build/stage/WorkSuite Office.app/Contents/MacOS/ONLYOFFICE")
+          archs=$(lipo -archs "build/stage/WorkSuite Office.app/Contents/MacOS/WSOffice")
           echo "$archs"
           want=$([ "$ARCH" = x64 ] && echo x86_64 || echo arm64)
           [[ " $archs " == *" $want "* ]] || { echo "::error::the app is $archs, not $want"; exit 1; }
