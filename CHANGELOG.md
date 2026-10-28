@@ -1,5 +1,19 @@
 # Change log
 
+## 10.1.9
+
+### Fixes
+
+#### macOS
+
+* WorkSuite Office no longer quits as it starts on macOS 26: the menu's
+  Check for Updates item replaced itself while the main menu was loading,
+  which macOS 26 stops with "WorkSuite Office quit unexpectedly" (10.1.5
+  and 10.1.6)
+* The app's process is WSOffice instead of ONLYOFFICE, in Activity Monitor,
+  Force Quit and crash reports. Updates and settings carry over
+* The editor window's placeholder title says WorkSuite Office
+
 ## 10.1.8
 
 ### New features
