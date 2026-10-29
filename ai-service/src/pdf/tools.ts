@@ -4,7 +4,7 @@
 import { randomBytes } from "node:crypto";
 import { existsSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { basename, dirname, extname, isAbsolute, join } from "node:path";
-import { degrees, PDFDict, PDFDocument, PDFName } from "@cantoo/pdf-lib";
+import { degrees, PDFDict, PDFDocument, PDFName, rgb, StandardFonts } from "@cantoo/pdf-lib";
 import { ApiError } from "../errors";
 import type { JobControl } from "../jobs";
 
@@ -247,4 +247,108 @@ export async function pdfInfo(raw: unknown): Promise<{ pages: number | null; enc
     if (e instanceof ApiError && (e.detail as { reason?: string } | undefined)?.reason === "password_required") return { pages: null, encrypted: true, size };
     throw e;
   }
+}
+
+// ---- stamp: headers, footers, page numbers, Bates numbers and watermarks ---------------------------------
+
+export interface StampSlots { left?: string; center?: string; right?: string }
+
+const POSITIONS = ["left", "center", "right"] as const;
+
+/** {n} page, {total} pages, {bates} Bates number, {date} today, {file} file name. */
+export function fillTokens(text: string, v: { n: number; total: number; bates: string; date: string; file: string }): string {
+  return text.replace(/\{(n|total|bates|date|file)\}/g, (_, k: keyof typeof v) => String(v[k]));
+}
+
+function slots(v: unknown, name: string): StampSlots | undefined {
+  if (v === undefined) return undefined;
+  const o = obj(v, name);
+  const out: StampSlots = {};
+  for (const k of POSITIONS) {
+    if (o[k] === undefined || o[k] === "") continue;
+    if (typeof o[k] !== "string" || (o[k] as string).length > 200) throw new ApiError("bad_request", `"${name}.${k}" must be text of at most 200 characters`);
+    out[k] = o[k] as string;
+  }
+  return Object.keys(out).length ? out : undefined;
+}
+
+function numberIn(v: unknown, name: string, min: number, max: number, dflt: number): number {
+  if (v === undefined) return dflt;
+  if (typeof v !== "number" || !Number.isFinite(v) || v < min || v > max) throw new ApiError("bad_request", `"${name}" must be a number from ${min} to ${max}`);
+  return v;
+}
+
+export function stampJob(raw: unknown): (job: JobControl) => Promise<PdfResult> {
+  const body = obj(raw, "body");
+  const path = filePath(body.path, "path", /\.pdf$/i);
+  const pw = password(body.password, "password");
+  const header = slots(body.header, "header");
+  const footer = slots(body.footer, "footer");
+  const fontSize = numberIn(body.fontSize, "fontSize", 6, 72, 10);
+  const margin = numberIn(body.margin, "margin", 6, 144, 28);
+  const bates = body.bates === undefined ? undefined : obj(body.bates, "bates");
+  const batesPrefix = bates?.prefix === undefined ? "" : String(bates.prefix).slice(0, 40);
+  const batesStart = Math.floor(numberIn(bates?.start, "bates.start", 0, 1e12, 1));
+  const batesDigits = Math.floor(numberIn(bates?.digits, "bates.digits", 1, 12, 6));
+  const wm = body.watermark === undefined ? undefined : obj(body.watermark, "watermark");
+  const wmText = wm?.text === undefined ? undefined : String(wm.text).slice(0, 100);
+  const wmImage = wm?.image === undefined ? undefined : filePath(wm.image, "watermark.image", /\.(png|jpe?g)$/i);
+  const wmOpacity = numberIn(wm?.opacity, "watermark.opacity", 0.02, 1, 0.15);
+  const wmRotation = numberIn(wm?.rotation, "watermark.rotation", -90, 90, 45);
+  const wmSize = numberIn(wm?.size, "watermark.size", 8, 300, 0);
+  if (!header && !footer && !wmText && !wmImage) throw new ApiError("bad_request", 'Give "header", "footer" or "watermark"');
+  return async (job) => {
+    const doc = await load(path, pw);
+    const font = await doc.embedFont(StandardFonts.Helvetica);
+    const total = doc.getPageCount();
+    const pages = body.pages === undefined ? doc.getPageIndices().map((i) => i + 1) : pageList(body.pages, total);
+    const date = new Date().toISOString().slice(0, 10);
+    const file = basename(path);
+    const image = wmImage ? (/\.png$/i.test(wmImage) ? await doc.embedPng(input(wmImage)) : await doc.embedJpg(input(wmImage))) : undefined;
+    // the standard font has Latin letters only; anything else would print as "?"
+    const charset = new Set(font.getCharacterSet());
+    const width = (t: string, size: number) => {
+      for (const ch of t) if (!charset.has(ch.codePointAt(0)!)) throw new ApiError("bad_request", "Headers, footers and watermarks can use Latin letters only for now", { text: t, char: ch });
+      return font.widthOfTextAtSize(t, size);
+    };
+    const color = rgb(0.2, 0.2, 0.2);
+    pages.forEach((n, k) => {
+      job.signal.throwIfAborted();
+      const page = doc.getPage(n - 1);
+      const { width: W, height: H } = page.getSize();
+      const tokens = { n, total, bates: batesPrefix + String(batesStart + k).padStart(batesDigits, "0"), date, file };
+      const row = (s: StampSlots | undefined, y: number) => {
+        if (!s) return;
+        for (const pos of POSITIONS) {
+          if (!s[pos]) continue;
+          const t = fillTokens(s[pos]!, tokens);
+          const w = width(t, fontSize);
+          const x = pos === "left" ? margin : pos === "right" ? W - margin - w : (W - w) / 2;
+          page.drawText(t, { x, y, size: fontSize, font, color });
+        }
+      };
+      row(header, H - margin - fontSize);
+      row(footer, margin);
+      if (wmText) {
+        const t = fillTokens(wmText, tokens);
+        // auto size: the text spans about 70 % of the line it runs along
+        const a = (wmRotation * Math.PI) / 180;
+        const run = Math.min(Math.abs(W / Math.cos(a)) || Infinity, Math.abs(H / Math.sin(a)) || Infinity);
+        const size = wmSize || Math.min(160, (run * 0.7) / width(t, 1));
+        const w = width(t, size), h = size * 0.7;
+        // the text's middle on the page's middle: the origin is its bottom-left corner, rotated with it
+        const x = W / 2 - (Math.cos(a) * w) / 2 + (Math.sin(a) * h) / 2;
+        const y = H / 2 - (Math.sin(a) * w) / 2 - (Math.cos(a) * h) / 2;
+        page.drawText(t, { x, y, size, font, color: rgb(0.5, 0.5, 0.5), opacity: wmOpacity, rotate: degrees(wmRotation) });
+      }
+      if (image) {
+        const scale = Math.min((W * 0.6) / image.width, (H * 0.6) / image.height);
+        const w = image.width * scale, h = image.height * scale;
+        page.drawImage(image, { x: (W - w) / 2, y: (H - h) / 2, width: w, height: h, opacity: wmOpacity });
+      }
+      job.progress((k + 1) / pages.length, "stamping");
+    });
+    const out = outFor(body, path, " (stamped)");
+    return { file: out, files: [out], contentType: "application/pdf", pages: await write(doc, out) };
+  };
 }

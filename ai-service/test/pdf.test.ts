@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { PDFDocument } from "@cantoo/pdf-lib";
 import { Harness, start } from "./helpers/harness";
+import { fillTokens } from "../src/pdf/tools";
 
 let h: Harness;
 let dir: string;
@@ -90,6 +91,27 @@ describe("pdf", () => {
     writeFileSync(img, PNG_1PX);
     const j = await run("images-to-pdf", { paths: [img, img] });
     expect(j.result).toEqual(expect.objectContaining({ file: join(dir, "dot.pdf"), pages: 2 }));
+  });
+
+  it("stamps headers, footers, Bates numbers and a watermark", async () => {
+    const p = await makePdf("st.pdf", 3);
+    const j = await run("stamp", { path: p, header: { left: "ACME" }, footer: { left: "{bates}", center: "Page {n} of {total}" },
+      bates: { prefix: "LZ-", start: 7, digits: 4 }, watermark: { text: "DRAFT" }, pages: [2, 3] });
+    expect(j.state).toBe("done");
+    const out = (j.result as { file: string }).file;
+    expect(out).toBe(join(dir, "st (stamped).pdf"));
+    const doc = await PDFDocument.load(readFileSync(out));
+    // stamped pages get a content stream more; page 1 was not in "pages"
+    const streams = (i: number) => { const c = doc.getPage(i).node.Contents(); return c && "size" in c ? (c as { size(): number }).size() : c ? 1 : 0; };
+    expect(doc.getPageCount()).toBe(3);
+    expect(streams(1)).toBeGreaterThan(streams(0));
+    expect(streams(2)).toBe(streams(1));
+    expect((await h.call("POST", "/v1/pdf/stamp", { path: p })).status).toBe(400);
+    expect((await run("stamp", { path: p, header: { center: "\u0dc3\u0dd2\u0d82" } })).error?.code).toBe("bad_request");
+  });
+
+  it("fills stamp tokens", () => {
+    expect(fillTokens("{bates} {n}/{total} {file} {date} {x}", { n: 2, total: 9, bates: "LZ-0008", date: "2026-10-29", file: "a.pdf" })).toBe("LZ-0008 2/9 a.pdf 2026-10-29 {x}");
   });
 
   it("reports a missing file as not_found", async () => {

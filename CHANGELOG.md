@@ -1,5 +1,31 @@
 # Change log
 
+## 10.1.15
+
+### New features
+
+#### PDF editor
+
+* PDF Tools has a Stamp button: headers and footers (left, centre and
+  right), page numbers, Bates numbers with a prefix and a start number, and
+  a text watermark, on all pages or a range. Text can hold the page number,
+  page count, Bates number, date and file name. The stamped copy is saved
+  next to the PDF and opens in a new tab
+* PDF Tools has a From images button: a new PDF from PNG and JPEG images,
+  one page each
+
+#### Local AI service
+
+* A stamp job for PDFs (headers, footers, page and Bates numbers,
+  watermarks)
+
+### Fixes
+
+#### Local AI service
+
+* Stamp text with letters the standard PDF font cannot show is refused
+  instead of printing question marks
+
 ## 10.1.14
 
 ### New features
