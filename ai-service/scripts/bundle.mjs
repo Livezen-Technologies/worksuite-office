@@ -9,7 +9,7 @@ await build({
   outfile: resolve(root, "dist/worksuite-ai.cjs"),
   bundle: true, platform: "node", target: "node22", format: "cjs", minify: false, sourcemap: false, legalComments: "eof",
   alias: { "@worksuite/sinhala-core": resolve(root, "../sinhala/core/src/index.ts") },
-  // ws's optional native helpers are not shipped
-  external: ["bufferutil", "utf-8-validate"],
+  // ws's optional native helpers and pdf.js's optional canvas (drawing, unused: only text is read)
+  external: ["bufferutil", "utf-8-validate", "canvas"],
   logLevel: "info",
 });

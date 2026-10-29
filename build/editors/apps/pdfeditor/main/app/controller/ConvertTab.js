@@ -12,8 +12,9 @@ define([
     'core',
     'pdfeditor/main/app/view/ConvertTab',
     'pdfeditor/main/app/view/OcrDialog',
-    'pdfeditor/main/app/controller/OcrImage'
-], function (core, view, dialog, OcrImage) {
+    'pdfeditor/main/app/controller/OcrImage',
+    'pdfeditor/main/app/controller/LocalPdf'
+], function (core, view, dialog, OcrImage, LocalPdf) {
     'use strict';
 
     PDFE.Controllers.ConvertTab = Backbone.Controller.extend(_.extend({
@@ -44,7 +45,9 @@ define([
                 'ConvertTab': {
                     'convert:format': this.onConvert.bind(this),
                     'convert:all': this.onConvertAll.bind(this),
-                    'convert:ocr': this.onOcr.bind(this)
+                    'convert:ocr': this.onOcr.bind(this),
+                    'convert:xlsx': this.onToXlsx.bind(this),
+                    'convert:pptx': this.onToPptx.bind(this)
                 }
             });
 
@@ -73,6 +76,71 @@ define([
         // encoding of a text file, then the desktop's Save dialog for that format, or the download online.
         onConvert: function (format) {
             this.getApplication().getController('LeftMenu').clickSaveAsFormat({hide: function () {}}, format);
+        },
+
+        // The saved PDF on this computer, or null (with a message): Excel and PowerPoint read the file itself.
+        localSource: function () {
+            var native = window.AscDesktopEditor,
+                source = native && native.LocalFileGetSourcePath ? native.LocalFileGetSourcePath() : '';
+            if ((this.api.isDocumentModified && this.api.isDocumentModified()) || !source || !/\.pdf$/i.test(source) ||
+                /^[a-z][a-z0-9+.-]*:\/\//i.test(source)) {
+                Common.UI.warning({msg: this.view.txtSaveFirst});
+                return null;
+            }
+            return source;
+        },
+
+        // Waits for a worksuite-ai job, then opens its file in a new tab.
+        finishJob: function (promise) {
+            var v = this.view, api = this.api, native = window.AscDesktopEditor;
+            api.sync_StartAction && api.sync_StartAction(Asc.c_oAscAsyncActionType.BlockInteraction, Asc.c_oAscAsyncAction.Waiting);
+            var end = function () {
+                api.sync_EndAction && api.sync_EndAction(Asc.c_oAscAsyncActionType.BlockInteraction, Asc.c_oAscAsyncAction.Waiting);
+            };
+            promise.then(function (result) {
+                end();
+                var name = result.file.replace(/^.*[\\\/]/, '');
+                Common.UI.info({msg: Common.Utils.String.format(v.txtConverted, Common.Utils.String.htmlEncode(name)), callback: function () {
+                    native.execCommand('open:recent', JSON.stringify({id: -1, path: result.file, name: name}));
+                }});
+            }, function (err) {
+                end();
+                if (err.code === 'service_unavailable' || err.code === 'forbidden_by_policy') Common.UI.warning({msg: v.txtNoService});
+                else if (err.detail && err.detail.reason === 'no_text') Common.UI.warning({msg: v.txtNoText});
+                else Common.UI.warning({msg: Common.Utils.String.format(v.txtFailed, Common.Utils.String.htmlEncode(err.message || err.code))});
+            });
+        },
+
+        // Excel: worksuite-ai reads the PDF's text and lays its tables out in rows and columns.
+        onToXlsx: function () {
+            var source = this.localSource();
+            if (source) this.finishJob(LocalPdf.run('to-xlsx', {path: source}));
+        },
+
+        // PowerPoint: each page drawn here at 150 dpi becomes a slide picture; worksuite-ai writes the file.
+        onToPptx: function () {
+            var source = this.localSource();
+            if (!source) return;
+            var file = this.api.getDocumentRenderer().file, form = new FormData(), sizes = [], chain = Promise.resolve();
+            file.pages.forEach(function (page, n) {
+                chain = chain.then(function () {
+                    var w = Math.round(page.W * 150 / page.Dpi), h = Math.round(page.H * 150 / page.Dpi),
+                        image = file.getPage(n, w, h, true, 0xFFFFFF);
+                    if (!image) throw new Error('page ' + (n + 1) + ' did not draw');
+                    var canvas = document.createElement('canvas');
+                    canvas.width = image.width;
+                    canvas.height = image.height;
+                    canvas.getContext('2d').drawImage(image, 0, 0);
+                    sizes.push({widthPt: page.W * 72 / page.Dpi, heightPt: page.H * 72 / page.Dpi});
+                    return new Promise(function (resolve) { canvas.toBlob(resolve, 'image/jpeg', 0.9); }).then(function (blob) {
+                        form.append('page', blob, 'page' + (n + 1) + '.jpg');
+                    });
+                });
+            });
+            this.finishJob(chain.then(function () {
+                form.set('options', JSON.stringify({path: source, pages: sizes}));
+                return LocalPdf.upload('to-pptx', form);
+            }));
         },
 
         // The Save as dialog with every format, or online the File menu's Download as.
