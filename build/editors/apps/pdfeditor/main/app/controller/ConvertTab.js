@@ -11,8 +11,9 @@
 define([
     'core',
     'pdfeditor/main/app/view/ConvertTab',
-    'pdfeditor/main/app/view/OcrDialog'
-], function () {
+    'pdfeditor/main/app/view/OcrDialog',
+    'pdfeditor/main/app/controller/OcrImage'
+], function (core, view, dialog, OcrImage) {
     'use strict';
 
     PDFE.Controllers.ConvertTab = Backbone.Controller.extend(_.extend({
@@ -196,9 +197,9 @@ define([
                             if (job.cancelled) throw new Error('cancelled');
                             step = k;
                             progress(0, Common.Utils.String.format(view.txtOcrPage, k + 1, total));
-                            return me.ocrPage(worker, file, n).then(function (pdf) {
+                            return me.ocrPage(worker, file, n, settings.clean || {}).then(function (res) {
                                 if (job.cancelled) throw new Error('cancelled');
-                                return me.replacePage(n, pdf);
+                                return me.replacePage(n, res.pdf, res.turned);
                             }).then(function () { done++; });
                         });
                     });
@@ -216,48 +217,108 @@ define([
             });
         },
 
-        // One page at 300 dpi (as far as the renderer's canvas limit allows), as a JPEG for Tesseract, which
-        // keeps it as the page's picture. Resolves to the one-page PDF Tesseract writes.
-        ocrPage: function (worker, file, n) {
-            var page = file.pages[n],
+        // One page at 300 dpi (as far as the renderer's canvas limit allows), cleaned up as asked, for Tesseract,
+        // which keeps it as the page's picture. Resolves to {pdf: the one-page PDF Tesseract writes, turned:
+        // whether the page was turned upright (its old rotation then no longer applies)}.
+        ocrPage: function (worker, file, n, clean) {
+            var me = this,
+                page = file.pages[n],
                 dpi = 300,
                 w = Math.round(page.W * dpi / page.Dpi),
                 h = Math.round(page.H * dpi / page.Dpi),
                 image = file.getPage(n, w, h, true, 0xFFFFFF);
             if (!image) return Promise.reject(new Error('page ' + n + ' did not render'));
-            var canvas = document.createElement('canvas');
-            canvas.width = image.width;
-            canvas.height = image.height;
-            var ctx = canvas.getContext('2d');
-            ctx.fillStyle = '#fff';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            ctx.drawImage(image, 0, 0);
+            var canvas = this.toCanvas(image, 0);
             // the dpi the page really got, so that Tesseract's page is the original's size
-            var realDpi = Math.round(canvas.width * page.Dpi / page.W);
-            return worker.setParameters({user_defined_dpi: String(realDpi)}).then(function () {
+            var realDpi = Math.round(canvas.width * page.Dpi / page.W),
+                turned = 0;
+            var ready = clean.upright ? this.detectOrientation(worker, canvas) : Promise.resolve(0);
+            return ready.then(function (quarter) {
+                if (quarter) { turned = quarter; canvas = me.toCanvas(canvas, quarter); }
+                if (clean.straighten || clean.bw) canvas = me.cleanUp(canvas, clean);
+                return worker.setParameters({user_defined_dpi: String(realDpi)});
+            }).then(function () {
+                // black and white compresses best as PNG; colour as a good JPEG
                 return new Promise(function (resolve) {
-                    canvas.toBlob(resolve, 'image/jpeg', 0.85);
+                    clean.bw ? canvas.toBlob(resolve, 'image/png') : canvas.toBlob(resolve, 'image/jpeg', 0.92);
                 });
             }).then(function (blob) {
                 return worker.recognize(blob, {}, {text: false, blocks: false, pdf: true, pdfTitle: ''});
             }).then(function (res) {
                 if (!res || !res.data || !res.data.pdf) throw new Error('no PDF from Tesseract');
-                return new Uint8Array(res.data.pdf);
+                return {pdf: new Uint8Array(res.data.pdf), turned: !!turned};
             });
         },
 
+        // A white canvas holding the image turned by a quarter turn (0, 90, 180, 270 degrees clockwise)
+        toCanvas: function (image, quarter) {
+            var c = document.createElement('canvas'), side = quarter === 90 || quarter === 270;
+            c.width = side ? image.height : image.width;
+            c.height = side ? image.width : image.height;
+            var ctx = c.getContext('2d');
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(0, 0, c.width, c.height);
+            ctx.translate(c.width / 2, c.height / 2);
+            ctx.rotate(quarter * Math.PI / 180);
+            ctx.drawImage(image, -image.width / 2, -image.height / 2);
+            return c;
+        },
+
+        // Which quarter turn makes the page upright: a quick trial recognition of the middle of the page in each
+        // of the four ways, at a quarter of the size; the most confident wins when it clearly leads.
+        detectOrientation: function (worker, canvas) {
+            var me = this,
+                side = Math.round(Math.min(canvas.width, canvas.height) * 0.5),
+                crop = document.createElement('canvas');
+            crop.width = crop.height = Math.round(side / 2);
+            crop.getContext('2d').drawImage(canvas, (canvas.width - side) / 2, (canvas.height - side) / 2, side, side, 0, 0, crop.width, crop.height);
+            var confidences = {}, chain = Promise.resolve();
+            [0, 90, 180, 270].forEach(function (q) {
+                chain = chain.then(function () {
+                    return worker.recognize(me.toCanvas(crop, q), {}, {text: true, blocks: false, pdf: false});
+                }).then(function (res) {
+                    confidences[q] = res && res.data ? res.data.confidence || 0 : 0;
+                });
+            });
+            return chain.then(function () { return OcrImage.bestOrientation(confidences); }, function () { return 0; });
+        },
+
+        // Straightens the page (rotating it back by the skew of its lines) and/or makes it black and white.
+        cleanUp: function (canvas, clean) {
+            var ctx = canvas.getContext('2d'),
+                data = ctx.getImageData(0, 0, canvas.width, canvas.height),
+                gray = OcrImage.toGray(data.data, canvas.width, canvas.height),
+                ink = OcrImage.binarize(gray, OcrImage.otsu(gray));
+            if (clean.bw) {
+                OcrImage.despeckle(ink, canvas.width, canvas.height);
+                ctx.putImageData(new ImageData(OcrImage.inkToRgba(ink, data.data), canvas.width, canvas.height), 0, 0);
+            }
+            var angle = clean.straighten ? OcrImage.skewAngle(ink, canvas.width, canvas.height) : 0;
+            if (Math.abs(angle) < 0.1) return canvas;
+            var out = document.createElement('canvas');
+            out.width = canvas.width;
+            out.height = canvas.height;
+            var octx = out.getContext('2d');
+            octx.fillStyle = '#fff';
+            octx.fillRect(0, 0, out.width, out.height);
+            octx.translate(out.width / 2, out.height / 2);
+            octx.rotate(-angle * Math.PI / 180);
+            octx.drawImage(canvas, -canvas.width / 2, -canvas.height / 2);
+            return out;
+        },
+
         // Replaces page n with the recognised one through the document builder (as a plugin would), keeping
-        // the page's rotation. One undo step per page.
-        replacePage: function (n, pdf) {
+        // the page's rotation unless the page was turned upright. One undo step per page.
+        replacePage: function (n, pdf, turned) {
             var api = this.api,
                 b64 = AscCommon.Base64.encode(pdf, 0, pdf.length);
             return new Promise(function (resolve, reject) {
                 if (!window.g_asc_plugins) return reject(new Error('no document builder (plugins are off)'));
-                window.Asc.scope = {wsPage: n, wsPdf: b64};
+                window.Asc.scope = {wsPage: n, wsPdf: b64, wsTurned: !!turned};
                 api.callCommand(function () {
                     var doc = Api.GetDocument(),
                         n = Asc.scope.wsPage,
-                        rotation = doc.GetPage(n).GetRotation();
+                        rotation = Asc.scope.wsTurned ? 0 : doc.GetPage(n).GetRotation();
                     if (!doc.Merge(n, 1, [Asc.scope.wsPdf])) return false;
                     if (rotation) doc.GetPage(n).SetRotation(rotation);
                     return true;
