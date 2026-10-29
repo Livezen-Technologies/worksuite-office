@@ -24,8 +24,8 @@ env:
   OO_TAG: v10.0.0.176
   BUILD_TOOLS_REF: release/v9.4.0
   BUILD_TOOLS_SHA: cf4cac0846d03e2e00a6fec5d1ecd4e9463086d5
-  DESKTOP_APPS_REF: 071c53090aa1d78c61454957937182124c06a135
-  PRODUCT_VERSION: 10.1.10
+  DESKTOP_APPS_REF: 564dbb5fe9b1f0aed1e746197f52375fb47eb969
+  PRODUCT_VERSION: 10.1.11
   # depot_tools (V8) stays at the pinned commit: its self-update collides with build_tools' bootstrap edits
   DEPOT_TOOLS_UPDATE: '0'
 

@@ -1,5 +1,27 @@
 # Change log
 
+## 10.1.11
+
+### New features
+
+#### Start page
+
+* Create New's PDF form card is now PDF editor: it opens a PDF from your
+  computer in the PDF editor
+
+### Fixes
+
+#### Start page
+
+* Main buttons (New, Upload, Add account) are a solid colour with a fine
+  edge; in dark themes they are a crisp near-white instead of a washed-out
+  grey, and a disabled one is a muted grey instead of fading out
+* Reconnect beside "Session expired" matches the amber badge, with a refresh
+  icon
+* The account, New, file and filter menus match the WorkSuite menus: rounded
+  rows, smaller text, inset dividers and single-colour icons; the New menu's
+  file icons are no longer cut off
+
 ## 10.1.10
 
 ### New features
