@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Adds the Convert and Pages tabs to the PDF Editor, applied in CI before web-apps is built.
+"""Adds the Convert and PDF Tools (Pages) tabs to the PDF Editor, applied in CI before web-apps is built.
 
 Copies build/editors/ over web-apps (the tabs' controllers and views) and registers the
 controllers in the PDF Editor's app.js and app_dev.js, after the Redact tab's: Convert, then Pages.

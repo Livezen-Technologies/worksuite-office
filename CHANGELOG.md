@@ -1,5 +1,22 @@
 # Change log
 
+## 10.1.13
+
+### New features
+
+#### PDF editor
+
+* The Pages tab is now PDF Tools, with a Merge button: add other PDFs at the
+  end, then save the result as a new PDF. Insert, Replace, Duplicate,
+  Extract and Split are in the same tab
+
+### Fixes
+
+#### Start page
+
+* The PDF tools row is gone from Home: the tools are in the PDF editor. The
+  PDF editor card in Create New still opens a PDF
+
 ## 10.1.12
 
 ### New features

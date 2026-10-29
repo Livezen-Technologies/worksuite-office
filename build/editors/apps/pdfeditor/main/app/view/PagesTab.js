@@ -1,5 +1,5 @@
 /*
- * WorkSuite Office: the PDF Editor's Pages tab, its buttons.
+ * WorkSuite Office: the PDF Editor's PDF Tools tab, its buttons.
  *
  * Copied into web-apps by build/patch-pdf-convert.py before the editors are built, like the rest of
  * build/editors/. Licensed under the GNU AGPL v3, as the editors it becomes part of.
@@ -17,6 +17,7 @@ define([
         return '<path d="M' + x + ' ' + y + 'h8l3 3v11h-11z" fill="none" stroke="currentColor"/>';
     };
     var ICONS = {
+        'btn-ws-pages-merge':     sheet(4.5, 4.5) + sheet(12.5, 9.5),
         'btn-ws-pages-insert':    sheet(5.5, 4.5) + '<path d="M20 15.5v8M16 19.5h8" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>',
         'btn-ws-pages-replace':   sheet(5.5, 4.5) + '<path d="M17.5 17.5h6l-2-2M23.5 21.5h-6l2 2" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>',
         'btn-ws-pages-extract':   sheet(5.5, 4.5) + '<path d="M17 20.5h7M21.5 18l2.5 2.5-2.5 2.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>',
@@ -42,9 +43,13 @@ define([
     }
 
     PDFE.Views.PagesTab = Common.UI.BaseView.extend(_.extend((function () {
-        var NAMES = ['insert', 'replace', 'duplicate', 'extract', 'split'];
+        var NAMES = ['merge', 'insert', 'replace', 'duplicate', 'extract', 'split'];
         var template =
             '<section class="panel" data-tab="wspages" role="tabpanel">' +
+                '<div class="group">' +
+                    '<span class="btn-slot text x-huge" id="slot-btn-wspages-merge"></span>' +
+                '</div>' +
+                '<div class="separator long"></div>' +
                 '<div class="group">' +
                     '<span class="btn-slot text x-huge" id="slot-btn-wspages-insert"></span>' +
                     '<span class="btn-slot text x-huge" id="slot-btn-wspages-replace"></span>' +
@@ -106,7 +111,7 @@ define([
                     {caption: me.txtInsertEnd, value: 'end'}
                 ]}).on('item:click', function (menu, item) { me.fireEvent('pages:insert', [item.value]); }));
                 b.insert.on('click', function () { me.fireEvent('pages:insert', ['after']); });
-                ['replace', 'duplicate', 'extract', 'split'].forEach(function (name) {
+                ['merge', 'replace', 'duplicate', 'extract', 'split'].forEach(function (name) {
                     b[name].on('click', function () { me.fireEvent('pages:' + name); });
                 });
                 NAMES.forEach(function (name) { b[name].updateHint(me['tip_' + name]); });
@@ -125,7 +130,9 @@ define([
                 this.lockedControls.forEach(function (button) { button && button.setDisabled(state); });
             },
 
-            textTab: 'Pages',
+            textTab: 'PDF Tools',
+            cap_merge: 'Merge',
+            tip_merge: 'Add other PDFs at the end, then save the result as a new PDF',
             cap_insert: 'Insert from file',
             tip_insert: 'Insert the pages of other PDFs',
             txtInsertBefore: 'Before the current page',
