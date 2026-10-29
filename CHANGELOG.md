@@ -1,5 +1,29 @@
 # Change log
 
+## 10.1.14
+
+### New features
+
+#### PDF editor
+
+* PDF Tools has a Protect button: save a copy of the PDF with a password to
+  open it, or with printing, copying and changes restricted by a
+  permissions password, encrypted with AES-256. The copy is saved next to
+  the PDF and opens in a new tab; the PDF itself is not changed
+
+#### Local AI service
+
+* PDF jobs on files on this computer: merge, split, rotate, protect,
+  unprotect and images to PDF (API 1.4, capability pdf). They run in the
+  service, so nothing has to be downloaded
+
+### Fixes
+
+#### Local AI service
+
+* A PDF unlocked with its password no longer keeps its old encryption
+  dictionary, which made some readers treat the copy as protected
+
 ## 10.1.13
 
 ### New features

@@ -62,7 +62,7 @@ describe("policy enforcement", () => {
       expect(r.status, path).toBe(403);
       expect(r.json.error.code, path).toBe("forbidden_by_policy");
     }
-    expect((await h.call("GET", "/v1/info")).json.capabilities).toEqual(["sinhala"]);
+    expect((await h.call("GET", "/v1/info")).json.capabilities).toEqual(["sinhala", "pdf"]);
   });
   it("cloud requests are refused when the organisation turned cloud off", async () => {
     await setPolicy({ cloudAllowed: false });

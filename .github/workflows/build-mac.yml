@@ -46,7 +46,7 @@ env:
   BUILD_TOOLS_SHA: cf4cac0846d03e2e00a6fec5d1ecd4e9463086d5
   # desktop-apps' v10 branch, the same commit as the Windows and Linux 10 builds
   DESKTOP_APPS_REF: cbbb62320881f47f03e02317ea54d4a4f90df39d
-  PRODUCT_VERSION: 10.1.13
+  PRODUCT_VERSION: 10.1.14
   COMPANY_NAME: WorkSuite
   UPDATE_CENTER: https://download.worksuitecloud.com
   UPDATE_APP_ID: lk.worksuite.office

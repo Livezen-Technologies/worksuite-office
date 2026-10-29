@@ -14,7 +14,7 @@ const E = expect;
 describe("contract", () => {
   it("GET /v1/info", async () => {
     const r = (await h.call("GET", "/v1/info")).json;
-    E(r).toEqual({ apiVersion: "1.3", serviceVersion: E.any(String), capabilities: E.any(Array), profile: E.stringMatching(/^(lite|standard|advanced)$/) });
+    E(r).toEqual({ apiVersion: "1.4", serviceVersion: E.any(String), capabilities: E.any(Array), profile: E.stringMatching(/^(lite|standard|advanced)$/) });
     E(r.capabilities).toEqual(E.arrayContaining(["speech.stt", "text.complete", "text.check", "text.transform", "translate", "tts", "assistant"]));
     E(r.capabilities).not.toContain("tts.si");
   });
@@ -50,7 +50,7 @@ describe("contract", () => {
     E((await h.call("GET", "/v1/storage")).json).toEqual({ path: E.any(String), usedMB: E.any(Number), freeMB: E.any(Number) });
     await h.call("POST", "/v1/text/check", { text: "secret words here" });
     const d = (await h.call("GET", "/v1/diagnostics")).json;
-    E(d).toEqual(E.objectContaining({ serviceVersion: E.any(String), apiVersion: "1.3", hardware: E.anything(), models: E.any(Array), errors: E.any(Array), timings: E.any(Array) }));
+    E(d).toEqual(E.objectContaining({ serviceVersion: E.any(String), apiVersion: "1.4", hardware: E.anything(), models: E.any(Array), errors: E.any(Array), timings: E.any(Array) }));
     E(JSON.stringify(d)).not.toContain("secret words");
     E(d.timings.length).toBeLessThanOrEqual(50);
   });
