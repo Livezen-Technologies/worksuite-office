@@ -1,5 +1,22 @@
 # Change log
 
+## 10.1.19
+
+### New features
+
+#### PDF editor
+
+* Recognise text can recognise an area of the current page, chosen by
+  dragging over it, or an image file, and show the text to check and copy:
+  the words the recognition was unsure of are marked
+* More recognition languages: 27 more, such as Hindi, Arabic, Chinese,
+  Japanese, French and German, can be added from the Recognise text dialog.
+  Each is downloaded once and checked
+
+#### Local AI service
+
+* OCR languages: list, add (checked download), serve to the editor, remove
+
 ## 10.1.18
 
 ### New features

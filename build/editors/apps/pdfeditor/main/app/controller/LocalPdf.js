@@ -115,5 +115,15 @@ define([], function () {
         });
     }
 
-    return {run: run, upload: upload, call: call, discover: discover};
+    // A file the service serves (an OCR language model), as an ArrayBuffer.
+    function binary(path) {
+        return discover().then(function (ep) {
+            return fetch(ep.base + path, {headers: {'Authorization': 'Bearer ' + ep.token}}).then(function (res) {
+                if (!res.ok) throw LocalPdfError(res.status === 404 ? 'not_found' : 'internal');
+                return res.arrayBuffer();
+            });
+        });
+    }
+
+    return {run: run, upload: upload, call: call, wait: wait, binary: binary, discover: discover};
 });

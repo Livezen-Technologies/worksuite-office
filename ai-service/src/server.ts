@@ -34,6 +34,7 @@ import { legacyDecode, legacyEncode, legacyFonts, segmentWords, sinhalaNormalize
 import { Priority } from "./scheduler";
 import { layoutJob, officeJob, PDF_OPS, pdfInfo, pdfJob, pptxJob, signJob, stampJob, filePath, verifyPdf } from "./pdf/tools";
 import { VersionStore } from "./pdf/versions";
+import { OcrLanguages } from "./ocr/languages";
 
 export const API_VERSION = "1.4";
 export const SERVICE_VERSION = "1.0.0";
@@ -66,6 +67,7 @@ export class Service {
   readonly dict: Dictionaries;
   readonly text: TextService;
   readonly versions: VersionStore;
+  readonly ocrLanguages: OcrLanguages;
   hardware: Hardware | null = null;
   policy: Policy = normalizePolicy(null);
   server: Server | null = null;
@@ -99,6 +101,7 @@ export class Service {
     });
     this.runtime = new Runtime(this.models, this.engines, this.jobs, this.events, () => this.policy);
     this.versions = new VersionStore(join(o.dataDir, "versions"));
+    this.ocrLanguages = new OcrLanguages(join(o.dataDir, "ocr", "lang"), o.fetcher);
     this.dict = new Dictionaries(this.paths.dictionariesDir, o.fetcher);
     this.text = new TextService(this.dict, this.models, this.runtime, () => this.policy, this.diag, this.env);
     this.routes();
@@ -402,6 +405,20 @@ export class Service {
       return withStatus(202, { jobId: this.jobs.start("pdf.sign", run).id });
     });
     r.post("/v1/pdf/verify", async (c) => verifyPdf(await c.body()));
+
+    // OCR languages beyond the ones the app ships: downloaded on request, read by the editor's tesseract.js
+    r.get("/v1/ocr/languages", () => ({ languages: this.ocrLanguages.list() }));
+    r.post("/v1/ocr/languages/:id/install", (c) => {
+      const run = this.ocrLanguages.install(c.params.id);
+      return withStatus(202, { jobId: this.jobs.start("ocr.language", run, { modelId: c.params.id }).id });
+    });
+    r.delete("/v1/ocr/languages/:id", (c) => this.ocrLanguages.remove(c.params.id));
+    r.get("/v1/ocr/languages/:id/data", (c) => {
+      const data = this.ocrLanguages.data(c.params.id);
+      c.res.writeHead(200, { "content-type": "application/octet-stream", "content-length": data.length });
+      c.res.end(data);
+      return RAW;
+    });
 
     // local version history of files on this computer
     const versioned = (v: unknown) => filePath(v, "path", /\.(pdf|docx|xlsx|pptx|odt|ods|odp)$/i);

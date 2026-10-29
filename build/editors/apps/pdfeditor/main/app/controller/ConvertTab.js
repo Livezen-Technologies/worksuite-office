@@ -12,9 +12,10 @@ define([
     'core',
     'pdfeditor/main/app/view/ConvertTab',
     'pdfeditor/main/app/view/OcrDialog',
+    'pdfeditor/main/app/view/OcrExtraDialogs',
     'pdfeditor/main/app/controller/OcrImage',
     'pdfeditor/main/app/controller/LocalPdf'
-], function (core, view, dialog, OcrImage, LocalPdf) {
+], function (core, view, dialog, extraDialogs, OcrImage, LocalPdf) {
     'use strict';
 
     PDFE.Controllers.ConvertTab = Backbone.Controller.extend(_.extend({
@@ -161,15 +162,31 @@ define([
             var me = this,
                 viewer = this.api && this.api.getDocumentRenderer && this.api.getDocumentRenderer();
             if (!viewer || !viewer.file) return;
+            // languages added through worksuite-ai, when it is already running (nothing is launched for this)
+            var desktop = !!(this.mode && this.mode.isDesktopApp && window.AscDesktopEditor);
+            var extras = desktop ? LocalPdf.call('GET', '/ocr/languages', undefined, false).then(function (r) {
+                return (r.languages || []).filter(function (l) { return l.installed; });
+            }, function () { return []; }) : Promise.resolve([]);
+            extras.then(function (extraLangs) { me.showOcrDialog(extraLangs, desktop); });
+        },
+
+        showOcrDialog: function (extraLangs, canAddLangs) {
+            var me = this;
             var dlg = new PDFE.Views.OcrDialog({
                 canPdfa: Asc.c_oAscFileType.PDFA !== undefined,
+                extraLangs: extraLangs,
+                canAddLangs: canAddLangs,
+                onLanguages: function () { me.manageLanguages(); },
                 onStart: function (settings) {
                     me.ocrJob = {cancelled: false};
-                    me.runOcr(settings, me.ocrJob, dlg).then(function (done) {
+                    var work = settings.then === 'text' ? me.runOcrText(settings, me.ocrJob, dlg) : me.runOcr(settings, me.ocrJob, dlg);
+                    work.then(function (done) {
                         if (me.ocrJob && me.ocrJob.cancelled) return;
                         me.ocrJob = null;
                         dlg.close();
-                        if (!done) {
+                        if (settings.then === 'text') {
+                            done && done.length ? new PDFE.Views.OcrTextDialog({lines: done}).show() : Common.UI.info({msg: me.view.txtOcrNoText});
+                        } else if (!done) {
                             Common.UI.info({msg: me.view.txtOcrNothing});
                         } else if (settings.then === 'word') {
                             me.onConvert(Asc.c_oAscFileType.DOCX);
@@ -177,7 +194,7 @@ define([
                             me.onConvert(Asc.c_oAscFileType.PDFA);
                         }
                     }, function (err) {
-                        var cancelled = me.ocrJob && me.ocrJob.cancelled;
+                        var cancelled = (me.ocrJob && me.ocrJob.cancelled) || (err && err.message === 'cancelled');
                         me.ocrJob = null;
                         dlg.close();
                         if (!cancelled) {
@@ -193,6 +210,28 @@ define([
                 }
             });
             dlg.show();
+        },
+
+        // Add or remove recognition languages (worksuite-ai downloads them), then the OCR dialog again.
+        manageLanguages: function () {
+            var me = this, v = this.view;
+            LocalPdf.call('GET', '/ocr/languages').then(function (res) {
+                var dlg = new PDFE.Views.OcrLanguagesDialog({
+                    languages: res.languages || [],
+                    onInstall: function (code, done) {
+                        LocalPdf.call('POST', '/ocr/languages/' + encodeURIComponent(code) + '/install', {}).then(function (started) {
+                            return LocalPdf.wait(started.jobId);
+                        }).then(function () { done(); }, function (err) { done(err || true); });
+                    },
+                    onRemove: function (code, done) {
+                        LocalPdf.call('DELETE', '/ocr/languages/' + encodeURIComponent(code)).then(function () { done(); }, function (err) { done(err || true); });
+                    }
+                });
+                dlg.on('close', function () { me.onOcr(); });
+                dlg.show();
+            }, function () {
+                Common.UI.warning({msg: v.txtOcrNoService});
+            });
         },
 
         // The folder holding tesseract.min.js, worker.js, core/ and lang/: editors/ocr next to editors/web-apps.
@@ -240,24 +279,10 @@ define([
                 dlg.setProgress((step + inPage) / total, text);
             };
 
-            return this.loadTesseract(base).then(function (T) {
-                if (job.cancelled) throw new Error('cancelled');
-                progress(0, view.txtOcrLoading);
-                return T.createWorker(settings.langs, 1 /* LSTM only */, {
-                    workerPath: base + 'worker.js',
-                    workerBlobURL: false,
-                    corePath: base + 'core',
-                    langPath: base + 'lang',
-                    gzip: false,
-                    cacheMethod: 'none',
-                    logger: function (m) {
-                        if (m && m.status === 'recognizing text')
-                            progress(m.progress || 0, Common.Utils.String.format(view.txtOcrPage, step + 1, total));
-                    }
-                });
-            }).then(function (worker) {
-                job.worker = worker;
-                if (job.cancelled) throw new Error('cancelled');
+            return this.makeWorker(settings, job, base, function (m) {
+                if (m && m.status === 'recognizing text')
+                    progress(m.progress || 0, Common.Utils.String.format(view.txtOcrPage, step + 1, total));
+            }, function () { progress(0, view.txtOcrLoading); }).then(function (worker) {
                 return worker.setParameters({user_defined_dpi: '300'}).then(function () {
                     var chain = Promise.resolve();
                     pages.forEach(function (n, k) {
@@ -281,6 +306,140 @@ define([
                     worker.terminate();
                     job.worker = null;
                     throw err;
+                });
+            });
+        },
+
+        // A tesseract.js worker for the chosen languages: the ones the app ships by name (from editors/ocr/lang),
+        // the added ones as data read from worksuite-ai.
+        makeWorker: function (settings, job, base, logger, onLoading) {
+            var builtIn = {eng: 1, sin: 1, tam: 1};
+            var langs = Promise.all(settings.langs.map(function (code) {
+                return builtIn[code] ? code : LocalPdf.binary('/ocr/languages/' + encodeURIComponent(code) + '/data').then(function (buf) {
+                    return {code: code, data: new Uint8Array(buf)};
+                });
+            }));
+            return this.loadTesseract(base).then(function (T) {
+                if (job.cancelled) throw new Error('cancelled');
+                onLoading && onLoading();
+                return langs.then(function (list) {
+                    return T.createWorker(list, 1 /* LSTM only */, {
+                        workerPath: base + 'worker.js',
+                        workerBlobURL: false,
+                        corePath: base + 'core',
+                        langPath: base + 'lang',
+                        gzip: false,
+                        cacheMethod: 'none',
+                        logger: logger
+                    });
+                });
+            }).then(function (worker) {
+                job.worker = worker;
+                if (job.cancelled) { worker.terminate(); throw new Error('cancelled'); }
+                return worker;
+            });
+        },
+
+        // Recognise to text only, to check and copy: the current page or all pages, an area of the current page,
+        // or an image file. The pages are not changed. Resolves to lines of {text, confidence} words, an empty
+        // line between paragraphs.
+        runOcrText: function (settings, job, dlg) {
+            var me = this, view = this.view, base = this.ocrBase(),
+                file = this.api.getDocumentRenderer().file, clean = settings.clean || {};
+            if (!base) return Promise.reject(new Error('no editors folder in ' + window.location.href));
+            var sources;
+            if (settings.pages === 'image') {
+                sources = this.pickImage().then(function (canvas) { return [{canvas: canvas}]; });
+            } else if (settings.pages === 'area') {
+                var n = Math.max(0, this.api.getCurrentPage ? this.api.getCurrentPage() : 0), canvas = this.renderPage(file, n);
+                sources = new Promise(function (resolve, reject) {
+                    var picked = false;
+                    var area = new PDFE.Views.OcrAreaDialog({image: canvas, onOk: function (r) {
+                        picked = true;
+                        resolve([{canvas: canvas, rectangle: {left: Math.round(r.x * canvas.width), top: Math.round(r.y * canvas.height),
+                                                             width: Math.round(r.w * canvas.width), height: Math.round(r.h * canvas.height)}}]);
+                    }});
+                    area.on('close', function () { if (!picked) reject(new Error('cancelled')); });
+                    area.show();
+                });
+            } else {
+                var list = settings.pages === 'current' ? [Math.max(0, this.api.getCurrentPage ? this.api.getCurrentPage() : 0)] : file.pages.map(function (p, i) { return i; });
+                sources = Promise.resolve(list.map(function (i) { return {page: i}; }));
+            }
+            var step = 0, total = 1;
+            return sources.then(function (items) {
+                total = items.length;
+                return me.makeWorker(settings, job, base, function (m) {
+                    if (m && m.status === 'recognizing text') dlg.setProgress((step + (m.progress || 0)) / total, Common.Utils.String.format(view.txtOcrPage, step + 1, total));
+                }, function () { dlg.setProgress(0, view.txtOcrLoading); }).then(function (worker) {
+                    var lines = [], chain = Promise.resolve();
+                    items.forEach(function (item, k) {
+                        chain = chain.then(function () {
+                            if (job.cancelled) throw new Error('cancelled');
+                            step = k;
+                            var canvas = item.canvas || me.renderPage(file, item.page);
+                            var ready = clean.upright && !item.rectangle ? me.detectOrientation(worker, canvas) : Promise.resolve(0);
+                            return ready.then(function (quarter) {
+                                if (quarter) canvas = me.toCanvas(canvas, quarter);
+                                if ((clean.straighten && !item.rectangle) || clean.bw) canvas = me.cleanUp(canvas, {straighten: clean.straighten && !item.rectangle, bw: clean.bw});
+                                return worker.recognize(canvas, item.rectangle ? {rectangle: item.rectangle} : {}, {text: true, blocks: true, pdf: false});
+                            }).then(function (res) {
+                                if (lines.length) lines.push([]);
+                                Array.prototype.push.apply(lines, me.wordLines(res && res.data));
+                            });
+                        });
+                    });
+                    return chain.then(function () {
+                        worker.terminate();
+                        job.worker = null;
+                        dlg.setProgress(1);
+                        return lines;
+                    }, function (err) {
+                        worker.terminate();
+                        job.worker = null;
+                        throw err;
+                    });
+                });
+            });
+        },
+
+        // Tesseract's blocks as lines of words with their confidence, an empty line between paragraphs.
+        wordLines: function (data) {
+            var out = [];
+            ((data && data.blocks) || []).forEach(function (block) {
+                (block.paragraphs || []).forEach(function (para) {
+                    if (out.length) out.push([]);
+                    (para.lines || []).forEach(function (line) {
+                        var words = (line.words || []).filter(function (w) { return w.text && w.text.trim(); })
+                                                      .map(function (w) { return {text: w.text, confidence: w.confidence}; });
+                        if (words.length) out.push(words);
+                    });
+                });
+            });
+            return out;
+        },
+
+        // A page drawn at 300 dpi on a white canvas.
+        renderPage: function (file, n) {
+            var page = file.pages[n],
+                image = file.getPage(n, Math.round(page.W * 300 / page.Dpi), Math.round(page.H * 300 / page.Dpi), true, 0xFFFFFF);
+            if (!image) throw new Error('page ' + n + ' did not render');
+            return this.toCanvas(image, 0);
+        },
+
+        // An image file from this computer, drawn on a canvas.
+        pickImage: function () {
+            var me = this, native = window.AscDesktopEditor;
+            return new Promise(function (resolve, reject) {
+                native.OpenFilenameDialog('(*.png *.jpg *.jpeg *.bmp *.gif *.webp)', false, function (files) {
+                    var path = (Array.isArray(files) ? files : [files]).filter(function (f) { return !!f; })[0];
+                    if (!path) return reject(new Error('cancelled'));
+                    native.loadLocalFile(path, function (bytes) {
+                        if (!bytes || !bytes.length) return reject(new Error('could not read ' + path));
+                        createImageBitmap(new Blob([bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes)])).then(function (bmp) {
+                            resolve(me.toCanvas(bmp, 0));
+                        }, reject);
+                    });
                 });
             });
         },
