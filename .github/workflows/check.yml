@@ -102,6 +102,7 @@ jobs:
           for f in build/*.sh build/v10/*.sh build/linux/*.sh; do [ -f "$f" ] && bash -n "$f"; done
           shellcheck -S warning build/test-desktop-apps.sh build/v10/check-patches.sh build/linux/make-repos.sh
           node --check build/sign-edsig.mjs
+          node --test build/test/*.test.mjs
   markdownlint:
     runs-on: ubuntu-latest
     steps:

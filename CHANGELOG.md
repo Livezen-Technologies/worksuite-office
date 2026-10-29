@@ -1,5 +1,23 @@
 # Change log
 
+## 10.1.16
+
+### New features
+
+#### PDF editor
+
+* Recognise text (OCR) can clean up scans first: straighten tilted pages,
+  turn sideways and upside-down pages upright, and make pages black and
+  white with specks removed. Straightening and turning upright are on by
+  default
+
+### Fixes
+
+#### PDF editor
+
+* Recognised pages keep a sharper picture: colour pages are saved at a
+  higher JPEG quality than before, and black and white pages as PNG
+
 ## 10.1.15
 
 ### New features

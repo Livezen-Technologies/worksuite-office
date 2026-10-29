@@ -35,6 +35,10 @@ define([
                     '<div class="input-row"><label class="font-weight-bold">' + me.textPages + '</label></div>' +
                     '<div id="ws-ocr-pages-all" style="margin-bottom: 6px;"></div>' +
                     '<div id="ws-ocr-pages-current" style="margin-bottom: 12px;"></div>' +
+                    '<div class="input-row"><label class="font-weight-bold">' + me.textCleanUp + '</label></div>' +
+                    '<div id="ws-ocr-clean-straighten" style="margin-bottom: 6px;"></div>' +
+                    '<div id="ws-ocr-clean-upright" style="margin-bottom: 6px;"></div>' +
+                    '<div id="ws-ocr-clean-bw" style="margin-bottom: 12px;"></div>' +
                     '<div class="input-row"><label class="font-weight-bold">' + me.textThen + '</label></div>' +
                     '<div id="ws-ocr-then-searchable" style="margin-bottom: 6px;"></div>' +
                     '<div id="ws-ocr-then-word" style="margin-bottom: 6px;"></div>' +
@@ -68,6 +72,11 @@ define([
             this.rbPages = [['all', me.txtAllPages, true], ['current', me.txtCurrentPage, false]].map(function (p) {
                 return new Common.UI.RadioBox({el: $w.find('#ws-ocr-pages-' + p[0]), labelText: p[1], name: 'ws-ocr-pages', value: p[0], checked: p[2]});
             });
+            this.chClean = [['straighten', me.txtStraighten, true], ['upright', me.txtUpright, true], ['bw', me.txtBlackWhite, false]].map(function (c) {
+                var ch = new Common.UI.CheckBox({el: $w.find('#ws-ocr-clean-' + c[0]), labelText: c[1], value: c[0]});
+                ch.setValue(c[2]);
+                return ch;
+            });
             this.rbThen = [['searchable', me.txtSearchable, true], ['word', me.txtWord, false], ['pdfa', me.txtPdfa, false]].map(function (t) {
                 return new Common.UI.RadioBox({el: $w.find('#ws-ocr-then-' + t[0]), labelText: t[1], name: 'ws-ocr-then', value: t[0], checked: t[2]});
             });
@@ -81,7 +90,7 @@ define([
         },
 
         getFocusedComponents: function () {
-            return this.chLangs.concat(this.rbPages, this.rbThen);
+            return this.chLangs.concat(this.rbPages, this.chClean, this.rbThen);
         },
 
         getDefaultFocusableComponent: function () {
@@ -96,6 +105,10 @@ define([
                 langs: this.chLangs.filter(function (ch) { return ch.getValue() === 'checked' || ch.getValue() === true; })
                                    .map(function (ch) { return ch.options.value; }),
                 pages: pick(this.rbPages),
+                clean: this.chClean.reduce(function (o, ch) {
+                    o[ch.options.value] = ch.getValue() === 'checked' || ch.getValue() === true;
+                    return o;
+                }, {}),
                 then: pick(this.rbThen)
             };
         },
@@ -122,7 +135,7 @@ define([
             var settings = this.getSettings();
             if (!settings.langs.length) return;
             this.running = true;
-            this.chLangs.concat(this.rbPages, this.rbThen).forEach(function (c) { c.setDisabled(true); });
+            this.chLangs.concat(this.rbPages, this.chClean, this.rbThen).forEach(function (c) { c.setDisabled(true); });
             this.updateStart();
             this.$progress.show();
             this.setProgress(0, this.txtStarting);
@@ -159,6 +172,10 @@ define([
         textPages: 'Pages',
         txtAllPages: 'All pages',
         txtCurrentPage: 'Current page',
+        textCleanUp: 'Clean up scans',
+        txtStraighten: 'Straighten tilted pages',
+        txtUpright: 'Turn sideways and upside-down pages upright',
+        txtBlackWhite: 'Make pages black and white (crisper, smaller)',
         textThen: 'Then',
         txtSearchable: 'Make this PDF searchable',
         txtWord: 'Convert to Word',
