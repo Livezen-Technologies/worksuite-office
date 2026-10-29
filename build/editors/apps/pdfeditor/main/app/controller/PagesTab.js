@@ -15,9 +15,10 @@ define([
     'pdfeditor/main/app/view/PagesTab',
     'pdfeditor/main/app/view/PagesDialog',
     'pdfeditor/main/app/view/ProtectDialog',
+    'pdfeditor/main/app/view/StampDialog',
     'pdfeditor/main/app/controller/PageRanges',
     'pdfeditor/main/app/controller/LocalPdf'
-], function (core, view, dialog, protectDialog, PageRanges, LocalPdf) {
+], function (core, view, dialog, protectDialog, stampDialog, PageRanges, LocalPdf) {
     'use strict';
 
     // Must match desktop-apps common/loginpage/src/worksuite/pdf-tools.js
@@ -57,7 +58,9 @@ define([
                     'pages:duplicate': this.onDuplicate.bind(this),
                     'pages:extract': this.onExtract.bind(this),
                     'pages:split': this.onSplit.bind(this),
-                    'pages:protect': this.onProtect.bind(this)
+                    'pages:protect': this.onProtect.bind(this),
+                    'pages:stamp': this.onStamp.bind(this),
+                    'pages:images': this.onImages.bind(this)
                 }
             });
             // Registered after the Convert tab, at the same place: Pages comes just before Convert.
@@ -226,35 +229,65 @@ define([
             }}).show();
         },
 
-        // A protected copy next to the saved PDF, made by worksuite-ai; it opens in a new tab.
-        onProtect: function () {
-            var me = this, native = window.AscDesktopEditor, v = this.view;
-            if (!this.checkSaved()) return;
+        // The saved PDF on this computer, or null (with a message) when there is none.
+        localSource: function () {
+            var native = window.AscDesktopEditor;
+            if (!this.checkSaved()) return null;
             var source = native.LocalFileGetSourcePath ? native.LocalFileGetSourcePath() : '';
             if (!source || !/\.pdf$/i.test(source) || /^[a-z][a-z0-9+.-]*:\/\//i.test(source)) {
-                Common.UI.warning({msg: v.txtNotLocal});
-                return;
+                Common.UI.warning({msg: this.view.txtNotLocal});
+                return null;
             }
+            return source;
+        },
+
+        // Runs a worksuite-ai PDF job that writes a new PDF next to its input, then opens that PDF in a new tab.
+        runToNewPdf: function (op, body, doneMsg) {
+            var native = window.AscDesktopEditor, v = this.view, api = this.api;
+            api.sync_StartAction && api.sync_StartAction(Asc.c_oAscAsyncActionType.BlockInteraction, Asc.c_oAscAsyncAction.Waiting);
+            var end = function () {
+                api.sync_EndAction && api.sync_EndAction(Asc.c_oAscAsyncActionType.BlockInteraction, Asc.c_oAscAsyncAction.Waiting);
+            };
+            LocalPdf.run(op, body).then(function (result) {
+                end();
+                var name = result.file.replace(/^.*[\\\/]/, '');
+                Common.UI.info({msg: Common.Utils.String.format(doneMsg, Common.Utils.String.htmlEncode(name)), callback: function () {
+                    native.execCommand('open:recent', JSON.stringify({id: -1, path: result.file, name: name}));
+                }});
+            }, function (err) {
+                end();
+                if (err.code === 'service_unavailable' || err.code === 'forbidden_by_policy')
+                    Common.UI.warning({msg: v.txtNoService});
+                else
+                    Common.UI.warning({msg: Common.Utils.String.format(v.txtJobFailed, Common.Utils.String.htmlEncode(err.message || err.code))});
+            });
+        },
+
+        // A protected copy (AES-256) next to the saved PDF.
+        onProtect: function () {
+            var me = this, source = this.localSource();
+            if (!source) return;
             new PDFE.Views.ProtectDialog({onOk: function (options) {
-                var body = _.extend({path: source}, options);
-                me.api.sync_StartAction && me.api.sync_StartAction(Asc.c_oAscAsyncActionType.BlockInteraction, Asc.c_oAscAsyncAction.Waiting);
-                var end = function () {
-                    me.api.sync_EndAction && me.api.sync_EndAction(Asc.c_oAscAsyncActionType.BlockInteraction, Asc.c_oAscAsyncAction.Waiting);
-                };
-                LocalPdf.run('protect', body).then(function (result) {
-                    end();
-                    var name = result.file.replace(/^.*[\\\/]/, '');
-                    Common.UI.info({msg: Common.Utils.String.format(v.txtProtected, Common.Utils.String.htmlEncode(name)), callback: function () {
-                        native.execCommand('open:recent', JSON.stringify({id: -1, path: result.file, name: name}));
-                    }});
-                }, function (err) {
-                    end();
-                    if (err.code === 'service_unavailable' || err.code === 'forbidden_by_policy')
-                        Common.UI.warning({msg: v.txtNoService});
-                    else
-                        Common.UI.warning({msg: Common.Utils.String.format(v.txtProtectFailed, Common.Utils.String.htmlEncode(err.message || err.code))});
-                });
+                me.runToNewPdf('protect', _.extend({path: source}, options), me.view.txtProtected);
             }}).show();
+        },
+
+        // A copy with headers, footers, page numbers, Bates numbers and/or a watermark.
+        onStamp: function () {
+            var me = this, source = this.localSource();
+            if (!source) return;
+            new PDFE.Views.StampDialog({count: this.pagesCount(), onOk: function (body) {
+                me.runToNewPdf('stamp', _.extend({path: source}, body), me.view.txtStamped);
+            }}).show();
+        },
+
+        // A new PDF from PNG and JPEG images, one page each, saved next to the first image.
+        onImages: function () {
+            var me = this, native = window.AscDesktopEditor;
+            native.OpenFilenameDialog('(*.png *.jpg *.jpeg)', true, function (files) {
+                files = (Array.isArray(files) ? files : [files]).filter(function (f) { return !!f && /\.(png|jpe?g)$/i.test(f); });
+                if (files.length) me.runToNewPdf('images-to-pdf', {paths: files}, me.view.txtImagesDone);
+            });
         },
 
         // Extract and Split save from this PDF as it is on disk: unsaved changes would end up in the parts only.

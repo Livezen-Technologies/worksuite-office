@@ -32,7 +32,7 @@ import { mediaOf, pcmToWav, wavHeader } from "./audio";
 import { encode, resolveVoice, synthesize, voices } from "./tts";
 import { legacyDecode, legacyEncode, legacyFonts, segmentWords, sinhalaNormalize, sinhalaTransliterate, sinhalaValidate } from "./sinhala/routes";
 import { Priority } from "./scheduler";
-import { PDF_OPS, pdfInfo, pdfJob } from "./pdf/tools";
+import { PDF_OPS, pdfInfo, pdfJob, stampJob } from "./pdf/tools";
 
 export const API_VERSION = "1.4";
 export const SERVICE_VERSION = "1.0.0";
@@ -363,6 +363,10 @@ export class Service {
         return withStatus(202, { jobId: this.jobs.start(`pdf.${op}`, run).id });
       });
     }
+    r.post("/v1/pdf/stamp", async (c) => {
+      const run = stampJob(await c.body());
+      return withStatus(202, { jobId: this.jobs.start("pdf.stamp", run).id });
+    });
     r.post("/v1/pdf/info", async (c) => pdfInfo(await c.body()));
     r.delete("/v1/requests/:id", (c) => ({ id: c.params.id, cancelled: this.requests.cancel(c.params.id) }));
 
