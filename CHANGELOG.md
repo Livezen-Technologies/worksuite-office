@@ -2,6 +2,13 @@
 
 ## 10.1.11
 
+### New features
+
+#### Start page
+
+* Create New's PDF form card is now PDF editor: it opens a PDF from your
+  computer in the PDF editor
+
 ### Fixes
 
 #### Start page

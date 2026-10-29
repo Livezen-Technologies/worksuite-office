@@ -45,7 +45,7 @@ env:
   BUILD_TOOLS_REF: release/v9.4.0
   BUILD_TOOLS_SHA: cf4cac0846d03e2e00a6fec5d1ecd4e9463086d5
   # desktop-apps' v10 branch, the same commit as the Windows and Linux 10 builds
-  DESKTOP_APPS_REF: 2f7c27bfa50446bd4b59d1fd62cf47193010d9d8
+  DESKTOP_APPS_REF: 564dbb5fe9b1f0aed1e746197f52375fb47eb969
   PRODUCT_VERSION: 10.1.11
   COMPANY_NAME: WorkSuite
   UPDATE_CENTER: https://download.worksuitecloud.com
