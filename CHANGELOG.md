@@ -1,5 +1,46 @@
 # Change log
 
+## 10.1.10
+
+### New features
+
+#### Start page
+
+* One file explorer on Home: Recent, My Drive, Shared with me, Starred and
+  This computer are tabs of one list instead of two lists on top of each
+  other. Recent shows the files you opened on this computer together with
+  the files you recently opened in WorkSuite Drive, each once
+* One toolbar for every tab, which stays in view as you scroll: search, file
+  type, source, sort, list or grid, refresh, and New or Open file
+* Each tab keeps its own search, filters, sort, layout and scroll position,
+  and loads its files only when you open it
+* Create New has new single-colour icons on plain cards, five in a row when
+  there is room
+
+### Fixes
+
+#### Themes
+
+* The start page follows the app's theme everywhere: the navy and blue
+  backgrounds, selections, tabs and borders of Home, WorkSuite Drive,
+  Templates, Clouds and Settings are gone, in light, dark and custom themes
+* A theme change repaints the whole start page at once, and the start page
+  opens in the saved theme
+* Custom dark themes are treated as dark themes
+* Text and buttons pass the contrast check in the White, Night, Dark, Gray
+  and Contrast Dark themes
+
+#### Templates
+
+* Template pictures sit on plain theme surfaces and keep their own colours;
+  a template without a picture shows its document type, and pictures show a
+  placeholder while they load
+
+#### Settings
+
+* The Accounts panel, the WorkSuite settings menu, Add account and the
+  account badges use the theme's colours
+
 ## 10.1.9
 
 ### Fixes
