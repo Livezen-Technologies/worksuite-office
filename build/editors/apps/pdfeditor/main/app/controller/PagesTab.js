@@ -49,6 +49,7 @@ define([
             this.view = this.createView('PagesTab', {toolbar: toolbar, mode: config});
             this.addListeners({
                 'PagesTab': {
+                    'pages:merge': this.onMerge.bind(this),
                     'pages:insert': this.onInsert.bind(this),
                     'pages:replace': this.onReplace.bind(this),
                     'pages:duplicate': this.onDuplicate.bind(this),
@@ -170,7 +171,7 @@ define([
             }).catch(function (err) { me.failed(err); return false; });
         },
 
-        // Start page "Merge PDFs": add the other PDFs at the end, then save the result as a new PDF.
+        // Merge (the tab's button, or the start page's task): add the other PDFs at the end, then save the result as a new PDF.
         onMerge: function () {
             var me = this;
             Common.UI.info({msg: this.view.txtMergeChoose, callback: function () {
