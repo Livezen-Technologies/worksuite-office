@@ -32,7 +32,8 @@ import { mediaOf, pcmToWav, wavHeader } from "./audio";
 import { encode, resolveVoice, synthesize, voices } from "./tts";
 import { legacyDecode, legacyEncode, legacyFonts, segmentWords, sinhalaNormalize, sinhalaTransliterate, sinhalaValidate } from "./sinhala/routes";
 import { Priority } from "./scheduler";
-import { officeJob, PDF_OPS, pdfInfo, pdfJob, pptxJob, stampJob } from "./pdf/tools";
+import { layoutJob, officeJob, PDF_OPS, pdfInfo, pdfJob, pptxJob, signJob, stampJob, filePath, verifyPdf } from "./pdf/tools";
+import { VersionStore } from "./pdf/versions";
 
 export const API_VERSION = "1.4";
 export const SERVICE_VERSION = "1.0.0";
@@ -64,6 +65,7 @@ export class Service {
   readonly runtime: Runtime;
   readonly dict: Dictionaries;
   readonly text: TextService;
+  readonly versions: VersionStore;
   hardware: Hardware | null = null;
   policy: Policy = normalizePolicy(null);
   server: Server | null = null;
@@ -96,6 +98,7 @@ export class Service {
       hardware: () => this.hardware, fetcher: o.fetcher, env: this.env,
     });
     this.runtime = new Runtime(this.models, this.engines, this.jobs, this.events, () => this.policy);
+    this.versions = new VersionStore(join(o.dataDir, "versions"));
     this.dict = new Dictionaries(this.paths.dictionariesDir, o.fetcher);
     this.text = new TextService(this.dict, this.models, this.runtime, () => this.policy, this.diag, this.env);
     this.routes();
@@ -388,6 +391,30 @@ export class Service {
         return withStatus(202, { jobId: this.jobs.start("pdf.to-pptx", run).id });
       } catch (e) { drop(); throw e; }
     });
+    for (const op of ["crop", "resize"] as const) {
+      r.post(`/v1/pdf/${op}`, async (c) => {
+        const run = layoutJob(op, await c.body());
+        return withStatus(202, { jobId: this.jobs.start(`pdf.${op}`, run).id });
+      });
+    }
+    r.post("/v1/pdf/sign", async (c) => {
+      const run = signJob(await c.body());
+      return withStatus(202, { jobId: this.jobs.start("pdf.sign", run).id });
+    });
+    r.post("/v1/pdf/verify", async (c) => verifyPdf(await c.body()));
+
+    // local version history of files on this computer
+    const versioned = (v: unknown) => filePath(v, "path", /\.(pdf|docx|xlsx|pptx|odt|ods|odp)$/i);
+    r.get("/v1/versions", (c) => ({ versions: this.versions.list(versioned(c.query.get("path") || undefined)) }));
+    r.post("/v1/versions", async (c) => {
+      const b = await c.body<{ path?: unknown; note?: unknown }>();
+      return this.versions.snapshot(versioned(b.path), typeof b.note === "string" ? b.note : undefined);
+    });
+    r.post("/v1/versions/restore", async (c) => {
+      const b = await c.body<{ path?: unknown; id?: unknown }>();
+      return { file: this.versions.restore(versioned(b.path), str(b.id, "id")) };
+    });
+    r.delete("/v1/versions", (c) => ({ removed: this.versions.clear(versioned(c.query.get("path") || undefined)) }));
     r.post("/v1/pdf/info", async (c) => pdfInfo(await c.body()));
     r.delete("/v1/requests/:id", (c) => ({ id: c.params.id, cancelled: this.requests.cancel(c.params.id) }));
 
