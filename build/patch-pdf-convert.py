@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
-"""Adds the Convert tab to the PDF Editor, applied in CI before web-apps is built.
+"""Adds the Convert and Pages tabs to the PDF Editor, applied in CI before web-apps is built.
 
-Copies build/editors/ over web-apps (the tab's controller and view) and registers the
-controller in the PDF Editor's app.js and app_dev.js, after the Redact tab's. The tab
+Copies build/editors/ over web-apps (the tabs' controllers and views) and registers the
+controllers in the PDF Editor's app.js and app_dev.js, after the Redact tab's: Convert, then Pages.
+The Pages tab inserts, replaces, duplicates, extracts and splits pages, and runs the start page's
+Merge, Split and Extract pages tools. The tab
 converts the open PDF to Word, images, text, a web page or an e-book with the converter
 the editors already have,
 saves as PDF/A, and recognises the text of scanned pages (OCR, with the engine build/v10/ocr.sh ships
@@ -30,7 +32,9 @@ for src in sorted(p for p in overlay.rglob("*") if p.is_file()):
 # In the controllers list, and in the list of modules to load.
 REGISTER = (
     ("'RedactTab',", "'ConvertTab',"),
+    ("'ConvertTab',", "'PagesTab',"),
     ("'pdfeditor/main/app/controller/RedactTab',", "'pdfeditor/main/app/controller/ConvertTab',"),
+    ("'pdfeditor/main/app/controller/ConvertTab',", "'pdfeditor/main/app/controller/PagesTab',"),
 )
 for name in ("app.js", "app_dev.js"):
     path = root / "apps" / "pdfeditor" / "main" / name

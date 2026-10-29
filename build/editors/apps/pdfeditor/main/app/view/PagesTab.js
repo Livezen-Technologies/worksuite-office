@@ -1,0 +1,149 @@
+/*
+ * WorkSuite Office: the PDF Editor's Pages tab, its buttons.
+ *
+ * Copied into web-apps by build/patch-pdf-convert.py before the editors are built, like the rest of
+ * build/editors/. Licensed under the GNU AGPL v3, as the editors it becomes part of.
+ */
+
+define([
+    'common/main/lib/util/utils',
+    'common/main/lib/component/BaseView',
+    'common/main/lib/component/Layout'
+], function () {
+    'use strict';
+
+    // Pages drawn in the theme's icon colour, as on the Convert tab: <svg><use href="#btn-ws-pages-...">
+    var sheet = function (x, y) {
+        return '<path d="M' + x + ' ' + y + 'h8l3 3v11h-11z" fill="none" stroke="currentColor"/>';
+    };
+    var ICONS = {
+        'btn-ws-pages-insert':    sheet(5.5, 4.5) + '<path d="M20 15.5v8M16 19.5h8" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>',
+        'btn-ws-pages-replace':   sheet(5.5, 4.5) + '<path d="M17.5 17.5h6l-2-2M23.5 21.5h-6l2 2" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>',
+        'btn-ws-pages-extract':   sheet(5.5, 4.5) + '<path d="M17 20.5h7M21.5 18l2.5 2.5-2.5 2.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>',
+        'btn-ws-pages-split':     sheet(8.5, 3.5) + '<path d="M4.5 18.5h2M9 18.5h2M13.5 18.5h2M18 18.5h2M22.5 18.5h2" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>',
+        'btn-ws-pages-duplicate': sheet(9.5, 8.5) + '<path d="M6.5 19.5v-14h8" fill="none" stroke="currentColor"/>'
+    };
+    var STYLE =
+        '.panel[data-tab="wspages"] svg.icon { color: var(--icon-normal, #444); }' +
+        '.panel[data-tab="wspages"] .btn.disabled svg.icon { opacity: .4; }';
+
+    function addIcons() {
+        if (document.getElementById('ws-pages-icons')) return;
+        var symbols = '';
+        for (var id in ICONS)
+            symbols += '<symbol id="' + id + '" viewBox="0 0 28 28">' + ICONS[id] + '</symbol>';
+        var holder = document.createElement('div');
+        holder.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" id="ws-pages-icons" aria-hidden="true" ' +
+                           'style="position:absolute;width:0;height:0;overflow:hidden">' + symbols + '</svg>';
+        document.body.appendChild(holder.firstChild);
+        var style = document.createElement('style');
+        style.textContent = STYLE;
+        document.head.appendChild(style);
+    }
+
+    PDFE.Views.PagesTab = Common.UI.BaseView.extend(_.extend((function () {
+        var NAMES = ['insert', 'replace', 'duplicate', 'extract', 'split'];
+        var template =
+            '<section class="panel" data-tab="wspages" role="tabpanel">' +
+                '<div class="group">' +
+                    '<span class="btn-slot text x-huge" id="slot-btn-wspages-insert"></span>' +
+                    '<span class="btn-slot text x-huge" id="slot-btn-wspages-replace"></span>' +
+                    '<span class="btn-slot text x-huge" id="slot-btn-wspages-duplicate"></span>' +
+                '</div>' +
+                '<div class="separator long"></div>' +
+                '<div class="group">' +
+                    '<span class="btn-slot text x-huge" id="slot-btn-wspages-extract"></span>' +
+                    '<span class="btn-slot text x-huge" id="slot-btn-wspages-split"></span>' +
+                '</div>' +
+            '</section>';
+
+        return {
+            options: {},
+
+            initialize: function (options) {
+                Common.UI.BaseView.prototype.initialize.call(this);
+                this.toolbar = options.toolbar;
+                this.appConfig = options.mode;
+                addIcons();
+                var me = this, _set = Common.enumLock;
+                this.buttons = {};
+                this.lockedControls = NAMES.map(function (name) {
+                    return me.buttons[name] = new Common.UI.Button({
+                        cls: 'btn-toolbar x-huge icon-top',
+                        iconCls: 'svgicon btn-ws-pages-' + name,
+                        caption: me['cap_' + name],
+                        split: name === 'insert',
+                        menu: name === 'insert',
+                        lock: [_set.lostConnect, _set.disableOnStart],
+                        dataHint: '1',
+                        dataHintDirection: 'bottom',
+                        dataHintOffset: 'small'
+                    });
+                });
+                Common.UI.LayoutManager.addControls(this.lockedControls);
+                Common.Utils.lockControls(_set.disableOnStart, true, {array: this.lockedControls});
+            },
+
+            render: function (el) {
+                if (el) el.html(this.getPanel());
+                return this;
+            },
+
+            getPanel: function () {
+                this.$el = $(_.template(template)({}));
+                var $host = this.$el, me = this;
+                NAMES.forEach(function (name) {
+                    Common.Utils.injectComponent($host.find('#slot-btn-wspages-' + name), me.buttons[name]);
+                });
+                return this.$el;
+            },
+
+            onAppReady: function () {
+                var me = this, b = this.buttons;
+                b.insert.setMenu(new Common.UI.Menu({items: [
+                    {caption: me.txtInsertBefore, value: 'before'},
+                    {caption: me.txtInsertAfter, value: 'after'},
+                    {caption: me.txtInsertEnd, value: 'end'}
+                ]}).on('item:click', function (menu, item) { me.fireEvent('pages:insert', [item.value]); }));
+                b.insert.on('click', function () { me.fireEvent('pages:insert', ['after']); });
+                ['replace', 'duplicate', 'extract', 'split'].forEach(function (name) {
+                    b[name].on('click', function () { me.fireEvent('pages:' + name); });
+                });
+                NAMES.forEach(function (name) { b[name].updateHint(me['tip_' + name]); });
+            },
+
+            show: function () {
+                Common.UI.BaseView.prototype.show.call(this);
+                this.fireEvent('show', this);
+            },
+
+            getButtons: function (type) {
+                return type === undefined ? this.lockedControls : [];
+            },
+
+            SetDisabled: function (state) {
+                this.lockedControls.forEach(function (button) { button && button.setDisabled(state); });
+            },
+
+            textTab: 'Pages',
+            cap_insert: 'Insert from file',
+            tip_insert: 'Insert the pages of other PDFs',
+            txtInsertBefore: 'Before the current page',
+            txtInsertAfter: 'After the current page',
+            txtInsertEnd: 'At the end',
+            cap_replace: 'Replace',
+            tip_replace: 'Replace pages with the pages of another PDF',
+            cap_duplicate: 'Duplicate',
+            tip_duplicate: 'Duplicate the selected pages',
+            cap_extract: 'Extract',
+            tip_extract: 'Save pages as a new PDF',
+            cap_split: 'Split',
+            tip_split: 'Save this PDF as several PDFs, by page ranges or every N pages',
+            txtFailed: 'The pages could not be changed. The PDF may be protected with a password, or plugins may be turned off.',
+            txtSaveFirst: 'Save this PDF first. Extract and Split save parts of the PDF as it is saved.',
+            txtSavePart: 'Save part {0} of {1}. Choose its name in the next dialog.',
+            txtMergeChoose: 'Choose the PDFs to add after this one.',
+            txtMergeSave: 'The PDFs are merged. Save the result as a new PDF now? The original files are not changed.'
+        };
+    }()), PDFE.Views.PagesTab || {}));
+});
