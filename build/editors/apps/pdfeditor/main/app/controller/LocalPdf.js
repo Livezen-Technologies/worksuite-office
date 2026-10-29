@@ -20,7 +20,8 @@ define([], function () {
     }
 
     // The shell's answer to our request: {req, ok, port, token, base} or {req, ok:false, reason}.
-    function discover() {
+    // start: false asks only a service that is already running (nothing is launched for background work)
+    function discover(start) {
         if (cached) return Promise.resolve(cached);
         var native = window.AscDesktopEditor;
         if (!native || typeof native.execCommand !== 'function') return Promise.reject(LocalPdfError('service_unavailable'));
@@ -45,13 +46,13 @@ define([], function () {
                 if (window.on_native_message === listener) window.on_native_message = previous;
             };
             window.on_native_message = listener;
-            timer = setTimeout(function () { done(); reject(LocalPdfError('service_unavailable')); }, 25000);
-            native.execCommand(COMMAND, JSON.stringify({req: req, start: true}));
+            timer = setTimeout(function () { done(); reject(LocalPdfError('service_unavailable')); }, start === false ? 4000 : 25000);
+            native.execCommand(COMMAND, JSON.stringify({req: req, start: start !== false}));
         });
     }
 
-    function call(method, path, body) {
-        return discover().then(function (ep) {
+    function call(method, path, body, start) {
+        return discover(start).then(function (ep) {
             return fetch(ep.base + path, {
                 method: method,
                 headers: {'Authorization': 'Bearer ' + ep.token, 'Content-Type': 'application/json'},
@@ -114,5 +115,5 @@ define([], function () {
         });
     }
 
-    return {run: run, upload: upload, discover: discover};
+    return {run: run, upload: upload, call: call, discover: discover};
 });

@@ -11,6 +11,7 @@ import { fillForm, FormFormat, formatData, formatOf, parseData, readForm } from 
 import { pptx, xlsx } from "./office";
 import { pageTable } from "./tables";
 import { pageTexts } from "./text";
+import { Certificate, checkSignatures, FoundSignature, signPdf } from "./sign";
 
 export const PDF_OPS = ["merge", "split", "rotate", "protect", "unprotect", "images-to-pdf"] as const;
 export type PdfOp = (typeof PDF_OPS)[number];
@@ -443,4 +444,81 @@ export function pptxJob(source: string, pages: { file: string; widthPt: number; 
       for (const p of pages) rmSync(p.file, { force: true });
     }
   };
+}
+
+// ---- crop, resize, sign ----------------------------------------------------------------------------------
+
+const SIZES: Record<string, [number, number]> = { A3: [842, 1191], A4: [595, 842], A5: [420, 595], Letter: [612, 792], Legal: [612, 1008] };
+
+export function layoutJob(op: "crop" | "resize", raw: unknown): (job: JobControl) => Promise<PdfResult> {
+  const body = obj(raw, "body");
+  const path = filePath(body.path, "path", /\.pdf$/i);
+  const pw = password(body.password, "password");
+  let margins = { top: 0, right: 0, bottom: 0, left: 0 };
+  let size: [number, number] = [0, 0];
+  if (op === "crop") {
+    const m = obj(body.margins, "margins");
+    margins = { top: numberIn(m.top, "margins.top", 0, 2000, 0), right: numberIn(m.right, "margins.right", 0, 2000, 0),
+      bottom: numberIn(m.bottom, "margins.bottom", 0, 2000, 0), left: numberIn(m.left, "margins.left", 0, 2000, 0) };
+    if (!margins.top && !margins.right && !margins.bottom && !margins.left) throw new ApiError("bad_request", "Give a margin to crop");
+  } else if (typeof body.size === "string" && SIZES[body.size]) {
+    size = SIZES[body.size];
+  } else if (Array.isArray(body.size) && body.size.length === 2) {
+    size = [numberIn(body.size[0], "size[0]", 72, 14400, 0), numberIn(body.size[1], "size[1]", 72, 14400, 0)];
+  } else {
+    throw new ApiError("bad_request", `"size" must be ${Object.keys(SIZES).join(", ")} or [width, height] in points`);
+  }
+  return async () => {
+    const doc = await load(path, pw);
+    const pages = body.pages === undefined ? doc.getPageIndices().map((i) => i + 1) : pageList(body.pages, doc.getPageCount());
+    for (const n of pages) {
+      const page = doc.getPage(n - 1);
+      const box = page.getCropBox();
+      if (op === "crop") {
+        const w = box.width - margins.left - margins.right, h = box.height - margins.top - margins.bottom;
+        if (w < 36 || h < 36) throw new ApiError("bad_request", `The margins leave too little of page ${n}`);
+        // what shows is the crop box; the page keeps everything outside it
+        page.setCropBox(box.x + margins.left, box.y + margins.bottom, w, h);
+      } else {
+        // the content scaled to fit the new size, centred, keeping its proportions; sideways pages stay sideways
+        const landscape = page.getWidth() > page.getHeight();
+        const [W, H] = landscape && size[1] > size[0] ? [size[1], size[0]] : size;
+        const scale = Math.min(W / page.getWidth(), H / page.getHeight());
+        page.scaleContent(scale, scale);
+        page.setSize(W, H);
+        page.translateContent((W - box.width * scale) / 2 - box.x * scale, (H - box.height * scale) / 2 - box.y * scale);
+        page.setCropBox(0, 0, W, H);
+        page.setMediaBox(0, 0, W, H);
+      }
+    }
+    const out = outFor(body, path, op === "crop" ? " (cropped)" : " (resized)");
+    return { file: out, files: [out], contentType: "application/pdf", pages: await write(doc, out) };
+  };
+}
+
+export function signJob(raw: unknown): (job: JobControl) => Promise<FileResult & { signer: Certificate }> {
+  const body = obj(raw, "body");
+  const path = filePath(body.path, "path", /\.pdf$/i);
+  const certificate = filePath(body.certificate, "certificate", /\.(p12|pfx)$/i);
+  const pass = typeof body.certificatePassword === "string" ? body.certificatePassword : "";
+  const pw = password(body.password, "password");
+  const text = (v: unknown, name: string) => {
+    if (v === undefined || v === "") return undefined;
+    if (typeof v !== "string" || v.length > 200) throw new ApiError("bad_request", `"${name}" must be text of at most 200 characters`);
+    return v;
+  };
+  const visible = body.visiblePage === undefined ? undefined : { page: Math.floor(numberIn(body.visiblePage, "visiblePage", 1, 1e6, 1)) };
+  const opts = { reason: text(body.reason, "reason"), location: text(body.location, "location"), contact: text(body.contact, "contact"), visible };
+  return async () => {
+    const doc = await load(path, pw);
+    const { pdf, signer } = await signPdf(doc, input(certificate), pass, opts);
+    const out = outFor(body, path, " (signed)");
+    writeFileSync(out, pdf, { flag: "wx" });
+    return { file: out, files: [out], contentType: "application/pdf", signer };
+  };
+}
+
+export function verifyPdf(raw: unknown): { signatures: FoundSignature[] } {
+  const path = filePath(obj(raw, "body").path, "path", /\.pdf$/i);
+  return { signatures: checkSignatures(input(path)) };
 }

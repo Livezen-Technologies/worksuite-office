@@ -16,9 +16,10 @@ define([
     'pdfeditor/main/app/view/PagesDialog',
     'pdfeditor/main/app/view/ProtectDialog',
     'pdfeditor/main/app/view/StampDialog',
+    'pdfeditor/main/app/view/SignDialog',
     'pdfeditor/main/app/controller/PageRanges',
     'pdfeditor/main/app/controller/LocalPdf'
-], function (core, view, dialog, protectDialog, stampDialog, PageRanges, LocalPdf) {
+], function (core, view, dialog, protectDialog, stampDialog, signDialog, PageRanges, LocalPdf) {
     'use strict';
 
     // Must match desktop-apps common/loginpage/src/worksuite/pdf-tools.js
@@ -61,7 +62,10 @@ define([
                     'pages:protect': this.onProtect.bind(this),
                     'pages:stamp': this.onStamp.bind(this),
                     'pages:images': this.onImages.bind(this),
-                    'pages:formdata': this.onFormData.bind(this)
+                    'pages:formdata': this.onFormData.bind(this),
+                    'pages:sign': this.onSign.bind(this),
+                    'pages:pagesize': this.onPageSize.bind(this),
+                    'pages:versions': this.onVersions.bind(this)
                 }
             });
             // Registered after the Convert tab, at the same place: Pages comes just before Convert.
@@ -81,6 +85,7 @@ define([
             if (!this.view || this.ready) return;
             this.ready = true;
             Common.Utils.lockControls(Common.enumLock.disableOnStart, false, {array: this.view.lockedControls});
+            this.keepOpenedVersion();
             var task = this.takePendingTask();
             if (!task) return;
             var me = this;
@@ -252,7 +257,8 @@ define([
             LocalPdf.run(op, body).then(function (result) {
                 end();
                 var name = result.file.replace(/^.*[\\\/]/, ''),
-                    msg = Common.Utils.String.format(doneMsg, Common.Utils.String.htmlEncode(name));
+                    msg = Common.Utils.String.format(doneMsg, Common.Utils.String.htmlEncode(name),
+                                                     Common.Utils.String.htmlEncode(result.signer ? result.signer.name : ''));
                 if (result.unknown && result.unknown.length)
                     msg += '<br><br>' + Common.Utils.String.format(v.txtFormUnknown, Common.Utils.String.htmlEncode(result.unknown.join(', ')));
                 Common.UI.info({msg: msg, callback: function () {
@@ -300,6 +306,79 @@ define([
                 return;
             }
             this.runToNewPdf('form-export', {path: source, format: action}, v.txtFormExported, false);
+        },
+
+        // Sign a copy with a certificate file, or list the signatures of this PDF and whether they still hold.
+        onSign: function (action) {
+            var me = this, v = this.view, source = this.localSource();
+            if (!source) return;
+            if (action === 'sign') {
+                new PDFE.Views.SignDialog({page: this.currentPage() + 1, onOk: function (opts) {
+                    me.runToNewPdf('sign', _.extend({path: source}, opts), v.txtSigned);
+                }}).show();
+                return;
+            }
+            LocalPdf.call('POST', '/pdf/verify', {path: source}).then(function (res) {
+                var enc = Common.Utils.String.htmlEncode, sigs = res.signatures || [];
+                if (!sigs.length) return Common.UI.info({msg: v.txtNoSignatures});
+                var lines = sigs.map(function (s) {
+                    var when = s.signedAt ? ' (' + new Date(s.signedAt).toLocaleString() + ')' : '';
+                    var msg = !s.intact ? v.txtSignatureBroken : s.coversWholeFile ? v.txtSignatureOk : v.txtSignatureLater;
+                    return Common.Utils.String.format(msg, s.field, enc(s.signer), enc(when));
+                });
+                (sigs.every(function (s) { return s.intact; }) ? Common.UI.info : Common.UI.warning)({msg: lines.join('<br><br>') + '<br><br>' + v.txtSignatureTrust});
+            }, function (err) {
+                Common.UI.warning({msg: err.code === 'service_unavailable' || err.code === 'forbidden_by_policy' ? v.txtNoService :
+                    Common.Utils.String.format(v.txtJobFailed, Common.Utils.String.htmlEncode(err.message || err.code))});
+            });
+        },
+
+        // Crop margins (a dialog) or resize every page to a paper size.
+        onPageSize: function (action) {
+            var me = this, v = this.view, source = this.localSource();
+            if (!source) return;
+            if (action === 'crop') {
+                new PDFE.Views.CropDialog({onOk: function (margins) {
+                    me.runToNewPdf('crop', {path: source, margins: margins}, v.txtCropped);
+                }}).show();
+                return;
+            }
+            this.runToNewPdf('resize', {path: source, size: action}, v.txtResized);
+        },
+
+        // Keep a version now, or list the kept ones and open one (as a copy next to the PDF).
+        onVersions: function (action) {
+            var v = this.view, source = this.localSource(), native = window.AscDesktopEditor;
+            if (!source) return;
+            var failed = function (err) {
+                Common.UI.warning({msg: err.code === 'service_unavailable' || err.code === 'forbidden_by_policy' ? v.txtNoService :
+                    Common.Utils.String.format(v.txtJobFailed, Common.Utils.String.htmlEncode(err.message || err.code))});
+            };
+            if (action === 'save') {
+                LocalPdf.call('POST', '/versions', {path: source}).then(function (res) {
+                    Common.UI.info({msg: res.created ? v.txtVersionSaved : v.txtVersionSame});
+                }, failed);
+                return;
+            }
+            LocalPdf.call('GET', '/versions?path=' + encodeURIComponent(source)).then(function (res) {
+                new PDFE.Views.VersionsDialog({versions: res.versions, onOpen: function (id) {
+                    LocalPdf.call('POST', '/versions/restore', {path: source, id: id}).then(function (r) {
+                        var name = r.file.replace(/^.*[\\\/]/, '');
+                        Common.UI.info({msg: Common.Utils.String.format(v.txtVersionOpened, Common.Utils.String.htmlEncode(name)), callback: function () {
+                            native.execCommand('open:recent', JSON.stringify({id: -1, path: r.file, name: name}));
+                        }});
+                    }, failed);
+                }}).show();
+            }, failed);
+        },
+
+        // A version of the PDF as opened, kept quietly when the Local AI service is already running (one per
+        // distinct content: opening an unchanged PDF again keeps nothing new).
+        keepOpenedVersion: function () {
+            var native = window.AscDesktopEditor,
+                source = native && native.LocalFileGetSourcePath ? native.LocalFileGetSourcePath() : '';
+            if (!source || !/\.pdf$/i.test(source) || /^[a-z][a-z0-9+.-]*:\/\//i.test(source)) return;
+            LocalPdf.call('POST', '/versions', {path: source, note: this.view.txtVersionOnOpen}, false).catch(function () { /* no service: no version */ });
         },
 
         // A new PDF from PNG and JPEG images, one page each, saved next to the first image.

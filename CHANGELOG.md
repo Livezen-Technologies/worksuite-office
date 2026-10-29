@@ -1,5 +1,25 @@
 # Change log
 
+## 10.1.18
+
+### New features
+
+#### PDF editor
+
+* Sign: sign a copy of a PDF with a certificate file (.p12 or .pfx), with an
+  optional signature box on the page, and check the signatures of a PDF:
+  whether it has changed since it was signed
+* Page size: crop page margins, or resize every page to A4, Letter, A3, A5
+  or Legal
+* Versions: a version of each PDF is kept on this computer when it is opened
+  with changes, and on request; Version history opens an earlier one as a
+  copy
+
+#### Local AI service
+
+* PDF signing and signature checks, crop and resize, and a local version
+  history of files
+
 ## 10.1.17
 
 ### New features
