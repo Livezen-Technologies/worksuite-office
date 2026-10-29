@@ -1,5 +1,33 @@
 # Change log
 
+## 10.1.12
+
+### New features
+
+#### PDF editor
+
+* A new Pages tab: insert the pages of other PDFs before or after the
+  current page or at the end, replace pages with the pages of another PDF,
+  duplicate the selected pages, extract pages to a new PDF, and split the
+  PDF into several PDFs by page ranges or every N pages. Dragging page
+  thumbnails still reorders pages
+* Extract and Split ask where to save each new PDF, then open the original
+  PDF again, unchanged
+
+#### Start page
+
+* PDF tools on Home: Merge PDFs, Split PDF and Extract pages. Each one opens
+  a PDF in the PDF editor and goes straight to the tool. The Merge, Split
+  and Extract pages cards of AI Tools do the same instead of asking the AI
+  chat
+
+### Fixes
+
+#### Start page
+
+* The Merge, Split and Extract pages cards no longer send a request to the
+  AI chat, which could not change PDF files
+
 ## 10.1.11
 
 ### New features
