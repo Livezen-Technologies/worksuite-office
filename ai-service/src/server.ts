@@ -32,7 +32,7 @@ import { mediaOf, pcmToWav, wavHeader } from "./audio";
 import { encode, resolveVoice, synthesize, voices } from "./tts";
 import { legacyDecode, legacyEncode, legacyFonts, segmentWords, sinhalaNormalize, sinhalaTransliterate, sinhalaValidate } from "./sinhala/routes";
 import { Priority } from "./scheduler";
-import { PDF_OPS, pdfInfo, pdfJob, stampJob } from "./pdf/tools";
+import { officeJob, PDF_OPS, pdfInfo, pdfJob, pptxJob, stampJob } from "./pdf/tools";
 
 export const API_VERSION = "1.4";
 export const SERVICE_VERSION = "1.0.0";
@@ -366,6 +366,27 @@ export class Service {
     r.post("/v1/pdf/stamp", async (c) => {
       const run = stampJob(await c.body());
       return withStatus(202, { jobId: this.jobs.start("pdf.stamp", run).id });
+    });
+    for (const op of ["to-xlsx", "form-export", "form-fill", "flatten"] as const) {
+      r.post(`/v1/pdf/${op}`, async (c) => {
+        const run = officeJob(op, await c.body());
+        return withStatus(202, { jobId: this.jobs.start(`pdf.${op}`, run).id });
+      });
+    }
+    // multipart: "options" {path, pages:[{widthPt, heightPt}]} and one picture per page, in order
+    r.post("/v1/pdf/to-pptx", async (c) => {
+      const { files, fields } = await parseMultipart(c.req, join(this.paths.cacheDir, "uploads"), 64 * 1024 ** 2, 2000);
+      const drop = () => { for (const f of files) rmSync(f.path, { force: true }); };
+      let opts: { path?: unknown; pages?: { widthPt?: unknown; heightPt?: unknown }[] };
+      try { opts = JSON.parse(fields.options || "{}"); } catch { drop(); throw new ApiError("bad_request", "options is not JSON"); }
+      const sizes = Array.isArray(opts.pages) ? opts.pages : [];
+      if (sizes.length !== files.length) { drop(); throw new ApiError("bad_request", "Send one page size per picture"); }
+      try {
+        const run = pptxJob(String(opts.path ?? ""), files.map((f, i) => ({
+          file: f.path, widthPt: num(sizes[i].widthPt, "widthPt", 612, 36, 14400), heightPt: num(sizes[i].heightPt, "heightPt", 792, 36, 14400),
+        })));
+        return withStatus(202, { jobId: this.jobs.start("pdf.to-pptx", run).id });
+      } catch (e) { drop(); throw e; }
     });
     r.post("/v1/pdf/info", async (c) => pdfInfo(await c.body()));
     r.delete("/v1/requests/:id", (c) => ({ id: c.params.id, cancelled: this.requests.cancel(c.params.id) }));

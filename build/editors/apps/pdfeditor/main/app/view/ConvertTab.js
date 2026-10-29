@@ -23,6 +23,8 @@ define([
     var white = 'fill="none" stroke="#fff" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"';
     var ICONS = {
         'btn-ws-convert-word':  page + badge('#2b579a') + '<path d="M14.5 16.5l1.8 5.5 2.7-4.5 2.7 4.5 1.8-5.5" ' + white + '/>',
+        'btn-ws-convert-xlsx':  page + badge('#1d6f42') + '<path d="M15 16.5l4 5M19 16.5l-4 5M21 16.5v5h2.5" ' + white + '/>',
+        'btn-ws-convert-pptx':  page + badge('#c43e1c') + '<path d="M15.5 22v-5.5h2.2a1.7 1.7 0 010 3.4h-2.2M20.5 16.5h3.5v4h-3.5z" ' + white + '/>',
         'btn-ws-convert-image': page + badge('#7a4fbf') + '<path d="M14 22.5l3.5-4 2.5 2.5 1.5-1.5 2.5 3" ' + white + '/>' +
                                 '<circle cx="21.5" cy="16.8" r="1.1" fill="#fff"/>',
         'btn-ws-convert-text':  page + badge('#5c6b7a') + '<path d="M14.5 16.5h9M14.5 19h9M14.5 21.5h6" ' + white + '/>',
@@ -56,6 +58,8 @@ define([
             '<section class="panel" data-tab="convert" role="tabpanel">' +
                 '<div class="group">' +
                     '<span class="btn-slot text x-huge" id="slot-btn-convert-word"></span>' +
+                    '<span class="btn-slot text x-huge" id="slot-btn-convert-xlsx"></span>' +
+                    '<span class="btn-slot text x-huge" id="slot-btn-convert-pptx"></span>' +
                 '</div>' +
                 '<div class="separator long"></div>' +
                 '<div class="group">' +
@@ -138,6 +142,18 @@ define([
                     });
                     this.lockedControls.push(this.btnOcr);
                 }
+                // Excel and PowerPoint: made by worksuite-ai on this computer (controller/LocalPdf.js)
+                if (this.appConfig && this.appConfig.isDesktopApp) {
+                    this.btnXlsx = new Common.UI.Button({
+                        cls: 'btn-toolbar x-huge icon-top', iconCls: 'svgicon btn-ws-convert-xlsx', caption: me.capXlsx,
+                        lock: [_set.lostConnect, _set.disableOnStart], dataHint: '1', dataHintDirection: 'bottom', dataHintOffset: 'small'
+                    });
+                    this.btnPptx = new Common.UI.Button({
+                        cls: 'btn-toolbar x-huge icon-top', iconCls: 'svgicon btn-ws-convert-pptx', caption: me.capPptx,
+                        lock: [_set.lostConnect, _set.disableOnStart], dataHint: '1', dataHintDirection: 'bottom', dataHintOffset: 'small'
+                    });
+                    this.lockedControls.push(this.btnXlsx, this.btnPptx);
+                }
                 // PDF/A: the converter writes PDF/A-2 (core's PdfWriter in PDF/A mode)
                 if (Asc.c_oAscFileType.PDFA !== undefined) {
                     this.btnPdfa = new Common.UI.Button({
@@ -178,6 +194,8 @@ define([
                 this.formatButtons.forEach(function (btn) {
                     Common.Utils.injectComponent($host.find(btn.convertSlot), btn);
                 });
+                this.btnXlsx ? Common.Utils.injectComponent($host.find('#slot-btn-convert-xlsx'), this.btnXlsx) : $host.find('#slot-btn-convert-xlsx').remove();
+                this.btnPptx ? Common.Utils.injectComponent($host.find('#slot-btn-convert-pptx'), this.btnPptx) : $host.find('#slot-btn-convert-pptx').remove();
                 var $ocrGroup = $host.find('#slot-btn-convert-ocr').closest('.group');
                 if (!this.btnOcr && !this.btnPdfa) $ocrGroup.next('.separator').addBack().remove();
                 this.btnOcr ? Common.Utils.injectComponent($host.find('#slot-btn-convert-ocr'), this.btnOcr) : $host.find('#slot-btn-convert-ocr').remove();
@@ -201,6 +219,10 @@ define([
                     });
                     btn.updateHint(btn.convertHint);
                 });
+                this.btnXlsx && this.btnXlsx.on('click', function () { me.fireEvent('convert:xlsx'); });
+                this.btnXlsx && this.btnXlsx.updateHint(this.tipXlsx);
+                this.btnPptx && this.btnPptx.on('click', function () { me.fireEvent('convert:pptx'); });
+                this.btnPptx && this.btnPptx.updateHint(this.tipPptx);
                 this.btnOcr && this.btnOcr.on('click', function () {
                     me.fireEvent('convert:ocr');
                 });
@@ -241,6 +263,16 @@ define([
             tipHtml: 'Convert to a web page (HTML)',
             capEbook: 'E-book',
             tipEbook: 'Convert to an e-book',
+            capXlsx: 'Excel',
+            tipXlsx: 'Convert to an Excel workbook: tables become rows and columns, one sheet per page',
+            capPptx: 'PowerPoint',
+            tipPptx: 'Convert to a PowerPoint presentation, one slide per page',
+            txtSaveFirst: 'Save this PDF to your computer first.',
+            txtConverting: 'Converting…',
+            txtConverted: 'Saved as {0}, next to this PDF. It opens in a new tab.',
+            txtNoText: 'This PDF has no text to put in a spreadsheet. Recognise its text first (Recognise text), then convert again.',
+            txtNoService: 'This needs the WorkSuite Local AI service, which is not running or is turned off by your organization.',
+            txtFailed: 'The PDF could not be converted: {0}',
             capOcr: 'Recognise text',
             tipOcr: 'Recognise the text of scanned pages (OCR), on this computer',
             capPdfa: 'PDF/A',

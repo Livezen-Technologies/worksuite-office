@@ -8,7 +8,7 @@ import { ApiError } from "./errors";
 
 export interface Upload { field: string; path: string; filename: string; mime: string; size: number }
 
-export function parseMultipart(req: IncomingMessage, dir: string, maxBytes: number): Promise<{ files: Upload[]; fields: Record<string, string> }> {
+export function parseMultipart(req: IncomingMessage, dir: string, maxBytes: number, maxFiles = 2): Promise<{ files: Upload[]; fields: Record<string, string> }> {
   if (!/^multipart\/form-data/i.test(req.headers["content-type"] || "")) return Promise.reject(new ApiError("unsupported_media", "Expected multipart/form-data"));
   mkdirSync(dir, { recursive: true, mode: 0o700 });
   return new Promise((resolve, reject) => {
@@ -18,7 +18,7 @@ export function parseMultipart(req: IncomingMessage, dir: string, maxBytes: numb
     let failed: ApiError | null = null;
     let bb: ReturnType<typeof Busboy>;
     try {
-      bb = Busboy({ headers: req.headers, limits: { fileSize: maxBytes, files: 2, fields: 20, fieldSize: 1 << 20 } });
+      bb = Busboy({ headers: req.headers, limits: { fileSize: maxBytes, files: maxFiles, fields: 20, fieldSize: 1 << 20 } });
     } catch {
       reject(new ApiError("bad_request", "Malformed multipart body"));
       return;

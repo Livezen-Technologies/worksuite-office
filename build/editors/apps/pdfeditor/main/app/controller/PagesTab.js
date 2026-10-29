@@ -60,7 +60,8 @@ define([
                     'pages:split': this.onSplit.bind(this),
                     'pages:protect': this.onProtect.bind(this),
                     'pages:stamp': this.onStamp.bind(this),
-                    'pages:images': this.onImages.bind(this)
+                    'pages:images': this.onImages.bind(this),
+                    'pages:formdata': this.onFormData.bind(this)
                 }
             });
             // Registered after the Convert tab, at the same place: Pages comes just before Convert.
@@ -242,7 +243,7 @@ define([
         },
 
         // Runs a worksuite-ai PDF job that writes a new PDF next to its input, then opens that PDF in a new tab.
-        runToNewPdf: function (op, body, doneMsg) {
+        runToNewPdf: function (op, body, doneMsg, open) {
             var native = window.AscDesktopEditor, v = this.view, api = this.api;
             api.sync_StartAction && api.sync_StartAction(Asc.c_oAscAsyncActionType.BlockInteraction, Asc.c_oAscAsyncAction.Waiting);
             var end = function () {
@@ -250,14 +251,19 @@ define([
             };
             LocalPdf.run(op, body).then(function (result) {
                 end();
-                var name = result.file.replace(/^.*[\\\/]/, '');
-                Common.UI.info({msg: Common.Utils.String.format(doneMsg, Common.Utils.String.htmlEncode(name)), callback: function () {
-                    native.execCommand('open:recent', JSON.stringify({id: -1, path: result.file, name: name}));
+                var name = result.file.replace(/^.*[\\\/]/, ''),
+                    msg = Common.Utils.String.format(doneMsg, Common.Utils.String.htmlEncode(name));
+                if (result.unknown && result.unknown.length)
+                    msg += '<br><br>' + Common.Utils.String.format(v.txtFormUnknown, Common.Utils.String.htmlEncode(result.unknown.join(', ')));
+                Common.UI.info({msg: msg, callback: function () {
+                    open !== false && native.execCommand('open:recent', JSON.stringify({id: -1, path: result.file, name: name}));
                 }});
             }, function (err) {
                 end();
                 if (err.code === 'service_unavailable' || err.code === 'forbidden_by_policy')
                     Common.UI.warning({msg: v.txtNoService});
+                else if (err.detail && err.detail.reason === 'no_fields')
+                    Common.UI.warning({msg: v.txtNoFields});
                 else
                     Common.UI.warning({msg: Common.Utils.String.format(v.txtJobFailed, Common.Utils.String.htmlEncode(err.message || err.code))});
             });
@@ -279,6 +285,21 @@ define([
             new PDFE.Views.StampDialog({count: this.pagesCount(), onOk: function (body) {
                 me.runToNewPdf('stamp', _.extend({path: source}, body), me.view.txtStamped);
             }}).show();
+        },
+
+        // Form data: fill from a JSON/CSV/XFDF file, save the answers in one of those, or flatten the form.
+        onFormData: function (action) {
+            var me = this, source = this.localSource(), v = this.view;
+            if (!source) return;
+            if (action === 'flatten') return this.runToNewPdf('flatten', {path: source}, v.txtFlattened);
+            if (action === 'import') {
+                window.AscDesktopEditor.OpenFilenameDialog('(*.json *.csv *.xfdf)', false, function (files) {
+                    var file = (Array.isArray(files) ? files : [files]).filter(function (f) { return !!f; })[0];
+                    if (file) me.runToNewPdf('form-fill', {path: source, dataPath: file}, v.txtFormFilled);
+                });
+                return;
+            }
+            this.runToNewPdf('form-export', {path: source, format: action}, v.txtFormExported, false);
         },
 
         // A new PDF from PNG and JPEG images, one page each, saved next to the first image.

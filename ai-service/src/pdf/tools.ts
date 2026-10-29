@@ -2,11 +2,15 @@
 // Pure JavaScript (@cantoo/pdf-lib, MIT): nothing to download, the same on every platform. Protect writes
 // AES-256 (ISO 32000-2) with the permissions asked for. Outputs never overwrite a file: a taken name gets " (2)".
 import { randomBytes } from "node:crypto";
-import { existsSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { basename, dirname, extname, isAbsolute, join } from "node:path";
 import { degrees, PDFDict, PDFDocument, PDFName, rgb, StandardFonts } from "@cantoo/pdf-lib";
 import { ApiError } from "../errors";
 import type { JobControl } from "../jobs";
+import { fillForm, FormFormat, formatData, formatOf, parseData, readForm } from "./forms";
+import { pptx, xlsx } from "./office";
+import { pageTable } from "./tables";
+import { pageTexts } from "./text";
 
 export const PDF_OPS = ["merge", "split", "rotate", "protect", "unprotect", "images-to-pdf"] as const;
 export type PdfOp = (typeof PDF_OPS)[number];
@@ -350,5 +354,93 @@ export function stampJob(raw: unknown): (job: JobControl) => Promise<PdfResult> 
     });
     const out = outFor(body, path, " (stamped)");
     return { file: out, files: [out], contentType: "application/pdf", pages: await write(doc, out) };
+  };
+}
+
+// ---- forms, Excel and PowerPoint -----------------------------------------------------------------------
+
+function freeFile(dir: string, stem: string, ext: string): string {
+  for (let i = 1; ; i++) {
+    const p = join(dir, `${stem}${i > 1 ? ` (${i})` : ""}.${ext}`);
+    if (!existsSync(p)) return p;
+  }
+}
+
+export interface FileResult { file: string; files: string[]; contentType: string; pages?: number; fields?: number; unknown?: string[] }
+
+export function officeJob(op: "to-xlsx" | "form-export" | "form-fill" | "flatten", raw: unknown): (job: JobControl) => Promise<FileResult | PdfResult> {
+  const body = obj(raw, "body");
+  const path = filePath(body.path, "path", /\.pdf$/i);
+  const pw = password(body.password, "password");
+  const stem = basename(path, extname(path));
+  switch (op) {
+    case "to-xlsx":
+      return async (job) => {
+        const bytes = input(path);
+        let pages;
+        try { pages = await pageTexts(new Uint8Array(bytes), pw); } catch (e) {
+          const msg = (e as Error).message || "";
+          if (/password/i.test(msg)) throw new ApiError("bad_request", "This PDF has a password", { path, reason: pw ? "password_incorrect" : "password_required" });
+          throw new ApiError("unsupported_media", "This file is not a PDF that can be read", { path });
+        }
+        job.progress(0.6, "finding tables");
+        const sheets = pages.map((p, i) => ({ name: `Page ${i + 1}`, rows: pageTable(p) }));
+        if (!sheets.some((s) => s.rows.length)) throw new ApiError("capability_unavailable", "This PDF has no text to put in a spreadsheet. Recognise its text (OCR) first.", { path, reason: "no_text" });
+        const out = freeFile(dirname(path), stem, "xlsx");
+        writeFileSync(out, xlsx(sheets), { flag: "wx" });
+        return { file: out, files: [out], contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", pages: pages.length };
+      };
+    case "form-export": {
+      const format = (body.format ?? "json") as FormFormat;
+      if (!["json", "csv", "xfdf"].includes(format)) throw new ApiError("bad_request", '"format" must be json, csv or xfdf');
+      return async () => {
+        const data = readForm(await load(path, pw));
+        if (!Object.keys(data).length) throw new ApiError("capability_unavailable", "This PDF has no form fields", { path, reason: "no_fields" });
+        const out = freeFile(dirname(path), stem, format);
+        writeFileSync(out, formatData(data, format), { flag: "wx" });
+        return { file: out, files: [out], contentType: { json: "application/json", csv: "text/csv", xfdf: "application/vnd.adobe.xfdf" }[format], fields: Object.keys(data).length };
+      };
+    }
+    case "form-fill": {
+      const dataPath = filePath(body.dataPath, "dataPath", /\.(json|csv|xfdf)$/i);
+      const flatten = body.flatten === true;
+      return async () => {
+        const doc = await load(path, pw);
+        if (!doc.getForm().getFields().length) throw new ApiError("capability_unavailable", "This PDF has no form fields", { path, reason: "no_fields" });
+        const { filled, unknown } = fillForm(doc, parseData(input(dataPath).toString("utf8"), formatOf(dataPath)));
+        if (flatten) doc.getForm().flatten();
+        const out = outFor(body, path, " (filled)");
+        return { file: out, files: [out], contentType: "application/pdf", pages: await write(doc, out), fields: filled, unknown };
+      };
+    }
+    case "flatten":
+      return async () => {
+        const doc = await load(path, pw);
+        if (!doc.getForm().getFields().length) throw new ApiError("capability_unavailable", "This PDF has no form fields", { path, reason: "no_fields" });
+        doc.getForm().flatten();
+        const out = outFor(body, path, " (flattened)");
+        return { file: out, files: [out], contentType: "application/pdf", pages: await write(doc, out) };
+      };
+  }
+}
+
+/** PowerPoint from page pictures the editor drew (PNG or JPEG files), one slide each, next to the PDF. */
+export function pptxJob(source: string, pages: { file: string; widthPt: number; heightPt: number }[]): (job: JobControl) => Promise<FileResult> {
+  const path = filePath(source, "path", /\.pdf$/i);
+  if (!pages.length) throw new ApiError("bad_request", "No pages were sent");
+  return async () => {
+    try {
+      const slides = pages.map((p) => {
+        const image = input(p.file);
+        const type = image[0] === 0x89 && image[1] === 0x50 ? "png" as const : image[0] === 0xff && image[1] === 0xd8 ? "jpeg" as const : null;
+        if (!type) throw new ApiError("unsupported_media", "A page picture is not PNG or JPEG");
+        return { image, type, widthPt: p.widthPt, heightPt: p.heightPt };
+      });
+      const out = freeFile(dirname(path), basename(path, extname(path)), "pptx");
+      writeFileSync(out, pptx(slides), { flag: "wx" });
+      return { file: out, files: [out], contentType: "application/vnd.openxmlformats-officedocument.presentationml.presentation", pages: slides.length };
+    } finally {
+      for (const p of pages) rmSync(p.file, { force: true });
+    }
   };
 }

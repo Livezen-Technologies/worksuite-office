@@ -1,5 +1,28 @@
 # Change log
 
+## 10.1.17
+
+### New features
+
+#### PDF editor
+
+* Convert to Excel: tables in the PDF become rows and columns, one sheet per
+  page, with amounts stored as numbers
+* Convert to PowerPoint: one slide per page
+* PDF Tools has a Form data button: fill a form from a JSON, CSV or XFDF
+  file, save a form's answers in one of those formats, or flatten the form
+  so its answers become part of the page
+
+#### Local AI service
+
+* PDF to Excel and PowerPoint, and form data export, fill and flatten
+
+### Fixes
+
+#### PDF editor
+
+* Spreadsheets and presentations can now be made from a PDF (PDF-02)
+
 ## 10.1.16
 
 ### New features

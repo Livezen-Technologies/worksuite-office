@@ -72,25 +72,47 @@ define([], function () {
         });
     }
 
-    // Starts a PDF job and resolves with its result ({file, files, pages}) when it is done.
-    function run(op, body, onProgress) {
-        return call('POST', '/pdf/' + op, body).then(function (started) {
-            return new Promise(function (resolve, reject) {
-                var poll = function () {
-                    call('GET', '/jobs/' + encodeURIComponent(started.jobId)).then(function (job) {
-                        if (job.state === 'done') return resolve(job.result);
-                        if (job.state === 'failed' || job.state === 'cancelled') {
-                            var err = job.error || {};
-                            return reject(LocalPdfError(err.code || job.state, err.message, err.detail));
-                        }
-                        onProgress && onProgress(job.progress || 0);
-                        setTimeout(poll, 250);
-                    }, reject);
-                };
-                poll();
-            });
+    // Polls a job until it ends; resolves with its result.
+    function wait(jobId, onProgress) {
+        return new Promise(function (resolve, reject) {
+            var poll = function () {
+                call('GET', '/jobs/' + encodeURIComponent(jobId)).then(function (job) {
+                    if (job.state === 'done') return resolve(job.result);
+                    if (job.state === 'failed' || job.state === 'cancelled') {
+                        var err = job.error || {};
+                        return reject(LocalPdfError(err.code || job.state, err.message, err.detail));
+                    }
+                    onProgress && onProgress(job.progress || 0);
+                    setTimeout(poll, 250);
+                }, reject);
+            };
+            poll();
         });
     }
 
-    return {run: run, discover: discover};
+    // Starts a PDF job and resolves with its result ({file, files, pages}) when it is done.
+    function run(op, body, onProgress) {
+        return call('POST', '/pdf/' + op, body).then(function (started) { return wait(started.jobId, onProgress); });
+    }
+
+    // As run, with files: a multipart body (FormData) instead of JSON.
+    function upload(op, form, onProgress) {
+        return discover().then(function (ep) {
+            return fetch(ep.base + '/pdf/' + op, {method: 'POST', headers: {'Authorization': 'Bearer ' + ep.token}, body: form})
+                .then(function (res) {
+                    return res.json().catch(function () { return {}; }).then(function (json) {
+                        if (!res.ok) {
+                            var err = (json && json.error) || {};
+                            throw LocalPdfError(err.code || 'internal', err.message, err.detail);
+                        }
+                        return wait(json.jobId, onProgress);
+                    });
+                }, function () {
+                    cached = null;
+                    throw LocalPdfError('service_unavailable');
+                });
+        });
+    }
+
+    return {run: run, upload: upload, discover: discover};
 });
