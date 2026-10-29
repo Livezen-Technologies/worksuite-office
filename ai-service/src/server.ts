@@ -32,8 +32,9 @@ import { mediaOf, pcmToWav, wavHeader } from "./audio";
 import { encode, resolveVoice, synthesize, voices } from "./tts";
 import { legacyDecode, legacyEncode, legacyFonts, segmentWords, sinhalaNormalize, sinhalaTransliterate, sinhalaValidate } from "./sinhala/routes";
 import { Priority } from "./scheduler";
+import { PDF_OPS, pdfInfo, pdfJob } from "./pdf/tools";
 
-export const API_VERSION = "1.3";
+export const API_VERSION = "1.4";
 export const SERVICE_VERSION = "1.0.0";
 
 export interface ServiceOptions {
@@ -258,7 +259,7 @@ export class Service {
     if (voicesNow.length) caps.push("tts");
     if (voicesNow.some((v) => v.lang === "si")) caps.push("tts.si");
     if (p.assistant && this.models.tryResolve("assistant")) caps.push("assistant");
-    caps.push("sinhala");
+    caps.push("sinhala", "pdf");
     return caps;
   }
 
@@ -355,6 +356,14 @@ export class Service {
       createReadStream(res.file).pipe(c.res);
       return RAW;
     });
+    // pdf: jobs on files on this computer; the result's file is the new PDF (files: every part of a split)
+    for (const op of PDF_OPS) {
+      r.post(`/v1/pdf/${op}`, async (c) => {
+        const run = pdfJob(op, await c.body());
+        return withStatus(202, { jobId: this.jobs.start(`pdf.${op}`, run).id });
+      });
+    }
+    r.post("/v1/pdf/info", async (c) => pdfInfo(await c.body()));
     r.delete("/v1/requests/:id", (c) => ({ id: c.params.id, cancelled: this.requests.cancel(c.params.id) }));
 
     // speech

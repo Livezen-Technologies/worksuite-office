@@ -22,7 +22,8 @@ define([
         'btn-ws-pages-replace':   sheet(5.5, 4.5) + '<path d="M17.5 17.5h6l-2-2M23.5 21.5h-6l2 2" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>',
         'btn-ws-pages-extract':   sheet(5.5, 4.5) + '<path d="M17 20.5h7M21.5 18l2.5 2.5-2.5 2.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>',
         'btn-ws-pages-split':     sheet(8.5, 3.5) + '<path d="M4.5 18.5h2M9 18.5h2M13.5 18.5h2M18 18.5h2M22.5 18.5h2" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>',
-        'btn-ws-pages-duplicate': sheet(9.5, 8.5) + '<path d="M6.5 19.5v-14h8" fill="none" stroke="currentColor"/>'
+        'btn-ws-pages-duplicate': sheet(9.5, 8.5) + '<path d="M6.5 19.5v-14h8" fill="none" stroke="currentColor"/>',
+        'btn-ws-pages-protect':   sheet(5.5, 4.5) + '<path d="M16.5 18.5h8v6h-8z" fill="none" stroke="currentColor"/><path d="M18.5 18.5v-2a2 2 0 0 1 4 0v2" fill="none" stroke="currentColor"/>'
     };
     var STYLE =
         '.panel[data-tab="wspages"] svg.icon { color: var(--icon-normal, #444); }' +
@@ -43,7 +44,7 @@ define([
     }
 
     PDFE.Views.PagesTab = Common.UI.BaseView.extend(_.extend((function () {
-        var NAMES = ['merge', 'insert', 'replace', 'duplicate', 'extract', 'split'];
+        var NAMES = ['merge', 'insert', 'replace', 'duplicate', 'extract', 'split', 'protect'];
         var template =
             '<section class="panel" data-tab="wspages" role="tabpanel">' +
                 '<div class="group">' +
@@ -59,6 +60,10 @@ define([
                 '<div class="group">' +
                     '<span class="btn-slot text x-huge" id="slot-btn-wspages-extract"></span>' +
                     '<span class="btn-slot text x-huge" id="slot-btn-wspages-split"></span>' +
+                '</div>' +
+                '<div class="separator long"></div>' +
+                '<div class="group">' +
+                    '<span class="btn-slot text x-huge" id="slot-btn-wspages-protect"></span>' +
                 '</div>' +
             '</section>';
 
@@ -111,7 +116,7 @@ define([
                     {caption: me.txtInsertEnd, value: 'end'}
                 ]}).on('item:click', function (menu, item) { me.fireEvent('pages:insert', [item.value]); }));
                 b.insert.on('click', function () { me.fireEvent('pages:insert', ['after']); });
-                ['merge', 'replace', 'duplicate', 'extract', 'split'].forEach(function (name) {
+                ['merge', 'replace', 'duplicate', 'extract', 'split', 'protect'].forEach(function (name) {
                     b[name].on('click', function () { me.fireEvent('pages:' + name); });
                 });
                 NAMES.forEach(function (name) { b[name].updateHint(me['tip_' + name]); });
@@ -146,8 +151,15 @@ define([
             tip_extract: 'Save pages as a new PDF',
             cap_split: 'Split',
             tip_split: 'Save this PDF as several PDFs, by page ranges or every N pages',
+            cap_protect: 'Protect',
+            tip_protect: 'Save a copy with a password to open it, or with printing, copying and changes restricted (AES-256)',
+            txtProtecting: 'Protecting the PDF…',
+            txtProtected: 'The protected copy is saved as {0}. It opens in a new tab.',
+            txtNoService: 'Protect needs the WorkSuite Local AI service, which is not running or is turned off by your organization.',
+            txtProtectFailed: 'The PDF could not be protected: {0}',
+            txtNotLocal: 'Protect works on PDFs saved on this computer. Save this PDF to a folder first.',
             txtFailed: 'The pages could not be changed. The PDF may be protected with a password, or plugins may be turned off.',
-            txtSaveFirst: 'Save this PDF first. Extract and Split save parts of the PDF as it is saved.',
+            txtSaveFirst: 'Save this PDF first. Extract, Split and Protect work on the PDF as it is saved.',
             txtSavePart: 'Save part {0} of {1}. Choose its name in the next dialog.',
             txtMergeChoose: 'Choose the PDFs to add after this one.',
             txtMergeSave: 'The PDFs are merged. Save the result as a new PDF now? The original files are not changed.'

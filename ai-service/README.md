@@ -61,7 +61,7 @@ from it, set `WS_AI_DEV=1`. That accepts unsigned and unapproved entries and rec
 - `hardware`, `policy`, `catalog`, `signing`, `manifest`, `download`, `tar`, `models`: model management.
 - `engines/`: process management and clients.
 - `scheduler` and `runtime`: priority queues and the LRU pool.
-- `speech/`, `text/`, `tts`, `sinhala/`.
+- `speech/`, `text/`, `tts`, `sinhala/`, `pdf/`.
 
 `catalog/catalog.json` is the built-in fallback catalog. `scripts/` holds the bundle, SEA, word-list and
 catalog-signing scripts. `packaging/` holds the macOS entitlements and optional LaunchAgent/systemd templates.
@@ -87,6 +87,7 @@ Data lives in `<data>/models/<id>/<version>/{manifest.json, files}`, plus `engin
 | tts | Real over Piper, one process per sentence. Sentence timings are measured; word timings are estimated by length. mp3/opus go through ffmpeg. Sinhala voices are gated (MOS ≥ 3.5). |
 | assistant | Real OpenAI-compatible proxy with streaming; `tools` is dropped (not in v1). |
 | sinhala/*, dictionaries | Real, wrapping `@worksuite/sinhala-core` (si → Singlish is a small romaniser in `src/sinhala/romanize.ts`). The org dictionary is pulled from policy `orgDictionaryUrl` (https only) every 6 h and cached. |
+| pdf/* | Real: merge, split, rotate, protect (AES-256 with permissions), unprotect and images to PDF as jobs on local files, through `@cantoo/pdf-lib` (MIT, pure JavaScript, about 1.2 MB of the bundle). Outputs never overwrite a file. The PDF editor's Protect button uses it. |
 | policy, privacy | Real. Policy is re-read every 60 s and pushed as an event. |
 | Cloud | The service never sends content anywhere. `allowCloud:true` is refused when policy turns cloud off; otherwise the work runs locally and the reply says `allowCloud:false`. Cloud stays the editor's existing providers. |
 

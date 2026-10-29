@@ -119,7 +119,7 @@ API version 1, base `http://127.0.0.1:{port}/v1`, JSON over HTTP plus one WebSoc
 
 | Item | Contract |
 | --- | --- |
-| Versioning | Path `/v1`; additive fields only within v1; `GET /v1/info` returns `{apiVersion:"1.3", serviceVersion, capabilities[]}` |
+| Versioning | Path `/v1`; additive fields only within v1; `GET /v1/info` returns `{apiVersion:"1.4", serviceVersion, capabilities[]}` |
 | Jobs | Long work returns `202 {jobId}`; `GET /v1/jobs/{id}` → \`{state: queued |
 | Events | `WS /v1/events` pushes `{type, jobId?, data}` for job progress, model state, policy change |
 | Errors | `{error:{code, message, detail?, retryable:boolean}}` with HTTP 4xx/5xx |
@@ -164,6 +164,7 @@ API version 1, base `http://127.0.0.1:{port}/v1`, JSON over HTTP plus one WebSoc
 - `POST /v1/sinhala/validate` `{text}` → `{valid, issues:[{start, end, code, message}]}`
 - `POST /v1/sinhala/legacy/encode` `{text, font:"FMAbhaya"}` → `{text, font, unmapped:[{start, end, char}]}`; `/legacy/decode` `{text, font}` → `{text, suggestedFont:"Noto Sans Sinhala"}`; `GET /v1/sinhala/legacy/fonts` → `[{id, family, encoding:"fm|dl|..."}]`
 - `POST /v1/sinhala/segment` `{text}` → `{words:[{start, end}]}`
+- `POST /v1/pdf/merge|split|rotate|protect|unprotect|images-to-pdf` (API 1.4) → 202 `{jobId}`; the job's result is `{file, files, contentType:"application/pdf", pages}` and `GET /v1/jobs/{id}/file` serves `file`. Bodies take absolute paths on this computer; outputs go next to the first input (or to `out`) and never overwrite a file (" (2)"). `merge` `{paths[≥2], out?}`; `split` `{path, parts:[[pages]] | every:N, password?}` (files " (part N).pdf"); `rotate` `{path, angle:90|180|270, pages?, out?, password?}`; `protect` `{path, userPassword?, ownerPassword?, permissions?:{printing:"none|low|high", copying, modifying, annotating, fillingForms, assembling}, out?, password?}` writes AES-256, permissions need `ownerPassword`; `unprotect` `{path, password, out?}`; `images-to-pdf` `{paths:[png|jpg], out?}`. A PDF with a password that was not given fails `bad_request` with `detail.reason` `password_required` or `password_incorrect`. `POST /v1/pdf/info` `{path, password?}` → `{pages|null, encrypted, size}`. Capability `pdf`; pure JavaScript (pdf-lib), nothing to download
 - Dictionaries: `GET/POST/DELETE /v1/dictionaries/personal/words`, `GET /v1/dictionaries` (personal, organization, built-in with versions)
 
 ### Translation and speech synthesis

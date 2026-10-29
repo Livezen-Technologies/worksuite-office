@@ -2,7 +2,7 @@
  * WorkSuite Office: the PDF Editor's Pages tab.
  *
  * Insert the pages of other PDFs, replace pages, duplicate them, extract them to a new PDF, and split the
- * PDF into several. All through the document builder the editors already have (ApiDocument.Merge, Split,
+ * PDF into several, and save a protected copy (AES-256, through worksuite-ai: controller/LocalPdf.js). All through the document builder the editors already have (ApiDocument.Merge, Split,
  * RemovePage, as a plugin would) and the desktop app's own file dialogs; dragging thumbnails still
  * reorders pages. The start page's Merge, Split and Extract pages tools (desktop-apps
  * common/loginpage/src/worksuite/pdf-tools.js) hand their task to this tab through localStorage.
@@ -14,8 +14,10 @@ define([
     'core',
     'pdfeditor/main/app/view/PagesTab',
     'pdfeditor/main/app/view/PagesDialog',
-    'pdfeditor/main/app/controller/PageRanges'
-], function (core, view, dialog, PageRanges) {
+    'pdfeditor/main/app/view/ProtectDialog',
+    'pdfeditor/main/app/controller/PageRanges',
+    'pdfeditor/main/app/controller/LocalPdf'
+], function (core, view, dialog, protectDialog, PageRanges, LocalPdf) {
     'use strict';
 
     // Must match desktop-apps common/loginpage/src/worksuite/pdf-tools.js
@@ -54,7 +56,8 @@ define([
                     'pages:replace': this.onReplace.bind(this),
                     'pages:duplicate': this.onDuplicate.bind(this),
                     'pages:extract': this.onExtract.bind(this),
-                    'pages:split': this.onSplit.bind(this)
+                    'pages:split': this.onSplit.bind(this),
+                    'pages:protect': this.onProtect.bind(this)
                 }
             });
             // Registered after the Convert tab, at the same place: Pages comes just before Convert.
@@ -220,6 +223,37 @@ define([
             if (!this.checkSaved()) return;
             new PDFE.Views.PagesDialog({mode: 'split', count: this.pagesCount(), onOk: function (parts) {
                 me.saveParts(parts);
+            }}).show();
+        },
+
+        // A protected copy next to the saved PDF, made by worksuite-ai; it opens in a new tab.
+        onProtect: function () {
+            var me = this, native = window.AscDesktopEditor, v = this.view;
+            if (!this.checkSaved()) return;
+            var source = native.LocalFileGetSourcePath ? native.LocalFileGetSourcePath() : '';
+            if (!source || !/\.pdf$/i.test(source) || /^[a-z][a-z0-9+.-]*:\/\//i.test(source)) {
+                Common.UI.warning({msg: v.txtNotLocal});
+                return;
+            }
+            new PDFE.Views.ProtectDialog({onOk: function (options) {
+                var body = _.extend({path: source}, options);
+                me.api.sync_StartAction && me.api.sync_StartAction(Asc.c_oAscAsyncActionType.BlockInteraction, Asc.c_oAscAsyncAction.Waiting);
+                var end = function () {
+                    me.api.sync_EndAction && me.api.sync_EndAction(Asc.c_oAscAsyncActionType.BlockInteraction, Asc.c_oAscAsyncAction.Waiting);
+                };
+                LocalPdf.run('protect', body).then(function (result) {
+                    end();
+                    var name = result.file.replace(/^.*[\\\/]/, '');
+                    Common.UI.info({msg: Common.Utils.String.format(v.txtProtected, Common.Utils.String.htmlEncode(name)), callback: function () {
+                        native.execCommand('open:recent', JSON.stringify({id: -1, path: result.file, name: name}));
+                    }});
+                }, function (err) {
+                    end();
+                    if (err.code === 'service_unavailable' || err.code === 'forbidden_by_policy')
+                        Common.UI.warning({msg: v.txtNoService});
+                    else
+                        Common.UI.warning({msg: Common.Utils.String.format(v.txtProtectFailed, Common.Utils.String.htmlEncode(err.message || err.code))});
+                });
             }}).show();
         },
 
