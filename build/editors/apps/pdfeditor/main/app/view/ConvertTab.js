@@ -281,6 +281,8 @@ define([
             txtOcrPage: 'Recognising page {0} of {1}…',
             txtOcrNothing: 'There were no scanned pages to recognise.',
             txtOcrFailed: 'The text could not be recognised.',
+            txtOcrNoText: 'No text was found there.',
+            txtOcrNoService: 'Adding languages needs the WorkSuite Local AI service, which is not running or is turned off by your organization.',
             capAll: 'All formats',
             tipAll: 'Choose any format in the Save as dialog',
             txtDocx: 'Word document (.docx)',
