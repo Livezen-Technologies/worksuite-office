@@ -10,7 +10,9 @@
 define([
     'common/main/lib/component/Window',
     'common/main/lib/component/InputField',
-    'common/main/lib/component/CheckBox'
+    'common/main/lib/component/CheckBox',
+    'common/main/lib/component/RadioBox',
+    'common/main/lib/component/ComboBox'
 ], function () {
     'use strict';
 
@@ -32,17 +34,24 @@ define([
     PDFE.Views.SignDialog = Common.UI.Window.extend(_.extend({
         options: {width: 420, header: true, style: 'min-width: 420px;', cls: 'modal-dlg ws-sign-dlg', buttons: null},
 
-        // options: page (current, 1-based), onOk({certificate, certificatePassword, reason, location, visiblePage?})
+        // options: page (current, 1-based), store ([{id, name, issuer, notAfter}] this computer's certificates, or null),
+        // onOk({certificate, certificatePassword | certificateId, certificateName; reason, location, visiblePage?})
         initialize: function (options) {
             var me = this;
             _.extend(this.options, {title: me.txtTitle}, options || {});
             this.options.tpl =
                 '<div class="box" style="padding: 0 4px;">' +
                     '<div class="input-row" style="margin-bottom: 10px;"><label class="light">' + me.txtIntro + '</label></div>' +
-                    '<div class="input-row" style="margin-bottom: 4px;"><label>' + me.txtCertificate + '</label></div>' +
-                    '<div style="display: flex; gap: 6px; margin-bottom: 10px;"><div id="ws-sign-cert" style="flex: 1;"></div>' +
-                        '<button class="btn btn-text-default" id="ws-sign-browse" style="min-width: 80px;">' + me.txtBrowse + '</button></div>' +
-                    row(me.txtPassword, 'ws-sign-pass') + row(me.txtReason, 'ws-sign-reason') + row(me.txtLocation, 'ws-sign-location') +
+                    (options && options.store ? '<div id="ws-sign-from-store" style="margin-bottom: 6px;"></div>' +
+                        '<div id="ws-sign-store" style="margin: 0 0 10px 22px;"></div>' +
+                        '<div id="ws-sign-from-file" style="margin-bottom: 6px;"></div>' : '') +
+                    '<div id="ws-sign-file-part"' + (options && options.store ? ' style="margin-left: 22px;"' : '') + '>' +
+                        '<div class="input-row" style="margin-bottom: 4px;"><label>' + me.txtCertificate + '</label></div>' +
+                        '<div style="display: flex; gap: 6px; margin-bottom: 10px;"><div id="ws-sign-cert" style="flex: 1;"></div>' +
+                            '<button class="btn btn-text-default" id="ws-sign-browse" style="min-width: 80px;">' + me.txtBrowse + '</button></div>' +
+                        row(me.txtPassword, 'ws-sign-pass') +
+                    '</div>' +
+                    row(me.txtReason, 'ws-sign-reason') + row(me.txtLocation, 'ws-sign-location') +
                     '<div id="ws-sign-visible" style="margin-bottom: 10px;"></div>' +
                     '<div class="input-row"><label class="light">' + me.txtNote + '</label></div>' +
                 '</div>' + footer(me.txtOk, me.textCancel);
@@ -53,7 +62,31 @@ define([
             Common.UI.Window.prototype.render.call(this);
             var me = this, $w = this.getChild();
             this.inCert = new Common.UI.InputField({el: $w.find('#ws-sign-cert'), style: 'width: 100%;', validateOnBlur: false, placeHolder: me.txtCertHint,
-                validation: function (v) { return /\.(p12|pfx)$/i.test(v) ? true : me.txtCertHint; }});
+                validation: function (v) { return me.fromStore() || /\.(p12|pfx)$/i.test(v) ? true : me.txtCertHint; }});
+            var store = this.options.store;
+            if (store) {
+                this.rbStore = new Common.UI.RadioBox({el: $w.find('#ws-sign-from-store'), labelText: me.txtFromStore, name: 'ws-sign-from', checked: store.length > 0});
+                this.rbFile = new Common.UI.RadioBox({el: $w.find('#ws-sign-from-file'), labelText: me.txtFromFile, name: 'ws-sign-from', checked: !store.length});
+                this.cmbStore = new Common.UI.ComboBox({
+                    el: $w.find('#ws-sign-store'), cls: 'input-group-nr', menuStyle: 'min-width: 100%;', editable: false, style: 'width: 100%;',
+                    data: store.length ? store.map(function (c) {
+                        var until = c.notAfter ? ' · ' + Common.Utils.String.format(me.txtUntil, new Date(c.notAfter).toLocaleDateString()) : '';
+                        return {value: c.id, displayValue: c.name + (c.issuer ? ' (' + c.issuer + ')' : '') + until, name: c.name};
+                    }) : [{value: '', displayValue: me.txtNoStoreCerts}]
+                });
+                this.cmbStore.setValue(store.length ? store[0].id : '');
+                if (!store.length) { this.rbStore.setDisabled(true); this.cmbStore.setDisabled(true); }
+                var sync = function () {
+                    var fromStore = me.fromStore();
+                    me.cmbStore.setDisabled(!fromStore || !store.length);
+                    me.inCert.setDisabled(fromStore);
+                    me.inPass.setDisabled(fromStore);
+                    $w.find('#ws-sign-browse').prop('disabled', fromStore);
+                };
+                this.rbStore.on('change', sync);
+                this.rbFile.on('change', sync);
+                this._sync = sync;
+            }
             this.inPass = new Common.UI.InputField({el: $w.find('#ws-sign-pass'), type: 'password', style: 'width: 100%;'});
             this.inReason = new Common.UI.InputField({el: $w.find('#ws-sign-reason'), style: 'width: 100%;', maxLength: 200, value: me.txtReasonDefault});
             this.inLocation = new Common.UI.InputField({el: $w.find('#ws-sign-location'), style: 'width: 100%;', maxLength: 200});
@@ -65,14 +98,27 @@ define([
                     if (f) me.inCert.setValue(f);
                 });
             });
-            this.focusable = [this.inCert, this.inPass, this.inReason, this.inLocation, this.chVisible];
+            this._sync && this._sync();
+            this.focusable = (this.rbStore ? [this.rbStore, this.cmbStore, this.rbFile] : []).concat([this.inCert, this.inPass, this.inReason, this.inLocation, this.chVisible]);
             $w.find('.dlg-btn').on('click', function (e) { e.currentTarget.attributes['result'].value === 'ok' ? me.submit() : me.close(); });
         },
 
+        fromStore: function () {
+            return !!(this.rbStore && this.rbStore.getValue() && this.options.store && this.options.store.length);
+        },
+
         submit: function () {
-            if (this.inCert.checkValidate() !== true) { this.inCert.focus(); return; }
-            var result = {certificate: this.inCert.getValue(), certificatePassword: this.inPass.getValue(),
-                          reason: this.inReason.getValue(), location: this.inLocation.getValue()};
+            var result;
+            if (this.fromStore()) {
+                var id = this.cmbStore.getValue(), pick = _.find(this.options.store, function (c) { return c.id === id; });
+                if (!pick) { this.cmbStore.focus(); return; }
+                result = {certificateId: pick.id, certificateName: pick.name};
+            } else {
+                if (this.inCert.checkValidate() !== true) { this.inCert.focus(); return; }
+                result = {certificate: this.inCert.getValue(), certificatePassword: this.inPass.getValue()};
+            }
+            result.reason = this.inReason.getValue();
+            result.location = this.inLocation.getValue();
             if (checked(this.chVisible)) result.visiblePage = this.options.page || 1;
             this.close();
             this.options.onOk && this.options.onOk(result);
@@ -84,6 +130,10 @@ define([
 
         txtTitle: 'Sign PDF',
         txtIntro: 'Sign a copy of this PDF with your digital certificate. Anyone can then check that it has not changed since.',
+        txtFromStore: 'A certificate on this computer (certificate store, keychain, smart card or token)',
+        txtFromFile: 'A certificate file',
+        txtNoStoreCerts: 'No certificates that can sign are on this computer',
+        txtUntil: 'valid until {0}',
         txtCertificate: 'Certificate file (.p12 or .pfx)',
         txtCertHint: 'Choose a .p12 or .pfx file',
         txtBrowse: 'Browse…',

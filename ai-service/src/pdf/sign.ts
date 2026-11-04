@@ -51,8 +51,11 @@ export function readP12(p12: Buffer, passphrase: string, now = new Date()): Cert
 export interface SignOptions { reason?: string; location?: string; contact?: string; visible?: { page: number } }
 
 /** The signed PDF. The document is saved without object streams so the placeholder can be found and filled. */
-export async function signPdf(doc: PDFDocument, p12: Buffer, passphrase: string, opts: SignOptions = {}, now = new Date()): Promise<{ pdf: Buffer; signer: Certificate }> {
-  const signer = readP12(p12, passphrase, now);
+/** Who signs: a certificate file with its password, or a signer that already knows its certificate (the computer's store). */
+export type SignWith = { p12: Buffer; passphrase: string } | { signer: { sign(data: Buffer): Promise<Buffer> }; certificate: Certificate };
+
+export async function signPdf(doc: PDFDocument, using: SignWith, opts: SignOptions = {}, now = new Date()): Promise<{ pdf: Buffer; signer: Certificate }> {
+  const signer = "p12" in using ? readP12(using.p12, using.passphrase, now) : using.certificate;
   const ctx = doc.context;
   const pages = doc.getPages();
   const pageIndex = opts.visible ? opts.visible.page - 1 : 0;
@@ -94,8 +97,28 @@ export async function signPdf(doc: PDFDocument, p12: Buffer, passphrase: string,
   acro.addField(widgetRef);
   acro.dict.set(PDFName.of("SigFlags"), PDFNumber.of(3));
   const unsigned = Buffer.from(await doc.save({ useObjectStreams: false }));
-  const pdf = await new SignPdf().sign(unsigned, new P12Signer(p12, { passphrase }), now);
-  return { pdf, signer };
+  const pdf = await new SignPdf().sign(unsigned, "p12" in using ? new P12Signer(using.p12, { passphrase: using.passphrase }) : using.signer, now);
+  // a store's signature names its own certificate: report that one
+  return { pdf, signer: "p12" in using ? signer : signerOf(pdf) ?? signer };
+}
+
+/** The signing certificate of a signed PDF's (last) signature, or null. */
+export function signerOf(pdf: Buffer): Certificate | null {
+  const text = pdf.toString("latin1");
+  const all = [...text.matchAll(/\/ByteRange\s*\[\s*(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s*\]/g)];
+  const m = all[all.length - 1];
+  if (!m) return null;
+  const [a, b, c] = m.slice(1).map(Number);
+  const hex = text.slice(a + b + 1, c - 1).replace(/0+$/, "");
+  try {
+    const msg = forge.pkcs7.messageFromAsn1(forge.asn1.fromDer(forge.util.createBuffer(Buffer.from(hex.length % 2 ? hex + "0" : hex, "hex").toString("binary")))) as forge.pkcs7.PkcsSignedData;
+    const cert = msg.certificates[0];
+    if (!cert) return null;
+    const email = cert.subject.attributes.find((x) => x.shortName === "E" || x.name === "emailAddress")?.value as string | undefined;
+    return { name: nameOf(cert.subject.attributes), ...(email ? { email } : {}), issuer: nameOf(cert.issuer.attributes), notBefore: cert.validity.notBefore.toISOString(), notAfter: cert.validity.notAfter.toISOString() };
+  } catch {
+    return null;
+  }
 }
 
 export interface FoundSignature { field: number; signer: string; signedAt?: string; reason?: string; intact: boolean; coversWholeFile: boolean }

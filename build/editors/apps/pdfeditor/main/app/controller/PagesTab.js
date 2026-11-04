@@ -313,9 +313,15 @@ define([
             var me = this, v = this.view, source = this.localSource();
             if (!source) return;
             if (action === 'sign') {
-                new PDFE.Views.SignDialog({page: this.currentPage() + 1, onOk: function (opts) {
-                    me.runToNewPdf('sign', _.extend({path: source}, opts), v.txtSigned);
-                }}).show();
+                // this computer's certificates, when it has a store (Windows, macOS); a file otherwise
+                var show = function (store) {
+                    new PDFE.Views.SignDialog({page: me.currentPage() + 1, store: store, onOk: function (opts) {
+                        me.runToNewPdf('sign', _.extend({path: source}, opts), v.txtSigned);
+                    }}).show();
+                };
+                LocalPdf.call('GET', '/pdf/certificates').then(function (r) {
+                    show(r && r.available ? (r.certificates || []) : null);
+                }, function () { show(null); });
                 return;
             }
             LocalPdf.call('POST', '/pdf/verify', {path: source}).then(function (res) {

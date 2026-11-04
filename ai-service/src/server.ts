@@ -34,6 +34,7 @@ import { legacyDecode, legacyEncode, legacyFonts, segmentWords, sinhalaNormalize
 import { Priority } from "./scheduler";
 import { layoutJob, officeJob, PDF_OPS, pdfInfo, pdfJob, pptxJob, signJob, stampJob, filePath, verifyPdf } from "./pdf/tools";
 import { VersionStore } from "./pdf/versions";
+import { listStoreCertificates, storeAvailable } from "./pdf/os-certs";
 import { OcrLanguages } from "./ocr/languages";
 
 export const API_VERSION = "1.4";
@@ -404,6 +405,8 @@ export class Service {
       const run = signJob(await c.body());
       return withStatus(202, { jobId: this.jobs.start("pdf.sign", run).id });
     });
+    // the certificates this computer may sign with (Windows store, macOS keychain); empty elsewhere
+    r.get("/v1/pdf/certificates", async () => ({ available: storeAvailable(), certificates: await listStoreCertificates() }));
     r.post("/v1/pdf/verify", async (c) => verifyPdf(await c.body()));
 
     // OCR languages beyond the ones the app ships: downloaded on request, read by the editor's tesseract.js
