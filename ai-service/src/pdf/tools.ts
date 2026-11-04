@@ -12,6 +12,7 @@ import { pptx, xlsx } from "./office";
 import { pageTable } from "./tables";
 import { pageTexts } from "./text";
 import { Certificate, checkSignatures, FoundSignature, signPdf } from "./sign";
+import { StoreSigner } from "./os-certs";
 
 export const PDF_OPS = ["merge", "split", "rotate", "protect", "unprotect", "images-to-pdf"] as const;
 export type PdfOp = (typeof PDF_OPS)[number];
@@ -499,8 +500,12 @@ export function layoutJob(op: "crop" | "resize", raw: unknown): (job: JobControl
 export function signJob(raw: unknown): (job: JobControl) => Promise<FileResult & { signer: Certificate }> {
   const body = obj(raw, "body");
   const path = filePath(body.path, "path", /\.pdf$/i);
-  const certificate = filePath(body.certificate, "certificate", /\.(p12|pfx)$/i);
+  // a certificate file (.p12/.pfx) and its password, or one of this computer's certificates by thumbprint
+  const fromStore = body.certificateId !== undefined;
+  const certificate = fromStore ? null : filePath(body.certificate, "certificate", /\.(p12|pfx)$/i);
   const pass = typeof body.certificatePassword === "string" ? body.certificatePassword : "";
+  const storeName = typeof body.certificateName === "string" ? body.certificateName.slice(0, 200) : "";
+  const storeSigner = fromStore ? new StoreSigner(String(body.certificateId), storeName) : null;
   const pw = password(body.password, "password");
   const text = (v: unknown, name: string) => {
     if (v === undefined || v === "") return undefined;
@@ -511,7 +516,10 @@ export function signJob(raw: unknown): (job: JobControl) => Promise<FileResult &
   const opts = { reason: text(body.reason, "reason"), location: text(body.location, "location"), contact: text(body.contact, "contact"), visible };
   return async () => {
     const doc = await load(path, pw);
-    const { pdf, signer } = await signPdf(doc, input(certificate), pass, opts);
+    const using = storeSigner
+      ? { signer: storeSigner, certificate: { name: storeName || "This computer's certificate", issuer: "", notBefore: "", notAfter: "" } }
+      : { p12: input(certificate!), passphrase: pass };
+    const { pdf, signer } = await signPdf(doc, using, opts);
     const out = outFor(body, path, " (signed)");
     writeFileSync(out, pdf, { flag: "wx" });
     return { file: out, files: [out], contentType: "application/pdf", signer };

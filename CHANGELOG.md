@@ -1,5 +1,21 @@
 # Change log
 
+## 10.1.20
+
+### New features
+
+#### PDF editor
+
+* Sign with a certificate on this computer: the Windows certificate store,
+  the macOS keychain, and smart cards or USB tokens through them, as well as
+  a certificate file. The card or token may ask for its PIN; the private key
+  never leaves it
+
+#### Local AI service
+
+* The computer's signing certificates are listed, and a PDF is signed by the
+  operating system with the one chosen
+
 ## 10.1.19
 
 ### New features
