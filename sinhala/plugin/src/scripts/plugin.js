@@ -176,7 +176,9 @@
 
   function listUnmapped(unmapped, text) {
     return unmapped.slice(0, MAX_LIST).map(function (u) {
-      return { offset: u.offset, text: u.text, codePoint: u.codePoint, context: text.substr(Math.max(0, u.offset - 6), 13) };
+      var item = { offset: u.offset, text: u.text, codePoint: u.codePoint, context: text.substr(Math.max(0, u.offset - 6), 13) };
+      if (u.reads) item.reads = u.reads;
+      return item;
     });
   }
 
@@ -283,8 +285,9 @@
       getSelectionFont(function (sel) {
         plugin.executeMethod("GetFontList", [], function (list) {
           installedFonts = fontNames(list);
+          var rec = S.recommend(text, sel.font);
           var init = {
-            direction: prefer === "toLegacy" || prefer === "toUnicode" ? prefer : SINHALA.test(text) ? "toLegacy" : "toUnicode",
+            direction: prefer === "toLegacy" || prefer === "toUnicode" ? prefer : rec.direction || (SINHALA.test(text) ? "toLegacy" : "toUnicode"),
             text: text, selectionFont: sel.font, mixed: !!sel.mixed,
             legacyProfile: settings.legacyProfile, legacyFamily: settings.legacyFamily, unicodeFont: settings.font,
             installed: installedFonts, fontListKnown: Array.isArray(list)
@@ -293,6 +296,14 @@
           dialog = new window.Asc.PluginWindow();
           dialog.attachEvent("onLegacyReady", function () { dialog.command("onLegacyInit", init); });
           dialog.attachEvent("onLegacyCancel", closeDialog);
+          dialog.attachEvent("onLegacyRefresh", function () {
+            var w = dialog;
+            plugin.executeMethod("GetFontList", [], function (fresh) {
+              installedFonts = fontNames(fresh);
+              if (Array.isArray(fresh)) installedFontList = installedFonts;
+              if (w && w === dialog) w.command("onLegacyFonts", { installed: installedFonts, fontListKnown: Array.isArray(fresh) });
+            });
+          });
           dialog.attachEvent("onLegacyApply", function (data) {
             closeDialog();
             if (!data) return;
@@ -672,8 +683,76 @@
     plugin.attachToolbarMenuClickEvent("ws-sinhala-" + b.id, function () { run(b.id, false); });
   });
 
+  // --- right-click: Sinhala Text Conversion (issue #47) --------------------------------------------
+  // A submenu on a text selection. Every item runs the same conversions as the toolbar and the Convert
+  // dialog (one editor command, so one undo step); the target legacy font is the one the dialog remembers.
+  var CONTEXT = "ws-sinhala-ctx";
+  var contextIds = {};
+
+  // Auto Detect & Convert: core recommend() on the selection and its font; nothing changes when it cannot tell.
+  function autoConvert() {
+    getSelection(function (text) {
+      if (!text.replace(/\s+/g, "")) { fail("convertSelection", tr("Select the text to convert first."), false); return; }
+      getSelectionFont(function (sel) {
+        var r = S.recommend(text, sel.font);
+        if (r.direction === "toLegacy") convertToLegacyNow(false);
+        else if (r.direction === "toUnicode") convertSelection(false, r.profile && settings.profile === "auto" ? r.profile : null);
+        else fail("convertSelection", tr("The selection does not look like Sinhala text, Unicode or legacy. Use the Convert dialog to choose."), false);
+      });
+    });
+  }
+
+  function chooseTarget(profile, family) {
+    settings.legacyProfile = profile;
+    settings.legacyFamily = family;
+    saveSettings();
+  }
+
+  function contextMenu() {
+    contextIds = {};
+    var current = S.legacyFonts().some(function (f) { return f.profile === settings.legacyProfile && f.family === settings.legacyFamily; })
+      ? settings.legacyFamily : (S.legacyFonts().filter(function (f) { return f.profile === settings.legacyProfile; })[0] || {}).family;
+    var fonts = S.legacyFonts().map(function (f, i) {
+      var id = CONTEXT + "-font-" + i;
+      contextIds[id] = function () { chooseTarget(f.profile, f.family); };
+      return { id: id, text: mark(familyLabel(f.family), f.family === current) };
+    });
+    var target = familyLabel(current || legacyFontName(S.getProfile(settings.legacyProfile)));
+    var items = [
+      [CONTEXT + "-unicode", tr("Convert to Sinhala Unicode") + "\t" + SHORTCUT_LABEL.toUnicode, function () { convertSelection(false); }],
+      [CONTEXT + "-legacy", fmt("Convert Unicode to Legacy Font (%1)", target) + "\t" + SHORTCUT_LABEL.toLegacy, function () { convertToLegacyNow(false); }],
+      [CONTEXT + "-auto", tr("Auto Detect & Convert"), autoConvert],
+      [CONTEXT + "-advanced", tr("Open Advanced Converter…"), function () { openLegacyDialog("auto"); }]
+    ].map(function (it) { contextIds[it[0]] = it[2]; return { id: it[0], text: it[1] }; });
+    items.splice(3, 0, { id: CONTEXT + "-fonts", text: tr("Select Target Font"), items: fonts, separator: true });
+    items[4].separator = true;
+    return { guid: plugin.info.guid, items: [{ id: CONTEXT, text: tr("Sinhala Text Conversion"), items: items }] };
+  }
+
+  plugin.event_onContextMenuShow = function (options) {
+    // text selections only (not a caret, a picture or a shape)
+    if (!options || options.type !== "Selection") return;
+    plugin.executeMethod("AddContextMenuItem", [contextMenu()]);
+  };
+  plugin.event_onContextMenuClick = function (id) {
+    var key = String(id || "").split("_oo_sep_")[0];
+    if (contextIds[key]) { try { contextIds[key](); } catch (e) { fail("convertSelection", String(e && e.message || e), false); } }
+  };
+
+  // Shortcuts: Ctrl/Cmd+Shift+U to Unicode. Ctrl/Cmd+Shift+L is taken by the editors (bulleted list in
+  // documents and presentations, filter in spreadsheets: sdkjs */Shortcuts.js), so to legacy is
+  // Ctrl/Cmd+Alt+Shift+L, like Ctrl/Cmd+Alt+Shift+Y next to Ctrl/Cmd+Shift+Y for the input mode.
+  var SHORTCUT_LABEL = { toUnicode: "Ctrl+Shift+U", toLegacy: "Ctrl+Alt+Shift+L" };
+  function shortcut(e) {
+    if (!e || !(e.ctrlKey || e.metaKey) || !e.shiftKey) return false;
+    if (e.keyCode === 85 && !e.altKey) { convertSelection(false); return true; }
+    if (e.keyCode === 76 && e.altKey) { convertToLegacyNow(false); return true; }
+    return false;
+  }
+
   // scripts/ime.js tells us when the mode or a typing setting changes, or what it learned is forgotten
   window.WorkSuiteSinhalaTools = {
+    keyDown: shortcut,
     imeChanged: function () {
       if (toolbarAdded) addToolbar();
       if (panel && panelReady) panel.command("onState", panelState());

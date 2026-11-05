@@ -1,7 +1,7 @@
 {
   "id": "dl-manel",
   "name": "DL Manel",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "status": "provisional",
   "fontNames": [
     "DL-Manel",
@@ -43,7 +43,7 @@
     "Hemawathy",
     "Anuradha"
   ],
-  "notes": "The Wijesekara typewriter base shared with the FM fonts. DL's own extra glyphs (rakaransaya, repaya, ligatures, punctuation) are not mapped yet and are reported unmapped. Checked against the WorkSuite corpus only. 1.1.0: the same base is used for DL-Sarala, DL-Nisansala, FS-Kapila, FS-Dilrukshi, Sinhala - Kumudu, Ranaviru- PC, Hemawathy and Anuradha, whose glyphs on every code point this map uses were rendered and compared one by one with this map; their extra glyphs (rakaransaya on %, ligatures, high code points) are not mapped.",
+  "notes": "The Wijesekara typewriter base shared with the FM fonts. DL's own extra glyphs (rakaransaya, repaya, ligatures, punctuation) are not mapped yet and are reported unmapped. Checked against the WorkSuite corpus only. 1.1.0: the same base is used for DL-Sarala, DL-Nisansala, FS-Kapila, FS-Dilrukshi, Sinhala - Kumudu, Ranaviru- PC, Hemawathy and Anuradha, whose glyphs on every code point this map uses were rendered and compared one by one with this map; their extra glyphs (rakaransaya on %, ligatures, high code points) are not mapped. 1.2.0: rakaransaya on %, the family's glyph that FM has on the same code (Unicode -> DL Manel used to leave the joiner in the text).",
   "passthrough": " \t\r\n0123456789",
   "prebase": [
     "ෙ",
@@ -307,7 +307,11 @@
     [
       "H",
       "්‍ය"
+    ],
+    [
+      "%",
+      "්‍ර"
     ]
   ],
-  "sha256": "18545d2cf50d9e5f31c8be596d124a7d99c974ea678421942de59e7363607b7e"
+  "sha256": "3ce2423edec3e9f058f59e88484db48154a7fa4d5b3c3ec6287b1c2a6942510c"
 }

@@ -1,5 +1,34 @@
 # Change log
 
+## 10.1.21
+
+### New features
+
+#### Sinhala Tools
+
+* Right-click on selected text: a Sinhala Text Conversion submenu with
+  Convert to Sinhala Unicode, Convert Unicode to Legacy Font, Auto Detect &
+  Convert, Select Target Font (remembered) and Open Advanced Converter
+* Shortcuts: Ctrl/Cmd+Shift+U converts the selection to Unicode, and
+  Ctrl/Cmd+Alt+Shift+L to the chosen legacy font (Ctrl/Cmd+Shift+L stays the
+  editors' bulleted list and filter)
+* Convert Sinhala Text: the original and the converted text side by side,
+  the direction the text needs detected and recommended, and Refresh fonts
+  after a font is installed
+
+### Fixes
+
+#### Sinhala Tools
+
+* Unicode to DL Manel (and DL-Sarala, Kumudu and the rest of its family)
+  writes rakaransaya: ප්‍ර became the letters with a stray joiner
+* The Convert preview no longer shows a missing legacy font's Latin letters
+  as if they were Sinhala: it shows what the text will read as once the font
+  is installed
+* Characters a legacy font has as other letters (a comma is ල in FMAbhaya)
+  are listed with what they will show as, before anything changes
+* Sinhala Unicode with English words opens the Convert dialog the right way
+
 ## 10.1.20
 
 ### New features

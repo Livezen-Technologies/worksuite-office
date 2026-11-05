@@ -160,5 +160,20 @@
   "installed": "ස්ථාපිතයි",
   "map not available": "සිතියමක් නැත",
   "not installed": "ස්ථාපනය කර නැත",
-  "සිං": "සිං"
+  "සිං": "සිං",
+  "The selection does not look like Sinhala text, Unicode or legacy. Use the Convert dialog to choose.": "තේරීම යුනිකෝඩ් හෝ පැරණි සිංහල පෙළක් ලෙස නොපෙනේ. තෝරා ගැනීමට පරිවර්තන කවුළුව භාවිත කරන්න.",
+  "Convert to Sinhala Unicode": "සිංහල යුනිකෝඩ් බවට හරවන්න",
+  "Convert Unicode to Legacy Font (%1)": "යුනිකෝඩ් පැරණි අකුරු බවට හරවන්න (%1)",
+  "Auto Detect & Convert": "ස්වයංක්‍රීයව හඳුනාගෙන හරවන්න",
+  "Open Advanced Converter…": "උසස් පරිවර්තකය විවෘත කරන්න…",
+  "Select Target Font": "ඉලක්ක අකුර තෝරන්න",
+  "Sinhala Text Conversion": "සිංහල පෙළ පරිවර්තනය",
+  "No Sinhala text detected: choose the direction and the font.": "සිංහල පෙළක් හඳුනා නොගැනිණි: දිශාව සහ අකුර තෝරන්න.",
+  "Detected legacy %1 text: Legacy → Unicode is recommended.": "පැරණි %1 පෙළ හඳුනා ගැනිණි: පැරණි → යුනිකෝඩ් නිර්දේශිතයි.",
+  "Detected Sinhala Unicode: Unicode → legacy is recommended.": "සිංහල යුනිකෝඩ් හඳුනා ගැනිණි: යුනිකෝඩ් → පැරණි නිර්දේශිතයි.",
+  "%1 is not installed, so the preview shows what the converted text will read as once it is, in %2.": "%1 ස්ථාපනය කර නැත, එබැවින් පෙරදසුන එය ස්ථාපනය කළ පසු පරිවර්තිත පෙළ කියවෙන ආකාරය %2 හි පෙන්වයි.",
+  "%1 has no glyph for these characters: they will show as other letters:": "%1 හි මෙම අක්ෂර සඳහා රූප නැත: ඒවා වෙනත් අකුරු ලෙස පෙනේ:",
+  "Refresh fonts": "අකුරු නැවුම් කරන්න",
+  "Original": "මුල් පෙළ",
+  "Converted": "පරිවර්තිත"
 }

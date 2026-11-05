@@ -5,7 +5,7 @@
 export { sha256Hex, canonicalJson } from "./sha256";
 export { Profile, builtinProfiles, getProfile, legacyFonts, profileForFont, profileHash, verifyProfile } from "./profiles";
 export { ConvertResult, Direction, Unmapped, convert, toLegacy, toUnicode } from "./convert";
-export { Detection, Segment, SegmentKind, detect } from "./detect";
+export { Detection, Recommendation, Segment, SegmentKind, detect, recommend } from "./detect";
 export { Issue, IssueCode, normalize, validate } from "./normalize";
 export { Option, Piece, Segment as TranslitSegment, Variant, VowelKey, render, segment, transliterate, variants } from "./translit";
 export { Candidate, CandidateOptions, LearnedData, Learner, Lexicon, candidates } from "./suggest";
@@ -19,4 +19,4 @@ export { Bigrams, Personal, PersonalData } from "./bigrams";
 export { InputMode, LangDecision, Rule, TokenLang, DetectContext, MARKERS, THRESHOLD, CONTEXT_WINDOW, CONTEXT_WEIGHTS, CONTEXT_MIN, contextLean, detectToken, englishScore, phonotactic, singlishScore } from "./lang";
 export { DEFAULT_SETTINGS, ItemKind, SmartData, SmartEngine, SmartItem, SmartQuery, SmartResult, SmartSettings, words } from "./engine";
 export { AiScheduler, KEY, SmartTyping, TypingAction, TypingOptions } from "./typing";
-export const VERSION = "1.2.0";
+export const VERSION = "1.3.0";

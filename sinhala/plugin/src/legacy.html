@@ -20,12 +20,22 @@
       <span id="fontLabel" data-tr="Legacy font">Legacy font</span>
       <select id="profile"></select>
     </label>
-    <div id="fontStatus" class="lg-status" aria-live="polite"></div>
-    <div class="lg-field">
-      <span data-tr="Preview">Preview</span>
-      <div id="preview" class="lg-preview" dir="auto"></div>
-      <div id="previewNote" class="lg-note"></div>
+    <div class="lg-row2">
+      <div id="fontStatus" class="lg-status" aria-live="polite"></div>
+      <button type="button" id="refresh" class="lg-link" data-tr="Refresh fonts">Refresh fonts</button>
     </div>
+    <div id="recommend" class="lg-note" aria-live="polite"></div>
+    <div class="lg-sides">
+      <div class="lg-field">
+        <span data-tr="Original">Original</span>
+        <div id="original" class="lg-preview" dir="auto"></div>
+      </div>
+      <div class="lg-field">
+        <span data-tr="Converted">Converted</span>
+        <div id="preview" class="lg-preview" dir="auto"></div>
+      </div>
+    </div>
+    <div id="previewNote" class="lg-note"></div>
     <div id="problems" class="lg-problems" aria-live="polite"></div>
     <p class="lg-note" data-tr="Only fonts with a map are listed, each converted with its own map. The maps are provisional: characters a map lacks are listed here before anything changes.">Only fonts with a map are listed, each converted with its own map. The maps are provisional: characters a map lacks are listed here before anything changes.</p>
     <div class="lg-actions">

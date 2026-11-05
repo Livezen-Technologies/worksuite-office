@@ -13,12 +13,12 @@ test("yansaya is al-lakuna + ZWJ + ya", () => {
   assert.equal(S.toLegacy("ක්‍යො", fm).text, "flHd");
 });
 
-test("rakaransaya is al-lakuna + ZWJ + ra (FM only)", () => {
+test("rakaransaya is al-lakuna + ZWJ + ra (FM and DL)", () => {
   assert.equal(S.toUnicode("m%", fm).text, "ප්‍ර");
   assert.equal(S.toUnicode("fm%a", fm).text, "ප්‍රේ");
   const dlResult = S.toLegacy("ප්‍ර", dl);
-  assert.equal(dlResult.text, "ma‍r", "DL has no rakaransaya mapping yet: the joiner is kept");
-  assert.deepEqual(dlResult.unmapped.map((u) => u.codePoint), ["U+200D"]);
+  assert.equal(dlResult.text, "m%", "DL writes rakaransaya on % too (dl-manel 1.2.0)");
+  assert.deepEqual(dlResult.unmapped, []);
 });
 
 test("repaya and touching letters are reported, never dropped", () => {
