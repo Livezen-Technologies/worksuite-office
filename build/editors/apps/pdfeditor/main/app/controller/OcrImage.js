@@ -1,7 +1,7 @@
 /*
  * WorkSuite Office: scan clean-up before text recognition, on canvas pixels, with no editor dependencies.
  *
- * Greyscale, Otsu's threshold (black and white), despeckle (lone dots), and the skew of the text lines by
+ * Contrast stretch, greyscale, Otsu's threshold (black and white), despeckle (lone dots), and the skew of the text lines by
  * projection profiles: the angle at which the rows of dark pixels are sharpest. Used by the Convert tab's
  * OCR (controller/ConvertTab.js); unit tests in build/test/ocr-image.test.mjs. Copied into web-apps by
  * build/patch-pdf-convert.py. Licensed under the GNU AGPL v3, as the editors it becomes part of.
@@ -132,6 +132,26 @@
         return rgba;
     }
 
+    // Stretches the contrast of a faint or greyed scan in place: the darkest 1% of the luminance goes to
+    // black and the lightest 1% to white, linearly, the same on each channel (colours keep their hue).
+    // Returns false (and changes nothing) when the page already spans the range or is nearly flat.
+    function stretchContrast(rgba, width, height) {
+        var gray = toGray(rgba, width, height), n = gray.length, hist = new Array(256).fill(0), i;
+        for (i = 0; i < n; i++) hist[gray[i]]++;
+        var cut = Math.floor(n * 0.01), lo = 0, hi = 255, acc = 0;
+        for (i = 0; i < 256; i++) { acc += hist[i]; if (acc > cut) { lo = i; break; } }
+        for (acc = 0, i = 255; i >= 0; i--) { acc += hist[i]; if (acc > cut) { hi = i; break; } }
+        if (hi - lo < 16 || (lo <= 8 && hi >= 247)) return false;
+        var map = new Uint8Array(256), scale = 255 / (hi - lo);
+        for (i = 0; i < 256; i++) map[i] = Math.max(0, Math.min(255, Math.round((i - lo) * scale)));
+        for (i = 0; i < rgba.length; i += 4) {
+            rgba[i] = map[rgba[i]];
+            rgba[i + 1] = map[rgba[i + 1]];
+            rgba[i + 2] = map[rgba[i + 2]];
+        }
+        return true;
+    }
+
     // The quarter turn (0, 90, 180, 270) whose trial recognition was most confident; 0 unless one is clearly better.
     function bestOrientation(confidences) {
         var best = 0;
@@ -142,5 +162,5 @@
     }
 
     return {toGray: toGray, otsu: otsu, binarize: binarize, despeckle: despeckle, skewAngle: skewAngle,
-            inkToRgba: inkToRgba, bestOrientation: bestOrientation};
+            inkToRgba: inkToRgba, stretchContrast: stretchContrast, bestOrientation: bestOrientation};
 }));
