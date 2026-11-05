@@ -1,5 +1,34 @@
 # Change log
 
+## 10.1.22
+
+### New features
+
+#### PDF Editor
+
+* Recognise text (OCR): a new dialog with a fixed header and footer and
+  settings in sections that scroll, in the editors' light and dark themes
+* Languages: search over the installed languages, and the last selection
+  is remembered
+* Pages and output as cards: All pages and Current page with the page
+  count, Selected area and Import image; Searchable PDF, Word, PDF/A and
+  Extract text
+* Scan enhancement: Enhance contrast, which stretches faint or grey scans
+  before recognising, next to straighten, upright and black and white, each
+  with what it does
+* While recognising: the percentage, page x of n, the stage and the elapsed
+  time, with the settings locked and Cancel at hand; the dialog then says
+  whether it finished, was cancelled or failed, with View results for
+  extracted text and Try again
+
+### Fixes
+
+#### PDF Editor
+
+* Recognised text shows each line in its own direction, so Arabic and other
+  right-to-left text reads right to left
+* A second recognition can no longer be started while one is running
+
 ## 10.1.21
 
 ### New features

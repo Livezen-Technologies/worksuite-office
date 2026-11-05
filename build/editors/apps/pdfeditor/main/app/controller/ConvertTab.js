@@ -161,7 +161,7 @@ define([
         onOcr: function () {
             var me = this,
                 viewer = this.api && this.api.getDocumentRenderer && this.api.getDocumentRenderer();
-            if (!viewer || !viewer.file) return;
+            if (!viewer || !viewer.file || this.ocrJob || this.ocrDialog) return; // one recognition at a time
             // languages added through worksuite-ai, when it is already running (nothing is launched for this)
             var desktop = !!(this.mode && this.mode.isDesktopApp && window.AscDesktopEditor);
             var extras = desktop ? LocalPdf.call('GET', '/ocr/languages', undefined, false).then(function (r) {
@@ -170,37 +170,43 @@ define([
             extras.then(function (extraLangs) { me.showOcrDialog(extraLangs, desktop); });
         },
 
-        showOcrDialog: function (extraLangs, canAddLangs) {
-            var me = this;
-            var dlg = new PDFE.Views.OcrDialog({
+        // The dialog stays open through the recognition and shows how it ended: done (with View results for
+        // text), cancelled or failed. Word and PDF/A go on to the Save dialog, as before.
+        showOcrDialog: function (extraLangs, desktop) {
+            var me = this,
+                viewer = this.api.getDocumentRenderer(),
+                current = Math.max(0, this.api.getCurrentPage ? this.api.getCurrentPage() : (viewer.currentPage || 0));
+            var dlg = this.ocrDialog = new PDFE.Views.OcrDialog({
                 canPdfa: Asc.c_oAscFileType.PDFA !== undefined,
+                canImage: desktop, // the image is picked with the desktop app's file dialog
                 extraLangs: extraLangs,
-                canAddLangs: canAddLangs,
+                canAddLangs: desktop,
+                pageCount: viewer.file.pages.length,
+                currentPage: current,
                 onLanguages: function () { me.manageLanguages(); },
                 onStart: function (settings) {
-                    me.ocrJob = {cancelled: false};
-                    var work = settings.then === 'text' ? me.runOcrText(settings, me.ocrJob, dlg) : me.runOcr(settings, me.ocrJob, dlg);
+                    if (me.ocrJob) return;
+                    var job = me.ocrJob = {cancelled: false};
+                    var work = settings.then === 'text' ? me.runOcrText(settings, job, dlg) : me.runOcr(settings, job, dlg);
                     work.then(function (done) {
-                        if (me.ocrJob && me.ocrJob.cancelled) return;
                         me.ocrJob = null;
-                        dlg.close();
+                        if (job.cancelled) return dlg.showResult('cancelled');
                         if (settings.then === 'text') {
-                            done && done.length ? new PDFE.Views.OcrTextDialog({lines: done}).show() : Common.UI.info({msg: me.view.txtOcrNoText});
+                            if (!done || !done.length) return dlg.showResult('empty', me.view.txtOcrNoText);
+                            dlg.showResult('done', null, function () { new PDFE.Views.OcrTextDialog({lines: done}).show(); });
                         } else if (!done) {
-                            Common.UI.info({msg: me.view.txtOcrNothing});
-                        } else if (settings.then === 'word') {
-                            me.onConvert(Asc.c_oAscFileType.DOCX);
-                        } else if (settings.then === 'pdfa') {
-                            me.onConvert(Asc.c_oAscFileType.PDFA);
+                            dlg.showResult('empty', me.view.txtOcrNothing);
+                        } else if (settings.then === 'word' || settings.then === 'pdfa') {
+                            dlg.close();
+                            me.onConvert(settings.then === 'word' ? Asc.c_oAscFileType.DOCX : Asc.c_oAscFileType.PDFA);
+                        } else {
+                            dlg.showResult('done', Common.Utils.String.format(dlg.txtDonePages, done));
                         }
                     }, function (err) {
-                        var cancelled = (me.ocrJob && me.ocrJob.cancelled) || (err && err.message === 'cancelled');
                         me.ocrJob = null;
-                        dlg.close();
-                        if (!cancelled) {
-                            console.error('WorkSuite OCR', err);
-                            Common.UI.warning({msg: me.view.txtOcrFailed});
-                        }
+                        if (job.cancelled || (err && err.message === 'cancelled')) return dlg.showResult('cancelled');
+                        console.error('WorkSuite OCR', err);
+                        dlg.showResult('error', me.view.txtOcrFailed);
                     });
                 },
                 onCancel: function () {
@@ -209,6 +215,7 @@ define([
                     me.ocrJob.worker && me.ocrJob.worker.terminate();
                 }
             });
+            dlg.on('close', function () { if (me.ocrDialog === dlg) me.ocrDialog = null; });
             dlg.show();
         },
 
@@ -255,7 +262,6 @@ define([
 
         runOcr: function (settings, job, dlg) {
             var me = this,
-                view = this.view,
                 viewer = this.api.getDocumentRenderer(),
                 file = viewer.file,
                 base = this.ocrBase();
@@ -275,23 +281,24 @@ define([
             if (!pages.length) return Promise.resolve(0);
 
             var step = 0, total = pages.length, done = 0;
-            var progress = function (inPage, text) {
-                dlg.setProgress((step + inPage) / total, text);
+            var progress = function (inPage, stage) {
+                dlg.setProgress((step + inPage) / total, stage, step + 1, total);
             };
 
             return this.makeWorker(settings, job, base, function (m) {
                 if (m && m.status === 'recognizing text')
-                    progress(m.progress || 0, Common.Utils.String.format(view.txtOcrPage, step + 1, total));
-            }, function () { progress(0, view.txtOcrLoading); }).then(function (worker) {
+                    progress(m.progress || 0, dlg.txtStageRecognise);
+            }, function () { dlg.setProgress(0, dlg.txtStageLoading); }).then(function (worker) {
                 return worker.setParameters({user_defined_dpi: '300'}).then(function () {
                     var chain = Promise.resolve();
                     pages.forEach(function (n, k) {
                         chain = chain.then(function () {
                             if (job.cancelled) throw new Error('cancelled');
                             step = k;
-                            progress(0, Common.Utils.String.format(view.txtOcrPage, k + 1, total));
+                            progress(0, dlg.txtStagePrepare);
                             return me.ocrPage(worker, file, n, settings.clean || {}).then(function (res) {
                                 if (job.cancelled) throw new Error('cancelled');
+                                progress(0.99, dlg.txtStageReplace);
                                 return me.replacePage(n, res.pdf, res.turned);
                             }).then(function () { done++; });
                         });
@@ -344,7 +351,7 @@ define([
         // or an image file. The pages are not changed. Resolves to lines of {text, confidence} words, an empty
         // line between paragraphs.
         runOcrText: function (settings, job, dlg) {
-            var me = this, view = this.view, base = this.ocrBase(),
+            var me = this, base = this.ocrBase(),
                 file = this.api.getDocumentRenderer().file, clean = settings.clean || {};
             if (!base) return Promise.reject(new Error('no editors folder in ' + window.location.href));
             var sources;
@@ -370,18 +377,19 @@ define([
             return sources.then(function (items) {
                 total = items.length;
                 return me.makeWorker(settings, job, base, function (m) {
-                    if (m && m.status === 'recognizing text') dlg.setProgress((step + (m.progress || 0)) / total, Common.Utils.String.format(view.txtOcrPage, step + 1, total));
-                }, function () { dlg.setProgress(0, view.txtOcrLoading); }).then(function (worker) {
+                    if (m && m.status === 'recognizing text') dlg.setProgress((step + (m.progress || 0)) / total, dlg.txtStageRecognise, step + 1, total);
+                }, function () { dlg.setProgress(0, dlg.txtStageLoading); }).then(function (worker) {
                     var lines = [], chain = Promise.resolve();
                     items.forEach(function (item, k) {
                         chain = chain.then(function () {
                             if (job.cancelled) throw new Error('cancelled');
                             step = k;
+                            dlg.setProgress(k / total, dlg.txtStagePrepare, k + 1, total);
                             var canvas = item.canvas || me.renderPage(file, item.page);
                             var ready = clean.upright && !item.rectangle ? me.detectOrientation(worker, canvas) : Promise.resolve(0);
                             return ready.then(function (quarter) {
                                 if (quarter) canvas = me.toCanvas(canvas, quarter);
-                                if ((clean.straighten && !item.rectangle) || clean.bw) canvas = me.cleanUp(canvas, {straighten: clean.straighten && !item.rectangle, bw: clean.bw});
+                                if ((clean.straighten && !item.rectangle) || clean.bw || clean.contrast) canvas = me.cleanUp(canvas, {straighten: clean.straighten && !item.rectangle, bw: clean.bw, contrast: clean.contrast});
                                 return worker.recognize(canvas, item.rectangle ? {rectangle: item.rectangle} : {}, {text: true, blocks: true, pdf: false});
                             }).then(function (res) {
                                 if (lines.length) lines.push([]);
@@ -462,7 +470,7 @@ define([
             var ready = clean.upright ? this.detectOrientation(worker, canvas) : Promise.resolve(0);
             return ready.then(function (quarter) {
                 if (quarter) { turned = quarter; canvas = me.toCanvas(canvas, quarter); }
-                if (clean.straighten || clean.bw) canvas = me.cleanUp(canvas, clean);
+                if (clean.straighten || clean.bw || clean.contrast) canvas = me.cleanUp(canvas, clean);
                 return worker.setParameters({user_defined_dpi: String(realDpi)});
             }).then(function () {
                 // black and white compresses best as PNG; colour as a good JPEG
@@ -510,11 +518,15 @@ define([
             return chain.then(function () { return OcrImage.bestOrientation(confidences); }, function () { return 0; });
         },
 
-        // Straightens the page (rotating it back by the skew of its lines) and/or makes it black and white.
+        // Stretches a faint scan's contrast, straightens the page (rotating it back by the skew of its lines)
+        // and/or makes it black and white (which also removes specks), as asked.
         cleanUp: function (canvas, clean) {
             var ctx = canvas.getContext('2d'),
-                data = ctx.getImageData(0, 0, canvas.width, canvas.height),
-                gray = OcrImage.toGray(data.data, canvas.width, canvas.height),
+                data = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            if (clean.contrast && OcrImage.stretchContrast(data.data, canvas.width, canvas.height))
+                ctx.putImageData(data, 0, 0);
+            if (!clean.bw && !clean.straighten) return canvas;
+            var gray = OcrImage.toGray(data.data, canvas.width, canvas.height),
                 ink = OcrImage.binarize(gray, OcrImage.otsu(gray));
             if (clean.bw) {
                 OcrImage.despeckle(ink, canvas.width, canvas.height);

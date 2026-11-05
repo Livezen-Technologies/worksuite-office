@@ -62,3 +62,23 @@ test("bestOrientation needs a clear lead", () => {
 test("inkToRgba draws black on white", () => {
   assert.deepEqual([...O.inkToRgba(new Uint8Array([1, 0]), new Uint8ClampedArray(8))], [0, 0, 0, 255, 255, 255, 255, 255]);
 });
+
+test("stretchContrast spreads a faint scan to black and white", () => {
+  const n = 1000, rgba = new Uint8ClampedArray(n * 4);
+  for (let i = 0; i < n; i++) {
+    const v = i % 10 === 0 ? 120 : 180; // grey ink on grey paper
+    rgba.set([v, v, v, 255], i * 4);
+  }
+  assert.equal(O.stretchContrast(rgba, n, 1), true);
+  assert.equal(rgba[0], 0);
+  assert.equal(rgba[4], 255);
+  assert.equal(rgba[3], 255);
+});
+
+test("stretchContrast leaves a full-range or flat page alone", () => {
+  const full = new Uint8ClampedArray([0, 0, 0, 255, 255, 255, 255, 255]);
+  assert.equal(O.stretchContrast(full, 2, 1), false);
+  assert.deepEqual([...full], [0, 0, 0, 255, 255, 255, 255, 255]);
+  const flat = new Uint8ClampedArray(400).fill(200);
+  assert.equal(O.stretchContrast(flat, 100, 1), false);
+});

@@ -94,7 +94,10 @@ define([
                     unsure++;
                     return '<mark title="' + Math.round(w.confidence) + '%" style="background: rgba(245, 158, 11, .35); color: inherit; border-radius: 2px;">' + text + '</mark>';
                 }).join(' ');
-            }).join('<br>');
+            }).map(function (line) {
+                // each line in its own direction, so Arabic and other right-to-left text reads right to left
+                return line ? '<div dir="auto">' + line + '</div>' : '<div><br></div>';
+            }).join('');
             this.unsure = unsure;
             this.options.tpl =
                 '<div class="box" style="padding: 0 4px;">' +
