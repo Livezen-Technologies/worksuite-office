@@ -383,6 +383,8 @@
 
   plugin.event_onKeyDown = function (data) {
     if (!data) return;
+    // the conversion shortcuts (plugin.js): Ctrl/Cmd+Shift+U, Ctrl/Cmd+Alt+Shift+L
+    if (window.WorkSuiteSinhalaTools && window.WorkSuiteSinhalaTools.keyDown && window.WorkSuiteSinhalaTools.keyDown(data)) return;
     if ((data.ctrlKey || data.metaKey) && !!data.shiftKey === SHORTCUT.shift && data.keyCode === SHORTCUT.keyCode) {
       // Ctrl+Shift+Y: Sinhala input on/off; Ctrl+Alt+Shift+Y: the next input mode
       if (data.altKey) setMode(MODES[(MODES.indexOf(settings.mode) + 1) % MODES.length]);

@@ -33,7 +33,7 @@ const STRUCTURES = {
 const ZWJ = "\u200D";
 const GAPS = {
   "fm-abhaya": { "vowel signs": ["ඃ"], sentence: ["."] },
-  "dl-manel": { conjuncts: [ZWJ], rakaransaya: [ZWJ], "vowel signs": ["ඃ"], sentence: [".", ZWJ] },
+  "dl-manel": { "vowel signs": ["ඃ"], sentence: ["."] },
   "kaputa": { conjuncts: [ZWJ], rakaransaya: [ZWJ], "vowel signs": ["ඃ"], sentence: [".", ZWJ] },
   "lastech": { conjuncts: [ZWJ], rakaransaya: [ZWJ], yansaya: [ZWJ], repaya: ["ධ"], "vowel signs": ["ෘ", "ෟ"],
     "independent vowels": ["ඌ", "එ", "ඒ", "ඔ", "ඕ", "ඖ"], sentence: [".", ZWJ] },
@@ -114,7 +114,7 @@ function harness(doc, opts = {}) {
     vm.runInContext(readFileSync(join(out, f), "utf8") + "\nwindow.WorkSuiteSinhala = WorkSuiteSinhala; window.__worksuiteSinhalaFactory = __worksuiteSinhalaFactory; if (typeof WorkSuiteSinhalaToolbar !== 'undefined') window.WorkSuiteSinhalaToolbar = WorkSuiteSinhalaToolbar;", ctx);
   }
   vm.runInContext(readFileSync(join(out, "scripts", "plugin.js"), "utf8"), ctx);
-  return { plugin, calls, commands, windows, storage, click: (id) => clicks["ws-sinhala-" + id]() };
+  return { plugin, window, calls, commands, windows, storage, click: (id) => clicks["ws-sinhala-" + id]() };
 }
 
 const FM = S.getProfile("fm-abhaya");
@@ -217,4 +217,124 @@ test("unsupported characters are reported with their code points", () => {
   const r = panel.commands.filter((c) => c[0] === "onResult").at(-1)[1];
   assert.equal(r.fontApplied, true);
   assert.deepEqual(JSON.parse(JSON.stringify(r.unmapped.map((u) => [u.codePoint, u.text]))), [["U+002E", "."], ["U+20B9", "₹"]]);
+});
+
+// --- issue #47: right-click Sinhala Text Conversion, and the shortcuts ------------------------------
+function menuItem(menu, id) {
+  const find = (items) => { for (const it of items || []) { if (it.id === id) return it; const f = find(it.items); if (f) return f; } return null; };
+  return find(menu.items);
+}
+
+test("right-click on a selection: a Sinhala Text Conversion submenu; none on a caret", () => {
+  const doc = editor([{ text: "ශ්‍රී ලංකා", font: "Noto Sans Sinhala" }], [0]);
+  const h = harness(doc);
+  const added = [];
+  const exec = h.plugin.executeMethod;
+  h.plugin.executeMethod = (name, args, cb) => { if (name === "AddContextMenuItem") added.push(args[0]); else exec(name, args, cb); };
+  h.plugin.event_onContextMenuShow({ type: "Target" });
+  assert.equal(added.length, 0);
+  h.plugin.event_onContextMenuShow({ type: "Selection" });
+  const menu = added[0];
+  assert.equal(menu.guid, h.plugin.info.guid);
+  assert.equal(menu.items[0].text, "Sinhala Text Conversion");
+  const labels = JSON.parse(JSON.stringify(menu.items[0].items.map((i) => i.text.split("\t")[0])));
+  assert.deepEqual(labels, ["Convert to Sinhala Unicode", "Convert Unicode to Legacy Font (FMAbhaya)", "Auto Detect & Convert",
+    "Select Target Font", "Open Advanced Converter…"]);
+  assert.match(menu.items[0].items[0].text, /\tCtrl\+Shift\+U$/);
+  assert.match(menu.items[0].items[1].text, /\tCtrl\+Alt\+Shift\+L$/);
+  // Select Target Font: remembered, and used by Convert Unicode to Legacy Font
+  const kumudu = menuItem(menu, "ws-sinhala-ctx-fonts").items.find((i) => i.text.trim() === "Sinhala - Kumudu");
+  h.plugin.event_onContextMenuClick(kumudu.id);
+  assert.deepEqual(JSON.parse(h.storage.get("worksuite-sinhala-tools")).legacyFamily, "Sinhala - Kumudu");
+  h.plugin.event_onContextMenuShow({ type: "Selection" });
+  assert.equal(menuItem(added[1], kumudu.id).text, "✓ Sinhala - Kumudu");
+  h.plugin.event_onContextMenuClick("ws-sinhala-ctx-legacy");
+  assert.deepEqual(doc.runs[0], { text: S.toLegacy("ශ්‍රී ලංකා", DL).text, font: "Sinhala - Kumudu" });
+  assert.deepEqual(doc.history, ["font", "text"], "one command: one undo step");
+});
+
+test("Auto Detect & Convert goes the way the selection reads, and leaves plain English alone", () => {
+  const legacy = S.toLegacy("ප්‍රශ්නය", FM).text;
+  const doc = editor([{ text: legacy, font: "FMAbhaya" }], [0]);
+  const h = harness(doc);
+  h.plugin.event_onContextMenuShow({ type: "Selection" });
+  h.plugin.event_onContextMenuClick("ws-sinhala-ctx-auto");
+  assert.deepEqual(doc.runs[0], { text: "ප්‍රශ්නය", font: "Noto Sans Sinhala" });
+  const doc2 = editor([{ text: "ශ්‍රී ලංකා", font: "Noto Sans Sinhala" }], [0]);
+  const h2 = harness(doc2);
+  h2.plugin.event_onContextMenuShow({ type: "Selection" });
+  h2.plugin.event_onContextMenuClick("ws-sinhala-ctx-auto");
+  assert.equal(doc2.runs[0].font, "FMAbhaya");
+  const doc3 = editor([{ text: "Hello world", font: "Arial" }], [0]);
+  const h3 = harness(doc3);
+  h3.plugin.event_onContextMenuShow({ type: "Selection" });
+  h3.plugin.event_onContextMenuClick("ws-sinhala-ctx-auto");
+  assert.deepEqual(doc3.history, [], "nothing changes when the text is neither");
+  h3.plugin.event_onContextMenuClick("ws-sinhala-ctx-advanced");
+  assert.equal(h3.windows.at(-1).options.url, "legacy.html");
+});
+
+test("shortcuts: Ctrl/Cmd+Shift+U to Unicode, Ctrl/Cmd+Alt+Shift+L to legacy; Ctrl+Shift+L stays the editor's", () => {
+  const legacy = S.toLegacy("අම්මා", FM).text;
+  const doc = editor([{ text: legacy, font: "FMAbhaya" }], [0]);
+  const h = harness(doc);
+  const keys = h.window.WorkSuiteSinhalaTools.keyDown;
+  assert.equal(keys({ ctrlKey: true, shiftKey: true, keyCode: 76 }), false, "Ctrl+Shift+L: bulleted list / filter");
+  assert.equal(keys({ ctrlKey: true, keyCode: 85 }), false, "Ctrl+U: underline");
+  assert.equal(doc.history.length, 0);
+  assert.equal(keys({ metaKey: true, shiftKey: true, keyCode: 85 }), true);
+  assert.deepEqual(doc.runs[0], { text: "අම්මා", font: "Noto Sans Sinhala" });
+  doc.selected = [0];
+  assert.equal(keys({ ctrlKey: true, altKey: true, shiftKey: true, keyCode: 76 }), true);
+  assert.deepEqual(doc.runs[0], { text: legacy, font: "FMAbhaya" });
+});
+
+test("the dialog opens the way core recommend() reads the selection, also for Unicode Sinhala with English", () => {
+  const doc = editor([{ text: "සිංහල Office", font: "Noto Sans Sinhala" }], [0]);
+  const h = harness(doc);
+  h.click("convertSelection");
+  const dlg = h.windows.at(-1);
+  dlg.events.onLegacyReady();
+  assert.equal(dlg.commands[0][1].direction, "toLegacy");
+});
+
+// --- the dialog itself (legacy.js) on a stand-in DOM -------------------------------------------------
+function dialogFrame() {
+  const els = {};
+  const el = (id) => els[id] || (els[id] = { id, textContent: "", style: {}, className: "", disabled: false, value: "0", children: [],
+    attrs: {}, listeners: {}, setAttribute(k, v) { this.attrs[k] = v; }, getAttribute(k) { return this.attrs[k]; },
+    addEventListener(n, f) { this.listeners[n] = f; }, appendChild(c) { this.children.push(c); return c; } });
+  const sent = [];
+  const events = {};
+  const document = {
+    getElementById: el, querySelectorAll: () => [], addEventListener() {},
+    createElement: () => el("_" + Math.random()), createTextNode: (t) => ({ textContent: t }), documentElement: { style: { setProperty() {} }, setAttribute() {} }
+  };
+  const plugin = { tr: (t) => t, sendToPlugin: (n, d) => sent.push([n, d]), attachEvent: (n, f) => { events[n] = f; } };
+  const window = { Asc: { plugin }, localStorage: { getItem: () => null, setItem() {} } };
+  const ctx = vm.createContext({ window, document, JSON, Object, Math, String, Number, Array });
+  vm.runInContext(readFileSync(join(out, "scripts", "sinhala-core.js"), "utf8") + "\nwindow.WorkSuiteSinhala = WorkSuiteSinhala;", ctx);
+  vm.runInContext(readFileSync(join(out, "scripts", "legacy.js"), "utf8"), ctx);
+  plugin.init();
+  return { el, sent, events };
+}
+
+test("the dialog's preview: the legacy text in its font, or what it will read as when the font is missing", () => {
+  const f = dialogFrame();
+  const base = { direction: "toLegacy", text: "පොත, අද", selectionFont: "Noto Sans Sinhala", unicodeFont: "Noto Sans Sinhala", fontListKnown: true };
+  f.events.onLegacyInit({ ...base, installed: ["FMAbhaya", "Noto Sans Sinhala"] });
+  assert.equal(f.el("preview").textContent, S.toLegacy("පොත, අද", FM).text);
+  assert.match(f.el("preview").style.fontFamily, /FMAbhaya/);
+  assert.equal(f.el("original").textContent, "පොත, අද");
+  assert.match(f.el("recommend").textContent, /Unicode → legacy is recommended/);
+  assert.equal(f.el("apply").disabled, false);
+  assert.ok(JSON.stringify(f.el("problems")).includes(", → ල"), "the comma is shown to read as ල");
+  // the font is missing: no Latin letters presented as Sinhala
+  f.events.onLegacyFonts({ installed: ["Noto Sans Sinhala"], fontListKnown: true });
+  assert.equal(f.el("preview").textContent, "පොතල අද", "what FMAbhaya will show, in the Unicode font");
+  assert.match(f.el("preview").style.fontFamily, /Noto Sans Sinhala/);
+  assert.match(f.el("previewNote").textContent, /not installed/);
+  // the direction switch updates the preview at once
+  f.el("dirToUnicode").listeners.click();
+  assert.equal(f.el("apply").disabled, true, "already Unicode");
 });

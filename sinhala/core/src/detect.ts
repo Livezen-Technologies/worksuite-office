@@ -107,7 +107,7 @@ export function detect(text: string, options: { fontNames?: string[] | string | 
     profile = fontProfile.id;
     confidence = 1;
   } else if (legacyWords > 0) {
-    // the shared Wijesekara base cannot tell the fonts apart; % (rakaransaya) is FM's
+    // the shared Wijesekara base (FM, DL) cannot tell the fonts apart: FM is the most common
     profile = (profiles.find((p) => p.id === "fm-abhaya") ?? profiles[0]).id;
     confidence = Math.min(0.9, 0.3 + 0.6 * (legacyWords / (legacyWords + latinWords)));
     confidence = Math.round(confidence * 100) / 100;
@@ -115,4 +115,25 @@ export function detect(text: string, options: { fontNames?: string[] | string | 
     confidence = 1;
   }
   return { kind, segments, profile, confidence };
+}
+
+export interface Recommendation {
+  /** The conversion the text needs: Unicode -> legacy, legacy -> Unicode, or null when there is nothing to convert. */
+  direction: "toUnicode" | "toLegacy" | null;
+  kind: Detection["kind"];
+  /** For toUnicode, the legacy profile the text is in (by font first); else null. */
+  profile: string | null;
+  confidence: number;
+}
+
+/**
+ * Which way a selection should be converted. Legacy text (by its font, or by its words) goes to Unicode,
+ * also when Unicode Sinhala is mixed in (the Unicode part passes through unchanged); Unicode Sinhala,
+ * with or without English words, goes to a legacy font; plain Latin text in no legacy font has no direction.
+ */
+export function recommend(text: string, fontNames?: string[] | string | null, profiles?: Profile[]): Recommendation {
+  const d = detect(text, { fontNames, profiles });
+  if (d.kind === "legacy" || d.kind === "mixed") return { direction: "toUnicode", kind: d.kind, profile: d.profile, confidence: d.confidence };
+  if (d.kind === "unicode") return { direction: "toLegacy", kind: d.kind, profile: null, confidence: d.confidence };
+  return { direction: null, kind: d.kind, profile: null, confidence: 0 };
 }

@@ -160,5 +160,20 @@
   "installed": "நிறுவப்பட்டது",
   "map not available": "வரைபடம் இல்லை",
   "not installed": "நிறுவப்படவில்லை",
-  "සිං": "சிங்"
+  "සිං": "சிங்",
+  "The selection does not look like Sinhala text, Unicode or legacy. Use the Convert dialog to choose.": "தேர்வு யூனிகோட் அல்லது பழைய சிங்கள உரையாகத் தெரியவில்லை. தேர்ந்தெடுக்க மாற்று உரையாடலைப் பயன்படுத்தவும்.",
+  "Convert to Sinhala Unicode": "சிங்கள யூனிகோடாக மாற்று",
+  "Convert Unicode to Legacy Font (%1)": "யூனிகோடை பழைய எழுத்துருவாக மாற்று (%1)",
+  "Auto Detect & Convert": "தானாகக் கண்டறிந்து மாற்று",
+  "Open Advanced Converter…": "மேம்பட்ட மாற்றியைத் திற…",
+  "Select Target Font": "இலக்கு எழுத்துருவைத் தேர்ந்தெடு",
+  "Sinhala Text Conversion": "சிங்கள உரை மாற்றம்",
+  "No Sinhala text detected: choose the direction and the font.": "சிங்கள உரை கண்டறியப்படவில்லை: திசையையும் எழுத்துருவையும் தேர்ந்தெடுக்கவும்.",
+  "Detected legacy %1 text: Legacy → Unicode is recommended.": "பழைய %1 உரை கண்டறியப்பட்டது: பழைய → யூனிகோட் பரிந்துரைக்கப்படுகிறது.",
+  "Detected Sinhala Unicode: Unicode → legacy is recommended.": "சிங்கள யூனிகோட் கண்டறியப்பட்டது: யூனிகோட் → பழைய பரிந்துரைக்கப்படுகிறது.",
+  "%1 is not installed, so the preview shows what the converted text will read as once it is, in %2.": "%1 நிறுவப்படவில்லை, எனவே அது நிறுவப்பட்ட பின் மாற்றிய உரை எப்படிப் படிக்கப்படும் என்பதை முன்னோட்டம் %2 இல் காட்டுகிறது.",
+  "%1 has no glyph for these characters: they will show as other letters:": "%1 இல் இந்த எழுத்துகளுக்கு வடிவம் இல்லை: அவை வேறு எழுத்துகளாகத் தெரியும்:",
+  "Refresh fonts": "எழுத்துருக்களைப் புதுப்பி",
+  "Original": "மூலம்",
+  "Converted": "மாற்றியது"
 }

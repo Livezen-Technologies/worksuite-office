@@ -10,6 +10,11 @@ export interface Unmapped {
   text: string;
   /** "U+0041" */
   codePoint: string;
+  /**
+   * toLegacy only: set when the character is itself a key of the legacy font, so the font shows it as this
+   * Unicode text instead (a comma in FMAbhaya is ල, "O" is ධ). The text is kept, but it will not read as itself.
+   */
+  reads?: string;
 }
 
 export interface ConvertResult {
@@ -158,7 +163,12 @@ export function toLegacy(input: string, profile: Profile): ConvertResult {
     }
     if (matched) continue;
     const u = units[i];
-    if (!profile.passthrough.includes(u.ch)) unmapped.push({ offset: u.offset, text: u.ch, codePoint: codePoint(u.ch) });
+    if (!profile.passthrough.includes(u.ch)) {
+      const reads = t.forward.get(u.ch);
+      unmapped.push(reads === undefined
+        ? { offset: u.offset, text: u.ch, codePoint: codePoint(u.ch) }
+        : { offset: u.offset, text: u.ch, codePoint: codePoint(u.ch), reads });
+    }
     out.push(u.ch);
     i++;
   }
