@@ -324,9 +324,16 @@ export class ModelStore {
   async exportTo(id: string, out: Writable, signal?: AbortSignal): Promise<void> {
     const m = this.index.get(id);
     if (!m) throw new ApiError("model_not_installed", `Model ${id} is not installed`);
+    // the engine that runs the model rides along, so the package installs on a computer with no internet
+    const engine = ENGINE_OF[m.manifest.engine];
+    const kept = engine ? this.d.engines.kept(engine) : null;
     await writeTar(out, [
       { name: "manifest.json", data: Buffer.from(JSON.stringify(m.manifest, null, 2)) },
       ...m.manifest.files.map((f) => ({ name: `files/${f.path}`, path: join(m.dir, f.path) })),
+      ...(kept ? [
+        { name: "engine/package.json", data: Buffer.from(JSON.stringify({ engine: kept.pkg.engine, version: kept.pkg.version, backend: kept.pkg.backend, platform: kept.pkg.platform })) },
+        ...kept.pkg.files.map((f) => ({ name: `engine/files/${f.path}`, path: join(kept.dir, f.path) })),
+      ] : []),
     ], signal);
   }
 
@@ -372,12 +379,39 @@ export class ModelStore {
         mkdirSync(dirname(finalDir), { recursive: true });
         renameSync(stage, finalDir);
         this.commit(manifest, finalDir);
+        await this.importEngine(file, members, manifest, job);
         return { id: manifest.id, version: manifest.version };
       } finally {
         rmSync(stage, { recursive: true, force: true });
         rmSync(file, { force: true });
       }
     }, { modelId: manifest.id });
+  }
+
+  /** The engine carried in a .wsmodel, installed when this computer has none; a mismatch is not fatal. */
+  private async importEngine(file: string, members: ReturnType<typeof listTar>, manifest: Manifest, job: JobControl): Promise<void> {
+    const engine = ENGINE_OF[manifest.engine];
+    const desc = members.find((x) => x.name === "engine/package.json");
+    if (!engine || !desc || this.d.engines.resolve(engine)) return;
+    const tmp = join(this.d.modelsDir(), ".staging", `engine-${job.id}`);
+    try {
+      const d = JSON.parse(readMember(file, desc).toString("utf8")) as { engine?: string; version?: string; backend?: string };
+      if (d.engine !== engine || typeof d.version !== "string" || typeof d.backend !== "string") return;
+      job.progress(0.97, "engine");
+      await this.d.engines.installFromFiles(engine, d.version, d.backend, async (path) => {
+        const mem = members.find((x) => x.name === `engine/files/${path}`);
+        if (!mem) throw new ApiError("integrity_failed", `The package has no engine file ${path}`);
+        const dest = memberPath(tmp, path);
+        await extractMember(file, mem, dest, job.signal);
+        return dest;
+      }, job.signal);
+      this.d.events.emit("engine", { engine, state: "installed" });
+    } catch (e) {
+      // the model is installed; activation reports the missing engine, as after an online install
+      this.d.events.emit("engine", { engine, state: "unavailable", reason: (e as Error).message });
+    } finally {
+      rmSync(tmp, { recursive: true, force: true });
+    }
   }
 
   /** POST /v1/storage/move {path}: copies <models> to <path>/models, switches, removes the old copy. */

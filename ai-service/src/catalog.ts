@@ -111,6 +111,11 @@ export class Catalog {
       .sort((a, b) => compareVersions(b.version, a.version))[0];
   }
 
+  /** One exact engine package version (for an engine carried in a .wsmodel, checked against the catalog). */
+  engineExact(engine: string, platform: string, backend: string, version: string): EnginePackage | undefined {
+    return this.state.doc.engines.find((e) => e.engine === engine && e.platform === platform && e.backend === backend && e.version === version);
+  }
+
   /** GET /v1/catalog?task=&lang= */
   list(hw: Hardware | null, policy: Policy, task?: string | null, lang?: string | null) {
     return this.state.doc.models
