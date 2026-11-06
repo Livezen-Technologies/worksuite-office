@@ -1,5 +1,18 @@
 # Change log
 
+## 10.1.27
+
+### Fixes
+
+#### Offline
+
+* The start page no longer waits on WorkSuite when there is no internet,
+  including on a network with no internet access. After one failed request
+  it shows your saved lists and the offline banners straight away, and it
+  checks again every 15 seconds
+* WorkSuite requests time out after 10 seconds instead of 30, and Drive
+  downloads and uploads stop after 30 seconds with no data
+
 ## 10.1.26
 
 ### Fixes
