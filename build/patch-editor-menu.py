@@ -22,7 +22,7 @@ OPTIONS = {
     "canHelp": "WorkSuite: no ONLYOFFICE help",
     "canSuggest": "WorkSuite: no ONLYOFFICE feature requests",
 }
-SUPPORT_URL = "https://worksuitecloud.com/"
+SUPPORT_URL = "https://worksuitecloud.com/support"
 
 root = Path(sys.argv[1]) if len(sys.argv) > 1 else Path(__file__).resolve().parent.parent / "web-apps"
 

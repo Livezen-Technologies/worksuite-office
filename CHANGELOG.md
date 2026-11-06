@@ -1,5 +1,34 @@
 # Change log
 
+## 10.1.24
+
+### New features
+
+#### Branding
+
+* The app and the editors name WorkSuite Office, not ONLYOFFICE, in every
+  language: menus, dialogs, file types, the update service and the
+  editors' window titles
+* Links that led to onlyoffice.com now lead to WorkSuite: help to
+  worksuitecloud.com/help, feedback and support to
+  worksuitecloud.com/support, downloads to download.worksuitecloud.com and
+  the website to worksuitecloud.com
+* The licence notices and the About attribution to ONLYOFFICE by Ascensio
+  System SIA stay as they are
+
+### Fixes
+
+#### Start page
+
+* No online template gallery or Box and Dropbox connections that ran on
+  ONLYOFFICE servers
+
+#### Build
+
+* The editors' branding is a build patch that the Check workflow tests
+  against the upstream sources, so a change upstream fails the check
+  instead of the build
+
 ## 10.1.23
 
 ### New features
