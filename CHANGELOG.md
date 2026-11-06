@@ -1,5 +1,26 @@
 # Change log
 
+## 10.1.23
+
+### New features
+
+#### Installer
+
+* The Windows installer's licence page shows the WorkSuite Office Terms of
+  Use, followed by the complete GNU AGPL-3.0 that covers the source code
+* The Terms of Use are installed with the app as TERMS.txt, next to
+  LICENSE.txt and 3DPARTYLICENSE.txt, and the Start menu has a WorkSuite
+  Office Terms of Use link
+* The installer's copyright reads Livezen Technologies LLC, based on
+  ONLYOFFICE by Ascensio System SIA and contributors
+
+### Fixes
+
+#### Installer
+
+* English is the installer's fallback language when Windows uses a language
+  it has no translation for
+
 ## 10.1.22
 
 ### New features
