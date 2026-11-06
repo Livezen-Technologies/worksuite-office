@@ -45,8 +45,8 @@ env:
   BUILD_TOOLS_REF: release/v9.4.0
   BUILD_TOOLS_SHA: cf4cac0846d03e2e00a6fec5d1ecd4e9463086d5
   # desktop-apps' v10 branch, the same commit as the Windows and Linux 10 builds
-  DESKTOP_APPS_REF: efc1f8c769b794d9e0f9b3b1a887d78813852968
-  PRODUCT_VERSION: 10.1.28
+  DESKTOP_APPS_REF: 738438a09b1ccb7f3fa718e5fb6ec89c5ac162af
+  PRODUCT_VERSION: 10.1.29
   COMPANY_NAME: WorkSuite
   UPDATE_CENTER: https://download.worksuitecloud.com
   UPDATE_APP_ID: lk.worksuite.office
@@ -252,6 +252,13 @@ jobs:
         run: |
           mkdir -p Vendor/ONLYOFFICE/license
           cp -fv ../package/common/license/opensource/LICENSE.html Vendor/ONLYOFFICE/license/LICENSE.html
+          # Sinhala fonts: the editors read login/fonts, and the app installs them into ~/Library/Fonts
+          fonts="$GITHUB_WORKSPACE/oo/build_tools/out/$OO_PLATFORM/onlyoffice/desktopeditors/fonts/worksuite-sinhala"
+          test -d "$fonts" || { echo "::error::no Sinhala fonts at $fonts"; exit 1; }
+          mkdir -p Vendor/ONLYOFFICE/login/fonts
+          rm -rf Vendor/ONLYOFFICE/login/fonts/worksuite-sinhala
+          cp -R "$fonts" Vendor/ONLYOFFICE/login/fonts/worksuite-sinhala
+          ls Vendor/ONLYOFFICE/login/fonts/worksuite-sinhala
           res="ONLYOFFICE/Resources/$SCHEME"
           plist="$res/Info.plist"
           /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $PRODUCT_VERSION" "$plist"
