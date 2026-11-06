@@ -1,5 +1,15 @@
 # Change log
 
+## 10.1.29
+
+### New features
+
+#### Sinhala
+
+* On macOS the Sinhala fonts (Noto Sans and Serif Sinhala, Malithi Web) now
+  ship in the app for the editors, and the app installs them into the user's
+  fonts at launch, so every app on the Mac can use them
+
 ## 10.1.28
 
 ### New features
