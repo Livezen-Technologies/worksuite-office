@@ -6,7 +6,7 @@ body:
     attributes:
       label: "This issue is unique."
       options:
-      - label: "I have used the [search tool](https://github.com/ONLYOFFICE/DesktopEditors/issues?q=) and did not find an issue describing my bug."
+      - label: "I have used the [search tool](https://github.com/Livezen-Technologies/worksuite-office/issues?q=) and did not find an issue describing my bug."
         required: true
   - type: dropdown
     id: os
@@ -50,8 +50,8 @@ body:
     id: version
     attributes:
       label: "Version information"
-      description: "Please provide the exact version of the app you are using. If you don't know it, look at the 'About' tab in the ONLYOFFICE Desktop Editors. Before submitting an issue, ensure you are using the [latest version of the app](https://www.onlyoffice.com/en/download-desktop.aspx)."
-      placeholder: "Example: 6.3.1.56"
+      description: "Please provide the exact version of the app you are using. If you don't know it, look at the 'About' tab in WorkSuite Office. Before submitting an issue, ensure you are using the [latest version of the app](https://download.worksuitecloud.com)."
+      placeholder: "Example: 10.1.24"
     validations:
       required: true
   - type: textarea
