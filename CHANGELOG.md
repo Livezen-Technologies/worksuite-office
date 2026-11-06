@@ -1,5 +1,20 @@
 # Change log
 
+## 10.1.28
+
+### New features
+
+#### Offline
+
+* Help works without internet. The help pages ship with the app on Windows
+  and Linux (now in the main deb and rpm), and say WorkSuite instead of
+  ONLYOFFICE. Help is back in each editor's File menu
+* An exported AI model (`.wsmodel`) carries the engine that runs it, so
+  importing it on a computer with no internet sets up both. The engine must
+  match the catalog for that computer
+* The Sinhala fonts (Noto Sans and Serif Sinhala, Malithi Web) are installed
+  for every app on the computer on Windows and Linux, not only the editors
+
 ## 10.1.27
 
 ### Fixes

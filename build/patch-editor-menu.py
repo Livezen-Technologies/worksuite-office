@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
 """WorkSuite's changes to the editors' menus, applied in CI before web-apps is built.
 
-- Help and Suggest a Feature go. Both lead to ONLYOFFICE's own help and feature-request
-  pages. They are switched off where each editor decides whether to show them
-  (appOptions.canHelp and appOptions.canSuggest in its Main controller), so the File menu
-  entries, their panels and the F1 shortcut all go, and the remaining items close up with
-  no gap.
+- Suggest a Feature goes: it leads to ONLYOFFICE's feature-request page. It is switched off
+  where each editor decides whether to show it (appOptions.canSuggest in its Main controller),
+  so the File menu entry goes and the remaining items close up with no gap.
+- Help stays: the help pages ship with the app and open offline. patch-help.py rebrands them.
 - Feedback & Support, in each editor's left bar, opens WorkSuite instead of ONLYOFFICE's
   support site: the {{SUPPORT_URL}} the web-apps build would fill in is only used there.
 
@@ -19,7 +18,6 @@ import sys
 
 EDITORS = ("documenteditor", "spreadsheeteditor", "presentationeditor", "pdfeditor", "visioeditor")
 OPTIONS = {
-    "canHelp": "WorkSuite: no ONLYOFFICE help",
     "canSuggest": "WorkSuite: no ONLYOFFICE feature requests",
 }
 SUPPORT_URL = "https://worksuitecloud.com/support"
