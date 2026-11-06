@@ -58,7 +58,7 @@ jobs:
       matrix:
         include:
           - arch: arm64
-            runner: macos-14
+            runner: macos-15
             platform: mac_arm64
             scheme: ONLYOFFICE-arm
           - arch: x64
