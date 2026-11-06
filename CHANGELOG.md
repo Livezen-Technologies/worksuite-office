@@ -1,5 +1,14 @@
 # Change log
 
+## 10.1.26
+
+### Fixes
+
+#### Build
+
+* 10.1.25 did not compile on Linux or Windows (a missing include in the tab
+  bar's All tabs menu); 10.1.26 is the same release with that fixed
+
 ## 10.1.25
 
 ### New features
