@@ -1,5 +1,36 @@
 # Change log
 
+## 10.1.25
+
+### New features
+
+#### AI
+
+* Settings › AI & MCP Connectors: AI providers (OpenAI-compatible, Ollama,
+  custom) with a connection test, model list and default provider and model;
+  MCP servers over stdio or Streamable HTTP with discovery of tools,
+  resources and prompts, a tool tester and an activity log
+* Every MCP tool call asks first, with "always allow" choices you can revoke;
+  keys are kept in Windows Credential Manager or libsecret
+
+#### Home
+
+* Quick actions (Document, Spreadsheet, Presentation, Open file, From
+  template) and Pinned files, Local files and Connected cloud storage shelves
+
+#### Window
+
+* Title bar with the WorkSuite Office icon and name, a Home tab with a house
+  icon, a window frame that follows the app's theme, an "All tabs" menu when
+  tabs overflow, and the last session's files reopened at start
+
+### Fixes
+
+#### Tabs
+
+* A file reached through a path in different letter case or with other
+  slashes no longer opens a second tab
+
 ## 10.1.24
 
 ### New features
