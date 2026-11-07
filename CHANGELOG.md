@@ -1,5 +1,15 @@
 # Change log
 
+## 10.1.30
+
+### New features
+
+#### Branding
+
+* A new WorkSuite Office icon: a light tile with a blue and a cyan page. It is
+  the app's icon on Windows, macOS and Linux, and appears in the setup
+  wizard, the title bar logo, About and the start page
+
 ## 10.1.29
 
 ### New features
