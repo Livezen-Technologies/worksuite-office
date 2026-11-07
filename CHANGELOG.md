@@ -1,5 +1,15 @@
 # Change log
 
+## 10.1.31
+
+### New features
+
+#### Branding
+
+* The WorkSuite Office icon from the WorkSuite icon pack, in the brand blue,
+  cyan and navy: the app on Windows, macOS and Linux, the setup wizard, the
+  title bar logo, About and the start page
+
 ## 10.1.30
 
 ### New features
