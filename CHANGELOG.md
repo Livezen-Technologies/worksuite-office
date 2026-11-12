@@ -78,6 +78,8 @@
 * Fixed percentages, scientific numbers and fractions in an OpenDocument
   spreadsheet losing their decimals when opened or saved as Excel (0.0%
   became 0%)
+* Fixed an OpenDocument spreadsheet saved as Excel naming each sheet's
+  selected cell wrongly, so that strict programs refused the file
 
 #### WorkSuite
 
