@@ -42,9 +42,20 @@ while IFS= read -r -d '' f; do
   fi
 done < <(find "$app" -type f \( -name '*.so' -o -name '*.so.*' -o -perm -u+x \) -print0)
 
+# worksuite-ai is a Node single executable: stripping it (dh_strip) destroys the injected app and it
+# segfaults at start (10.1.20). It must at least answer --version.
+if [ -f "$app/worksuite-ai" ]; then
+  if out="$(timeout 30 "$app/worksuite-ai" --version 2>&1)" && [[ "$out" == worksuite-ai* ]]; then
+    echo "${app#"$work"}/worksuite-ai runs: $out"
+  else
+    echo "${app#"$work"}/worksuite-ai does not run (exit $?): ${out:-no output}. Was it stripped?"
+    status=1
+  fi
+fi
+
 if [ "$status" -eq 0 ]; then
   echo "All $checked programs and plugins in $(basename "$deb") find their libraries."
 else
-  echo "Some programs in $(basename "$deb") need libraries that neither the package nor this system has."
+  echo "Some programs in $(basename "$deb") cannot load or run (see above)."
 fi
 exit "$status"

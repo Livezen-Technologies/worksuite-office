@@ -10,6 +10,9 @@
   "libicui18n.so.55: cannot open shared object file". The package now
   includes the ICU libraries its Qt needs, and every Linux build checks that
   each of its programs finds its libraries
+* Fixed the Local AI service not starting on Linux, so voice typing,
+  transcription, read aloud and the AI tools did not work: packaging stripped
+  it, which breaks it
 * Fixed New document templates on Linux being copied to the top folder of the
   computer when xdg-user-dir is not installed
 
