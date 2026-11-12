@@ -27,6 +27,11 @@
 * Fixed New document templates on Linux being copied to the top folder of the
   computer when xdg-user-dir is not installed
 
+#### Spreadsheets
+
+* Fixed an OpenDocument spreadsheet saved as Excel making a file that strict
+  programs refuse to open: its list of number formats was written wrongly
+
 #### WorkSuite
 
 * Files saved by WorkSuite Office now say WorkSuite Office as the program
