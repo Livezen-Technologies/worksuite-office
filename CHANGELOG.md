@@ -95,6 +95,9 @@
   recording on a slow computer
 * WorkSuite Local AI answers a request whose address has a broken %-escape
   as a bad request, not as an internal error
+* Fixed a recording made with a quiet microphone being transcribed as nothing,
+  without an error: speech below a fixed loudness was all taken for silence.
+  The level now follows the recording
 
 #### Sinhala
 

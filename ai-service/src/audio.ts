@@ -140,12 +140,17 @@ export function ffmpegEncode(cmd: Command, pcm: Buffer, rate: number, format: "m
  * Returns byte offsets into the 16 kHz s16le PCM.
  */
 export function splitOnSilence(pcm: Buffer, o: { silenceMs?: number; maxMs?: number; minRms?: number; frameMs?: number; padBeforeMs?: number; padAfterMs?: number; minSpeechMs?: number } = {}): { off: number; len: number }[] {
-  const frameMs = o.frameMs ?? 40, silenceMs = o.silenceMs ?? 500, maxMs = o.maxMs ?? 25000, minRms = o.minRms ?? 350;
+  const frameMs = o.frameMs ?? 40, silenceMs = o.silenceMs ?? 500, maxMs = o.maxMs ?? 25000;
   const padBefore = Math.round((o.padBeforeMs ?? 300) / frameMs), padAfter = Math.round((o.padAfterMs ?? 500) / frameMs);
   const minSpeech = Math.max(1, Math.round((o.minSpeechMs ?? 300) / frameMs));
   const fb = (RATE * 2 * frameMs) / 1000;
   const frames: number[] = [];
   for (let off = 0; off + 2 <= pcm.length; off += fb) frames.push(rms(pcm.subarray(off, Math.min(pcm.length, off + fb))));
+  // speech is louder than 350 RMS at a normal recording level; a quiet microphone records it below that,
+  // and the whole recording was taken for silence (nothing recognised, no error). The threshold follows
+  // the recording: 30% of its loud frames' level, at most 350, at least 60 (about -55 dBFS: room noise)
+  const loud = frames.length ? [...frames].sort((x, y) => x - y)[Math.floor((frames.length - 1) * 0.95)] : 0;
+  const minRms = o.minRms ?? Math.max(60, Math.min(350, loud * 0.3));
   // speech runs: [first speech frame, last speech frame], split at pauses and at maxMs
   const runs: { a: number; b: number; speech: number }[] = [];
   const quietRun = Math.max(1, Math.round(silenceMs / frameMs)), maxFrames = Math.max(1, Math.round(maxMs / frameMs));

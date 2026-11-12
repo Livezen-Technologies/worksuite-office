@@ -18,6 +18,11 @@ Two more ODS -> XLSX number format losses, the same reader:
   came back as a serial number (46024). A number cell now keeps its style's numeric format; a text
   or boolean cell still takes its own type, as before.
 
+And one more attribute strict readers refuse, in Converter/xlsx_table_state.cpp: each sheet's
+<selection> was written with activePane="topLeft"; the attribute of <selection> is pane (activePane
+belongs to <pane>), and openpyxl refused every sheet without frozen panes ("unexpected keyword
+argument 'activePane'"). It is now pane="topLeft", the same pane as before.
+
 Usage: patch-core-numfmts.py path/to/core
 Running it again changes nothing.
 """
@@ -92,3 +97,18 @@ if new not in raw:
         sys.exit(f"patch-core-numfmts: the expected text is in {cell} {raw.count(old)} times, not once")
     cell.write_text(raw.replace(old, new), encoding="utf-8", newline="")
 print(f"patched {cell}")
+
+SEL_OLD = """							CP_XML_ATTR(L"activePane", L"topLeft");
+							CP_XML_ATTR(L"sqref", getCellAddress(col, row));"""
+SEL_NEW = """							CP_XML_ATTR(L"pane", L"topLeft"); // WorkSuite: <selection> has pane, not activePane
+							CP_XML_ATTR(L"sqref", getCellAddress(col, row));"""
+state = root / "OdfFile" / "Reader" / "Converter" / "xlsx_table_state.cpp"
+if not state.is_file():
+    sys.exit(f"patch-core-numfmts: {state} not found")
+raw = open(state, encoding="utf-8", newline="").read()
+old, new = (SEL_OLD.replace("\n", "\r\n"), SEL_NEW.replace("\n", "\r\n")) if "\r\n" in raw else (SEL_OLD, SEL_NEW)
+if new not in raw:
+    if raw.count(old) != 1:
+        sys.exit(f"patch-core-numfmts: the expected text is in {state} {raw.count(old)} times, not once")
+    state.write_text(raw.replace(old, new), encoding="utf-8", newline="")
+print(f"patched {state}")

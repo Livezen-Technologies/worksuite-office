@@ -56,3 +56,16 @@ describe("splitOnSilence: padding and clicks", () => {
     expect(sec(pieces[0].off + pieces[0].len)).toBeGreaterThan(4.35);
   });
 });
+
+describe("splitOnSilence: recording level", () => {
+  it("finds speech recorded quietly (a low microphone level), cut in its pauses", () => {
+    // ~280 RMS: below the 350 a normal recording's speech reaches; it was all taken for silence
+    const pcm = Buffer.concat([silence(800), tone(2000, 400), silence(1500), tone(1500, 400), silence(800)]);
+    const pieces = splitOnSilence(pcm);
+    expect(pieces).toHaveLength(2);
+    expect(sec(pieces[0].off)).toBeLessThan(0.8);
+  });
+  it("still takes faint room noise alone for silence", () => {
+    expect(splitOnSilence(tone(5000, 50))).toEqual([]);
+  });
+});
