@@ -27,6 +27,13 @@
 * Fixed New document templates on Linux being copied to the top folder of the
   computer when xdg-user-dir is not installed
 
+#### PDF
+
+* Fixed the PDF Tools (protect, stamp, merge, images to PDF, form data, sign,
+  page size, versions) waiting for ever on "Please, wait..." and never
+  making their file: their requests to WorkSuite Local AI went out without
+  their settings
+
 #### Spreadsheets
 
 * Fixed an OpenDocument spreadsheet saved as Excel making a file that strict
