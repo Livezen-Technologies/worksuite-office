@@ -10,6 +10,13 @@
   "libicui18n.so.55: cannot open shared object file". The package now
   includes the ICU libraries its Qt needs, and every Linux build checks that
   each of its programs finds its libraries
+* Fixed New document templates on Linux being copied to the top folder of the
+  computer when xdg-user-dir is not installed
+
+#### Sinhala
+
+* Fixed Singlish suggestions never offering a word that starts with a long ආ
+  when it is typed with one "a": ayubowan now suggests ආයුබෝවන්
 
 ## 10.1.31
 
