@@ -63,6 +63,10 @@
   the RTF was opened again, here or in another program
 * Fixed every style of a document that went through RTF being marked as an
   e-mail style
+* Fixed pictures in a document saved as an e-book (EPUB) not showing in many
+  e-book readers: they were left inside the page instead of being stored as
+  files of the book, and JPEG pictures were labelled as PNG. A book with no
+  language set now says en, not the invalid en-EN
 
 #### Spreadsheets
 

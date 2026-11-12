@@ -165,6 +165,7 @@ jobs:
           python worksuite-office/build/patch-core-numfmts.py oo/core
           python worksuite-office/build/patch-core-fontranges.py oo/core
           python worksuite-office/build/patch-core-rtfstyles.py oo/core
+          python worksuite-office/build/patch-core-epub.py oo/core
 
       - name: Sinhala Tools (plugin and Noto Sinhala fonts)
         working-directory: oo
