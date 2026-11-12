@@ -24,7 +24,7 @@ env:
   OO_TAG: v10.0.0.176
   BUILD_TOOLS_REF: release/v9.4.0
   BUILD_TOOLS_SHA: cf4cac0846d03e2e00a6fec5d1ecd4e9463086d5
-  DESKTOP_APPS_REF: a28b9900f90d545b93e4190f799f9597159cdf96
+  DESKTOP_APPS_REF: b70a0623eb00b32ae12f34e0130c2948ffb97254
   PRODUCT_VERSION: 10.1.32
   # depot_tools (V8) stays at the pinned commit: its self-update collides with build_tools' bootstrap edits
   DEPOT_TOOLS_UPDATE: '0'
@@ -151,6 +151,14 @@ jobs:
           ls deb/*.deb >/dev/null 2>&1 || { echo "::error::no .deb was made"; exit 1; }
           for d in deb/*.deb; do dpkg-deb -c "$d" | grep -q '/worksuite-ai$' || { echo "::error::$d has no worksuite-ai"; exit 1; }; done
           for d in deb/*.deb; do dpkg-deb -c "$d" | grep -q '/speech/ggml-small-si-q5_1.bin$' || { echo "::error::$d has no Sinhala speech model"; exit 1; }; done
+          # the rpm: worksuite-ai must survive brp-strip (desktop-apps rpm/common.spec)
+          for r in rpm/build/RPMS/*/*.rpm; do
+            [ -f "$r" ] || continue
+            x="$(mktemp -d)"; (cd "$x" && rpm2cpio "$r" | cpio -idm --quiet)
+            ai="$(find "$x" -type f -name worksuite-ai | head -1)"
+            "$ai" --version || { echo "::error::$r: worksuite-ai does not run (stripped?)"; exit 1; }
+            rm -rf "$x"
+          done
           # every program in the package must find its libraries (10.1.20 lacked Qt's ICU 55 and did not start)
           for d in deb/*.deb; do bash "$GITHUB_WORKSPACE/worksuite-office/build/v10/check-linux-package.sh" "$d" || { echo "::error::$d cannot load its libraries"; exit 1; }; done
 

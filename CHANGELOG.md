@@ -23,7 +23,7 @@
   each of its programs finds its libraries
 * Fixed the Local AI service not starting on Linux, so voice typing,
   transcription, read aloud and the AI tools did not work: packaging stripped
-  it, which breaks it
+  it, which breaks it. The same for the rpm package
 * Fixed New document templates on Linux being copied to the top folder of the
   computer when xdg-user-dir is not installed
 
