@@ -1,5 +1,16 @@
 # Change log
 
+## 10.1.32
+
+### Fixes
+
+#### Linux
+
+* Fixed WorkSuite Office not starting on Linux: it stopped at once with
+  "libicui18n.so.55: cannot open shared object file". The package now
+  includes the ICU libraries its Qt needs, and every Linux build checks that
+  each of its programs finds its libraries
+
 ## 10.1.31
 
 ### New features
