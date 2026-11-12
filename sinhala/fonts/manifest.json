@@ -32,6 +32,21 @@
       "sha256": "249adc80afbbdbd56652d3a0c247b9b241b41f33405253017923529756310ed8",
       "file": "MalithiWeb.ttf",
       "optional": true
+    },
+    {
+      "family": "Noto Sans Tamil",
+      "version": "2.004",
+      "licence": "OFL-1.1",
+      "url": "https://github.com/notofonts/tamil/releases/download/NotoSansTamil-v2.004/NotoSansTamil-v2.004.zip",
+      "sha256": "f8284e0f200a7f29a439b4ec88280d864b2b31f8479111c5b658ba6da38b3005",
+      "files": {
+        "NotoSansTamil/full/ttf/NotoSansTamil-Regular.ttf": "0afbc221964b6048c6d771c525be474d21b288a621dce0fafedd695cc5c98e4e",
+        "NotoSansTamil/full/ttf/NotoSansTamil-Bold.ttf": "39bbf8317e5c899ae381d467e651ea49a1e3d5189d16075f24c3c593a365ac7a",
+        "../OFL.txt": "f8ff8ce7d0a81bf8d5e121c635ef027250c531f2fd37d5988b8dd6e45f19d7f1"
+      },
+      "names": {
+        "../OFL.txt": "OFL-NotoSansTamil.txt"
+      }
     }
   ],
   "legacy": [

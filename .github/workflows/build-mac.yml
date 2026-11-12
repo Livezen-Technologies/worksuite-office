@@ -163,6 +163,7 @@ jobs:
           python worksuite-office/build/patch-ai-tab.py oo/onlyoffice.github.io
           python worksuite-office/build/patch-sdkjs-keys.py oo/sdkjs
           python worksuite-office/build/patch-core-numfmts.py oo/core
+          python worksuite-office/build/patch-core-fontranges.py oo/core
 
       - name: Sinhala Tools (plugin and Noto Sinhala fonts)
         working-directory: oo

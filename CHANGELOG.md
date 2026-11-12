@@ -21,6 +21,16 @@
 
 ### Fixes
 
+#### Sinhala and Tamil
+
+* Fixed Sinhala and Tamil text exported to PDF (and drawn where the text's
+  own font has no Sinhala or Tamil letters) coming out invisible or as
+  maths symbols: most Sinhala letters, every vowel sign and the virama were
+  given to a fallback font that does not draw them, although Noto Sans
+  Sinhala comes with WorkSuite Office. The fonts are looked up again once
+  after the update
+* Tamil text has a font: Noto Sans Tamil now comes with WorkSuite Office
+
 #### Linux
 
 * Fixed WorkSuite Office not starting on Linux: it stopped at once with
