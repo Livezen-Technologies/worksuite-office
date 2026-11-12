@@ -59,7 +59,9 @@ describe("checkBundledStt", () => {
   });
   it("refuses a file of another size without reading it", () => {
     shipModel(Buffer.alloc(10));
-    expect(checkBundledStt(mkdtempSync(join(tmpdir(), "ws-c-")), { WS_AI_BUNDLED_DIR: shipped })).toMatchObject({ ok: false, reason: "integrity_failed" });
+    const cache = mkdtempSync(join(tmpdir(), "ws-c-"));
+    expect(checkBundledStt(cache, { WS_AI_BUNDLED_DIR: shipped })).toMatchObject({ ok: false, reason: "integrity_failed" });
+    rmSync(cache, { recursive: true, force: true });
     shipModel();
   });
 });
