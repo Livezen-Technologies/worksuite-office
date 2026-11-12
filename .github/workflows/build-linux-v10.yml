@@ -129,6 +129,9 @@ jobs:
       - name: Local AI service (worksuite-ai) next to the app
         run: bash worksuite-office/build/v10/ai-service.sh "$GITHUB_WORKSPACE/worksuite-office" "$GITHUB_WORKSPACE/oo/build_tools/out/linux_64/onlyoffice/desktopeditors"
 
+      - name: Sinhala voice typing (whisper-server and the Sinhala speech model) next to the app
+        run: bash worksuite-office/build/v10/speech.sh "$GITHUB_WORKSPACE/worksuite-office" "$GITHUB_WORKSPACE/oo/build_tools/out/linux_64/onlyoffice/desktopeditors"
+
       - name: Package (deb, rpm, tar)
         working-directory: oo/desktop-apps/package
         run: |
@@ -147,6 +150,7 @@ jobs:
           [ -z "$failed" ] || echo "::warning::package types that failed:$failed"
           ls deb/*.deb >/dev/null 2>&1 || { echo "::error::no .deb was made"; exit 1; }
           for d in deb/*.deb; do dpkg-deb -c "$d" | grep -q '/worksuite-ai$' || { echo "::error::$d has no worksuite-ai"; exit 1; }; done
+          for d in deb/*.deb; do dpkg-deb -c "$d" | grep -q '/speech/ggml-small-si-q5_1.bin$' || { echo "::error::$d has no Sinhala speech model"; exit 1; }; done
           # every program in the package must find its libraries (10.1.20 lacked Qt's ICU 55 and did not start)
           for d in deb/*.deb; do bash "$GITHUB_WORKSPACE/worksuite-office/build/v10/check-linux-package.sh" "$d" || { echo "::error::$d cannot load its libraries"; exit 1; }; done
 

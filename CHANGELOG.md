@@ -2,6 +2,17 @@
 
 ## 10.1.32
 
+### New features
+
+#### Sinhala
+
+* Sinhala voice typing works out of the box: Voice typing on the Sinhala
+  Tools tab listens in Sinhala and writes what you say at the cursor, in the
+  Sinhala font. The speech engine and a Sinhala speech model come with WorkSuite
+  Office, so there is nothing to install or set up, and your voice stays on
+  your computer. Measured on recordings of native speakers it gets about
+  96 % of letters right (WER 0.23, CER 0.04); see build/speech/EVALUATION.md
+
 ### Fixes
 
 #### Linux
@@ -22,6 +33,14 @@
   that made them, not ONLYOFFICE: in Word, Excel and PowerPoint files, in
   OpenDocument files and in PDF files
 * The AI tools are in one AI tab: the editors showed two tabs captioned AI
+
+* Fixed the first words of a dictation being lost while the speech model was
+  still starting, and the start of a sentence going missing or turning into
+  invented words when a recording was transcribed
+* Fixed voice typing saying WorkSuite Local AI is not running the first time
+  it is used after WorkSuite Office starts
+* Fixed dictated text written live being lost when voice typing switched to
+  recording on a slow computer
 
 #### Sinhala
 

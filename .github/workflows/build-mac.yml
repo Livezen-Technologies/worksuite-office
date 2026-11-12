@@ -302,13 +302,19 @@ jobs:
         run: |
           app="$GITHUB_WORKSPACE/oo/desktop-apps/macos/build/dd/Build/Products/Release/ONLYOFFICE.app"
           bash worksuite-office/build/v10/ai-service.sh "$GITHUB_WORKSPACE/worksuite-office" "$app/Contents/MacOS"
+          # Sinhala voice typing: whisper-server and the model in Contents/Resources/speech (data files do not
+          # belong in Contents/MacOS); worksuite-ai looks there on macOS
+          mkdir -p "$app/Contents/Resources"
+          bash worksuite-office/build/v10/speech.sh "$GITHUB_WORKSPACE/worksuite-office" "$app/Contents/Resources"
           ent="$GITHUB_WORKSPACE/worksuite-office/ai-service/packaging/macos/worksuite-ai.entitlements"
           if [ -n "$SIGN_IDENTITY" ]; then
+            codesign --force --timestamp --options runtime --sign "$SIGN_IDENTITY" "$app/Contents/Resources/speech/whisper-server"
             codesign --force --timestamp --options runtime --entitlements "$ent" --sign "$SIGN_IDENTITY" "$app/Contents/MacOS/worksuite-ai"
             # the bundle's seal now covers worksuite-ai: sign the app again, keeping its own entitlements
             codesign --force --timestamp --options runtime --preserve-metadata=entitlements,requirements,flags,runtime --sign "$SIGN_IDENTITY" "$app"
             codesign --verify --deep --strict --verbose=2 "$app"
           else
+            codesign --force --sign - "$app/Contents/Resources/speech/whisper-server"
             codesign --force --sign - --entitlements "$ent" "$app/Contents/MacOS/worksuite-ai"
             codesign --force --sign - --preserve-metadata=entitlements,requirements,flags "$app"
           fi

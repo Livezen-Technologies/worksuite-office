@@ -222,6 +222,9 @@ jobs:
       - name: Local AI service (worksuite-ai.exe) in the install dir
         run: bash worksuite-office/build/v10/ai-service.sh "$GITHUB_WORKSPACE/worksuite-office" C:/oo/build_tools/out/win_64/onlyoffice/DesktopEditors
 
+      - name: Sinhala voice typing (whisper-server.exe and the Sinhala speech model) in the install dir
+        run: bash worksuite-office/build/v10/speech.sh "$GITHUB_WORKSPACE/worksuite-office" C:/oo/build_tools/out/win_64/onlyoffice/DesktopEditors
+
       - name: Sign the app (Authenticode, certificate)
         if: steps.signing.outputs.mode == 'pfx'
         shell: pwsh
