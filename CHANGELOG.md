@@ -56,6 +56,14 @@
   making their file: their requests to WorkSuite Local AI went out without
   their settings
 
+#### Documents
+
+* Fixed a document saved as RTF losing its Normal style: the RTF had no
+  default paragraph style, so plain paragraphs changed font and spacing when
+  the RTF was opened again, here or in another program
+* Fixed every style of a document that went through RTF being marked as an
+  e-mail style
+
 #### Spreadsheets
 
 * Fixed an OpenDocument spreadsheet saved as Excel making a file that strict
