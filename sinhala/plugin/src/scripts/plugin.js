@@ -767,6 +767,7 @@
   };
 
   plugin.init = function () {
+    if (window.WorkSuiteSinhalaIme) window.WorkSuiteSinhalaIme.warmUp();
     addToolbar();
     loadFonts(function () { addToolbar(); });
   };

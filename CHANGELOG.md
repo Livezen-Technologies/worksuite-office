@@ -25,6 +25,11 @@
 
 #### Sinhala
 
+* Fixed letters going missing when typing Singlish quickly, above all right
+  after opening a document: "mama gedhara" could become මම එදර. The editors
+  dropped keys typed while a Singlish word was being written; they now keep
+  them and type them in order. A word finished before its suggestions arrived
+  is now written too, instead of staying in English letters
 * Fixed Singlish suggestions never offering a word that starts with a long ආ
   when it is typed with one "a": ayubowan now suggests ආයුබෝවන්
 
