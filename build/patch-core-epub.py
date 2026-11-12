@@ -94,7 +94,7 @@ root = Path(sys.argv[1]) if len(sys.argv) > 1 else sys.exit("usage: patch-core-e
 path = root / "EpubFile" / "src" / "CEpubFile.cpp"
 if not path.is_file():
     sys.exit(f"patch-core-epub: {path} not found")
-text = path.read_text(encoding="utf-8", newline="")  # keeps the line endings and a BOM
+text = open(path, encoding="utf-8", newline="").read()  # keeps the line endings and a BOM
 crlf = "\r\n" in text
 for old, new in ((LOOP_OLD, LOOP_NEW), (MANIFEST_OLD, MANIFEST_NEW), (LANG_OLD, LANG_NEW)):
     if crlf:

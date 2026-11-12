@@ -84,7 +84,7 @@ print(f"patched {path} (built-in formats)")
 cell = root / "OdfFile" / "Reader" / "Format" / "table_xlsx.cpp"
 if not cell.is_file():
     sys.exit(f"patch-core-numfmts: {cell} not found")
-raw = cell.read_text(encoding="utf-8", newline="")
+raw = open(cell, encoding="utf-8", newline="").read()
 crlf = "\r\n" in raw
 old, new = (CELL_OLD.replace("\n", "\r\n"), CELL_NEW.replace("\n", "\r\n")) if crlf else (CELL_OLD, CELL_NEW)
 if new not in raw:

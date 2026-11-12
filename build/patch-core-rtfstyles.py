@@ -40,7 +40,7 @@ root = Path(sys.argv[1]) if len(sys.argv) > 1 else sys.exit("usage: patch-core-r
 path = root / "RtfFile" / "OOXml" / "Reader" / "OOXStyleReader.cpp"
 if not path.is_file():
     sys.exit(f"patch-core-rtfstyles: {path} not found")
-text = path.read_text(encoding="utf-8", newline="")  # keeps the line endings and a BOM
+text = open(path, encoding="utf-8", newline="").read()  # keeps the line endings and a BOM
 crlf = "\r\n" in text
 for old, new in FIXES:
     if crlf:

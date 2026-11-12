@@ -48,7 +48,7 @@ VERSION_NEW = "#define ONLYOFFICE_FONTS_VERSION     16 // WorkSuite: 15 + build/
 def patch(path, old, new):
     if not path.is_file():
         sys.exit(f"patch-core-fontranges: {path} not found")
-    text = path.read_text(encoding="utf-8", newline="")  # keep the file's line endings
+    text = open(path, encoding="utf-8", newline="").read()  # keep the file's line endings
     if "\r\n" in text:
         old, new = old.replace("\n", "\r\n"), new.replace("\n", "\r\n")
     if new not in text:
