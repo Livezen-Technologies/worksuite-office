@@ -4,7 +4,7 @@
 import { readFileSync, rmSync, copyFileSync, mkdirSync } from "node:fs";
 import { basename, join } from "node:path";
 import { ApiError } from "../errors";
-import { ffmpegDecode, Media, pcmToWav, RATE, wavTo16k } from "../audio";
+import { ffmpegDecode, Media, pcmToWav, RATE, splitOnSilence, wavTo16k } from "../audio";
 import { whisperInference } from "../engines/clients";
 import type { EngineRegistry } from "../engines/registry";
 import { passesSiStt } from "../manifest";
@@ -48,8 +48,13 @@ export async function runTranscription(job: JobControl, file: string, media: Med
     let lang = o.lang;
     let speaker = 1;
     const win = WINDOW_S * RATE * 2;
-    for (let off = 0; off < pcm.length; off += win) {
-      const chunk = pcm.subarray(off, Math.min(pcm.length, off + win));
+    // pieces of about one utterance each, cut at pauses (tinydiarize keeps 30 s windows: it needs the turns)
+    const pieces = o.diarize
+      ? Array.from({ length: Math.ceil(pcm.length / win) }, (_, i) => ({ off: i * win, len: Math.min(win, pcm.length - i * win) }))
+      : splitOnSilence(pcm, { maxMs: 25000 });
+    for (const piece of pieces) {
+      const off = piece.off;
+      const chunk = pcm.subarray(off, off + piece.len);
       const t0 = off / 2 / RATE;
       const r = await deps.runtime.withModel(o.diarize ? "diarization" : "stt", model.manifest.id, Priority.Batch,
         (l) => whisperInference(l.baseUrl, pcmToWav(chunk), { language: o.lang === "auto" ? "auto" : o.lang, signal: job.signal }), job.signal, model);

@@ -129,3 +129,49 @@ export function ffmpegEncode(cmd: Command, pcm: Buffer, rate: number, format: "m
     p.stdin.end(pcm);
   });
 }
+
+/**
+ * Where to cut a long recording for speech recognition: at pauses, so that each piece is about one
+ * utterance (a model trained on short clips stops early in a long window). Pieces end at a silence of
+ * `silenceMs` or are cut at the quietest frame before `maxMs`. Each piece keeps some silence around the
+ * speech (`padBeforeMs`, `padAfterMs`, never into its neighbour): a tightly trimmed sentence made the
+ * Sinhala model invent text. Pieces with less than `minSpeechMs` of speech (a click, a breath) are left
+ * out: on their own the model "completed" them with words from the previous sentence.
+ * Returns byte offsets into the 16 kHz s16le PCM.
+ */
+export function splitOnSilence(pcm: Buffer, o: { silenceMs?: number; maxMs?: number; minRms?: number; frameMs?: number; padBeforeMs?: number; padAfterMs?: number; minSpeechMs?: number } = {}): { off: number; len: number }[] {
+  const frameMs = o.frameMs ?? 40, silenceMs = o.silenceMs ?? 500, maxMs = o.maxMs ?? 25000, minRms = o.minRms ?? 350;
+  const padBefore = Math.round((o.padBeforeMs ?? 300) / frameMs), padAfter = Math.round((o.padAfterMs ?? 500) / frameMs);
+  const minSpeech = Math.max(1, Math.round((o.minSpeechMs ?? 300) / frameMs));
+  const fb = (RATE * 2 * frameMs) / 1000;
+  const frames: number[] = [];
+  for (let off = 0; off + 2 <= pcm.length; off += fb) frames.push(rms(pcm.subarray(off, Math.min(pcm.length, off + fb))));
+  // speech runs: [first speech frame, last speech frame], split at pauses and at maxMs
+  const runs: { a: number; b: number; speech: number }[] = [];
+  const quietRun = Math.max(1, Math.round(silenceMs / frameMs)), maxFrames = Math.max(1, Math.round(maxMs / frameMs));
+  let a = -1, b = -1, speech = 0;
+  for (let i = 0; i < frames.length; i++) {
+    const on = frames[i] >= minRms;
+    if (a < 0) { if (on) { a = i; b = i; speech = 1; } continue; }
+    if (on) { b = i; speech++; }
+    if (i - b >= quietRun) { runs.push({ a, b, speech }); a = -1; }
+    else if (i - a + 1 >= maxFrames - padBefore - padAfter) {
+      // too long without a pause: cut at the quietest frame in the last third
+      let cut = i, low = Infinity;
+      for (let k = a + Math.floor(((i - a) * 2) / 3); k <= i; k++) if (frames[k] < low) { low = frames[k]; cut = k; }
+      runs.push({ a, b: cut, speech });
+      a = cut + 1; b = i; speech = 1;
+    }
+  }
+  if (a >= 0) runs.push({ a, b, speech });
+  const kept = runs.filter((r) => r.speech >= minSpeech);
+  return kept.map((r, k) => {
+    const prevEnd = k > 0 ? kept[k - 1].b + 1 : 0;
+    const nextStart = k + 1 < kept.length ? kept[k + 1].a - 1 : frames.length - 1;
+    // padding, shared fairly with the neighbours
+    const from = Math.max(prevEnd + Math.floor((r.a - prevEnd) / 2) * (k > 0 ? 1 : 0), r.a - padBefore, 0);
+    const to = Math.min(nextStart - Math.floor((nextStart - r.b) / 2) * (k + 1 < kept.length ? 1 : 0), r.b + padAfter, frames.length - 1);
+    const off = from * fb;
+    return { off, len: Math.min(pcm.length, (to + 1) * fb) - off };
+  });
+}

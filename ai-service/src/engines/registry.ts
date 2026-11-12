@@ -11,6 +11,7 @@ import { checkSignature, devMode } from "../signing";
 import type { Hardware } from "../hardware";
 import type { Policy } from "../policy";
 import type { Command } from "./process";
+import { bundledWhisperServer } from "../bundled";
 
 export type EngineId = "whisper.cpp" | "llama.cpp" | "piper" | "ffmpeg";
 
@@ -66,6 +67,11 @@ export class EngineRegistry {
     for (const b of prefs) {
       const hit = all.find((i) => i.backend === b && existsSync(join(i.dir, i.exec)));
       if (hit) return { ...commandFor(join(hit.dir, hit.exec)), backend: b, version: hit.version };
+    }
+    // the whisper-server shipped with the app (CPU), for Sinhala voice typing with no engine package
+    if (engine === "whisper.cpp") {
+      const shipped = bundledWhisperServer(this.env);
+      if (shipped) return { cmd: shipped, args: [], backend: "cpu", version: "bundled" };
     }
     if (engine === "ffmpeg") {
       for (const p of (this.env.PATH || "").split(delimiter)) {
