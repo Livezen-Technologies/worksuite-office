@@ -191,7 +191,9 @@
         var c = U.client();
         var job = await c.transcribe(file, { lang: st.lang, punctuate: true, timestamps: false, diarize: false });
         var result = await c.waitJob(job.jobId);
-        order = ["rec"]; segments = { rec: (result.segments || []).map(function (s) { return s.text.trim(); }).join(" ") };
+        // after what was already written live before the switch (it used to be replaced, and was lost)
+        order = order.filter(function (k) { return k !== "rec"; }).concat(["rec"]);
+        segments.rec = (result.segments || []).map(function (s) { return s.text.trim(); }).join(" ");
         partial = "";
         commit();
       } catch (e) { onError(e); }
@@ -262,7 +264,14 @@
   function maybeStart() {
     if (gate.consent && gate.service && !gate.started) { gate.started = true; start(); }
   }
-  U.on("onService", function () { applyLanguages(); gate.service = true; maybeStart(); });
+  // only with the service's endpoint (or once starting it failed): the first state a new window gets can
+  // come before the service is up, and starting then ended in "WorkSuite Local AI is not running"
+  U.on("onService", function (d) {
+    applyLanguages();
+    if (d && !d.endpoint && !d.failed) return;
+    gate.service = true;
+    maybeStart();
+  });
   U.on("onStop", stop);
   U.on("onDiscard", discard);
   U.on("init", function () {

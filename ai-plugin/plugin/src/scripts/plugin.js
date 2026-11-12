@@ -72,7 +72,11 @@
       addToolbar();
       syncProvider();
       broadcast("onService", serviceState());
-    }, function () { /* not running: commands stay on and start it when used */ });
+    }, function () {
+      /* not running: commands stay on and start it when used. When this call was to start it, the windows
+         waiting for the service (the voice typing dock) learn that it could not be started. */
+      if (start) broadcast("onService", Object.assign(serviceState(), { failed: true }));
+    });
   }
 
   function serviceState() { return { endpoint: endpointState(), info: info, policy: policy, settings: settings }; }
@@ -383,6 +387,26 @@
   }
 
   // --- inserting ---------------------------------------------------------------------------------
+  // Dictated Sinhala goes into documents in the Sinhala font Sinhala Tools types in (its default), so it
+  // renders the same as typed Sinhala: pasted as plain text it took the paragraph's Latin font, and some
+  // words showed as loose letters. One command: one undo step. Other text, and the other editors, paste.
+  var SINHALA_FONT = "Noto Sans Sinhala";
+  function insertDictation(text, callback) {
+    if (!isDocument() || !/[\u0D80-\u0DFF]/.test(text)) { insertText(text, callback); return; }
+    window.Asc.scope.dictation = { text: text, font: SINHALA_FONT };
+    plugin.callCommand(function () {
+      var t = Asc.scope.dictation;
+      var doc = Api.GetDocument();
+      var par = Api.CreateParagraph();
+      var run = Api.CreateRun();
+      run.AddText(t.text);
+      run.SetFontFamily(t.font);
+      par.AddElement(run);
+      doc.InsertContent([par], true);
+      return true;
+    }, false, true, function () { if (callback) callback(); });
+  }
+
   function insertText(text, callback) {
     plugin.executeMethod("PasteText", [text], function () { if (callback) callback(); });
   }
@@ -447,12 +471,25 @@
   }
 
   // --- W3 voice typing --------------------------------------------------------------------------
+  var voiceLangHint = null;
   function voice() {
     if (windows.dock) { windows.dock.send("onStop", {}); return; }
     var st = P.commandState("voice", policy, info);
+    var hint = voiceLangHint;
+    voiceLangHint = null;
+    var lang = hint && P.sinhalaAvailable(info, "stt") ? hint : settings.voiceLang;
     ghostActions(ghost.blur());
     openWindow("dock", { url: "dock.html", description: tr("Voice typing"), isModal: false, size: [380, 124] },
-      { lang: settings.voiceLang, locked: st.enabled ? "" : tr(st.reason), installModel: WHISPER_SMALL });
+      { lang: lang, locked: st.enabled ? "" : tr(st.reason), installModel: WHISPER_SMALL });
+    // The first dictation after WorkSuite Office starts: the service is not running yet. Start it (through
+    // the shell) and hand the dock its endpoint; the dock waits for it. The Sinhala Tools button's language
+    // applies once the service says Sinhala is there.
+    refresh(true).then(function () {
+      if (hint && P.sinhalaAvailable(info, "stt") && windows.dock) {
+        windows.dock.send("onState", { lang: hint, locked: "", installModel: WHISPER_SMALL });
+      }
+      if (windows.dock) windows.dock.send("onService", serviceState());
+    });
   }
 
   var HANDLERS = {
@@ -462,7 +499,7 @@
         hideOverlay();
         var text = d.text || "";
         closeWindow("dock");
-        if (text) insertText(text);
+        if (text) insertDictation(text);
       },
       onVoiceDiscard: function () { hideOverlay(); closeWindow("dock"); },
       onVoiceLang: function (d) { settings.voiceLang = d.lang || "auto"; saveSettings(); },
@@ -590,7 +627,8 @@
 
   BUTTONS.forEach(function (b) {
     ["", "-home", "-review", "-sinhala"].forEach(function (s) {
-      plugin.attachToolbarMenuClickEvent("ws-ai-" + b[0] + s, function () { run(b[0]); });
+      // Voice typing on the Sinhala Tools tab starts in Sinhala
+      plugin.attachToolbarMenuClickEvent("ws-ai-" + b[0] + s, function () { voiceLangHint = s === "-sinhala" ? "si" : null; run(b[0]); });
     });
   });
 
