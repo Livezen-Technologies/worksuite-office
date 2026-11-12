@@ -2,7 +2,7 @@
 // first, at most `keep` per file. Identical content is not kept twice. Restoring never overwrites: the old version
 // is written next to the file as "<name> (version <date>).<ext>".
 import { createHash } from "node:crypto";
-import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { constants as fsConstants, copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { basename, dirname, extname, join } from "node:path";
 import { ApiError } from "../errors";
 
@@ -61,7 +61,10 @@ export class VersionStore {
     const stem = basename(path, extname(path));
     for (let i = 1; ; i++) {
       const out = join(dirname(path), `${stem} (version ${stamp})${i > 1 ? ` (${i})` : ""}${extname(path)}`);
-      if (!existsSync(out)) { copyFileSync(src, out); return out; }
+      // exclusive: never over a file that appeared meanwhile, nor through a (dangling) symlink at the name,
+      // which existsSync() reports as absent
+      try { copyFileSync(src, out, fsConstants.COPYFILE_EXCL); return out; }
+      catch (e) { if ((e as NodeJS.ErrnoException).code !== "EEXIST") throw e; }
     }
   }
 
