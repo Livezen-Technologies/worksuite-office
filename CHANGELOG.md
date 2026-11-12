@@ -4,6 +4,12 @@
 
 ### New features
 
+#### Branding
+
+* The loading icons are the animated WorkSuite logo: on the start page it
+  builds up and comes apart, and in a tab that is opening a document and
+  on downloads it turns in quarter steps
+
 #### Sinhala
 
 * Sinhala voice typing works out of the box: Voice typing on the Sinhala
