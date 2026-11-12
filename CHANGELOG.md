@@ -93,6 +93,8 @@
   it is used after WorkSuite Office starts
 * Fixed dictated text written live being lost when voice typing switched to
   recording on a slow computer
+* WorkSuite Local AI answers a request whose address has a broken %-escape
+  as a bad request, not as an internal error
 
 #### Sinhala
 
