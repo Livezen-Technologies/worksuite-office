@@ -33,6 +33,8 @@
 
 #### Linux
 
+* Fixed the rpm package (Fedora, openSUSE, RHEL) not being made: its file
+  list named two programs WorkSuite Office does not have
 * Fixed WorkSuite Office not starting on Linux: it stopped at once with
   "libicui18n.so.55: cannot open shared object file". The package now
   includes the ICU libraries its Qt needs, and every Linux build checks that
