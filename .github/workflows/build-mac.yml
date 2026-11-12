@@ -45,7 +45,7 @@ env:
   BUILD_TOOLS_REF: release/v9.4.0
   BUILD_TOOLS_SHA: cf4cac0846d03e2e00a6fec5d1ecd4e9463086d5
   # desktop-apps' v10 branch, the same commit as the Windows and Linux 10 builds
-  DESKTOP_APPS_REF: f4cad8b5674f7b0bdf2f0737a8c20e41e870bea1
+  DESKTOP_APPS_REF: c7042b518068dce4a31da716388f870e9d88fddd
   PRODUCT_VERSION: 10.1.32
   COMPANY_NAME: WorkSuite
   UPDATE_CENTER: https://download.worksuitecloud.com
@@ -160,6 +160,7 @@ jobs:
           python worksuite-office/build/patch-branding.py oo/web-apps
           python worksuite-office/build/patch-help.py oo/web-apps
           python worksuite-office/build/patch-ai-panel.py oo/desktop-sdk oo/desktop-apps
+          python worksuite-office/build/patch-ai-tab.py oo/onlyoffice.github.io
 
       - name: Sinhala Tools (plugin and Noto Sinhala fonts)
         working-directory: oo

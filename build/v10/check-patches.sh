@@ -42,7 +42,8 @@ done
 
 mkdir -p "$work"
 # desktop-apps is WorkSuite's fork at the commit the builds pin (one ref for all three: checked below);
-# everything else is ONLYOFFICE's at OO_TAG
+# onlyoffice.github.io (the plugins) at its default branch, as the builds clone it; everything else is
+# ONLYOFFICE's at OO_TAG
 da_ref="$(sed -n 's/^  DESKTOP_APPS_REF: *//p' "$wf/build-mac.yml" | head -1)"
 for f in build-linux-v10.yml build-windows-v10.yml; do
   [ "$(sed -n 's/^  DESKTOP_APPS_REF: *//p' "$wf/$f" | head -1)" = "$da_ref" ] || echo "::warning::$f pins desktop-apps $(sed -n 's/^  DESKTOP_APPS_REF: *//p' "$wf/$f" | head -1), build-mac.yml $da_ref"
@@ -52,6 +53,9 @@ for r in $(cut -d' ' -f2- <<<"$win_linux" | tr ' ' '\n' | sort -u); do
   if [ "$r" = desktop-apps ]; then
     git clone -q https://github.com/Livezen-Technologies/worksuite-office-desktop-apps.git "$work/$r"
     git -C "$work/$r" fetch -q origin "$da_ref" && git -C "$work/$r" checkout -q --detach "$da_ref"
+  elif [ "$r" = onlyoffice.github.io ]; then
+    # the plugins repository has no release tags: the builds take its default branch
+    git clone -q --depth 1 https://github.com/ONLYOFFICE/onlyoffice.github.io.git "$work/$r"
   else
     git clone -q --depth 1 -b "$oo_tag" "https://github.com/ONLYOFFICE/$r.git" "$work/$r"
   fi

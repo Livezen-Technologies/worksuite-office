@@ -13,6 +13,13 @@
 * Fixed New document templates on Linux being copied to the top folder of the
   computer when xdg-user-dir is not installed
 
+#### WorkSuite
+
+* Files saved by WorkSuite Office now say WorkSuite Office as the program
+  that made them, not ONLYOFFICE: in Word, Excel and PowerPoint files, in
+  OpenDocument files and in PDF files
+* The AI tools are in one AI tab: the editors showed two tabs captioned AI
+
 #### Sinhala
 
 * Fixed Singlish suggestions never offering a word that starts with a long ආ
