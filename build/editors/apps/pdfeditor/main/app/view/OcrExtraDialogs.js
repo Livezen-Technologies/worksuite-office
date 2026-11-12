@@ -27,7 +27,7 @@ define([
             _.extend(this.options, {title: this.txtTitle}, options || {});
             this.options.tpl =
                 '<div class="box" style="padding: 0 4px;">' +
-                    '<div class="input-row" style="margin-bottom: 8px;"><label class="light">' + this.txtIntro + '</label></div>' +
+                    '<div class="input-row" style="height: auto; margin-bottom: 8px;"><label class="light">' + this.txtIntro + '</label></div>' +
                     '<div id="ws-ocr-area" style="position: relative; display: inline-block; cursor: crosshair; user-select: none; ' +
                         'border: 1px solid var(--border-regular-control, #c0c0c0); line-height: 0;"></div>' +
                 '</div>' + footer(this.txtOk, this.textCancel);
@@ -101,7 +101,7 @@ define([
             this.unsure = unsure;
             this.options.tpl =
                 '<div class="box" style="padding: 0 4px;">' +
-                    '<div class="input-row" style="margin-bottom: 8px;"><label class="light">' +
+                    '<div class="input-row" style="height: auto; margin-bottom: 8px;"><label class="light">' +
                         (unsure ? Common.Utils.String.format(me.txtUnsure, unsure) : me.txtAllSure) + '</label></div>' +
                     '<div id="ws-ocr-text" contenteditable="true" spellcheck="false" style="height: 300px; overflow: auto; padding: 8px; white-space: normal; ' +
                         'border: 1px solid var(--border-regular-control, #c0c0c0); background: var(--background-normal, #fff); color: var(--text-normal, #222); ' +
@@ -165,7 +165,7 @@ define([
             }).join('');
             this.options.tpl =
                 '<div class="box" style="padding: 0 4px;">' +
-                    '<div class="input-row" style="margin-bottom: 8px;"><label class="light">' + me.txtIntro + '</label></div>' +
+                    '<div class="input-row" style="height: auto; margin-bottom: 8px;"><label class="light">' + me.txtIntro + '</label></div>' +
                     '<div style="max-height: 340px; overflow-y: auto;"><table style="width: 100%;">' + rows + '</table></div>' +
                 '</div>' + footer(null, me.textClose);
             Common.UI.Window.prototype.initialize.call(this, this.options);

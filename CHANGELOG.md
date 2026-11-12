@@ -29,6 +29,9 @@
 
 #### PDF
 
+* Fixed the explanation at the top of the Version history, Sign, Crop,
+  Stamp, Protect, Split and recognised-text dialogs running over the
+  rows under it when it took more than one line
 * Fixed the copies the PDF Tools and Convert make opening in a tab that
   says "Check your Internet connection": the new PDF or document now opens
   in its tab

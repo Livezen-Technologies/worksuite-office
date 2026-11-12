@@ -41,7 +41,7 @@ define([
             _.extend(this.options, {title: me.txtTitle}, options || {});
             this.options.tpl =
                 '<div class="box" style="padding: 0 4px;">' +
-                    '<div class="input-row" style="margin-bottom: 10px;"><label class="light">' + me.txtIntro + '</label></div>' +
+                    '<div class="input-row" style="height: auto; margin-bottom: 10px;"><label class="light">' + me.txtIntro + '</label></div>' +
                     (options && options.store ? '<div id="ws-sign-from-store" style="margin-bottom: 6px;"></div>' +
                         '<div id="ws-sign-store" style="margin: 0 0 10px 22px;"></div>' +
                         '<div id="ws-sign-from-file" style="margin-bottom: 6px;"></div>' : '') +
@@ -53,7 +53,7 @@ define([
                     '</div>' +
                     row(me.txtReason, 'ws-sign-reason') + row(me.txtLocation, 'ws-sign-location') +
                     '<div id="ws-sign-visible" style="margin-bottom: 10px;"></div>' +
-                    '<div class="input-row"><label class="light">' + me.txtNote + '</label></div>' +
+                    '<div class="input-row" style="height: auto;"><label class="light">' + me.txtNote + '</label></div>' +
                 '</div>' + footer(me.txtOk, me.textCancel);
             Common.UI.Window.prototype.initialize.call(this, this.options);
         },
@@ -159,10 +159,10 @@ define([
             };
             this.options.tpl =
                 '<div class="box" style="padding: 0 4px;">' +
-                    '<div class="input-row" style="margin-bottom: 10px;"><label class="light">' + me.txtIntro + '</label></div>' +
+                    '<div class="input-row" style="height: auto; margin-bottom: 10px;"><label class="light">' + me.txtIntro + '</label></div>' +
                     '<table><tr>' + cell(me.txtTop, 'ws-crop-top') + cell(me.txtBottom, 'ws-crop-bottom') + '</tr>' +
                     '<tr>' + cell(me.txtLeft, 'ws-crop-left') + cell(me.txtRight, 'ws-crop-right') + '</tr></table>' +
-                    '<div class="input-row"><label class="light">' + me.txtNote + '</label></div>' +
+                    '<div class="input-row" style="height: auto;"><label class="light">' + me.txtNote + '</label></div>' +
                 '</div>' + footer(me.txtOk, me.textCancel);
             Common.UI.Window.prototype.initialize.call(this, this.options);
         },
@@ -219,7 +219,7 @@ define([
             }).join('');
             this.options.tpl =
                 '<div class="box" style="padding: 0 4px; max-height: 360px; overflow-y: auto;">' +
-                    '<div class="input-row" style="margin-bottom: 8px;"><label class="light">' + me.txtIntro + '</label></div>' +
+                    '<div class="input-row" style="height: auto; margin-bottom: 8px;"><label class="light">' + me.txtIntro + '</label></div>' +
                     (list ? '<table style="width: 100%;">' + list + '</table>' : '<label>' + me.txtEmpty + '</label>') +
                 '</div>' + footer(null, me.textClose);
             Common.UI.Window.prototype.initialize.call(this, this.options);
