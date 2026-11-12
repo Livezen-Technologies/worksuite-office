@@ -60,6 +60,12 @@
 
 * Fixed an OpenDocument spreadsheet saved as Excel making a file that strict
   programs refuse to open: its list of number formats was written wrongly
+* Fixed dates, times and amounts in an OpenDocument spreadsheet that
+  WorkSuite Office saved showing as plain numbers (46024 for a date) when it
+  was opened again or saved as Excel
+* Fixed percentages, scientific numbers and fractions in an OpenDocument
+  spreadsheet losing their decimals when opened or saved as Excel (0.0%
+  became 0%)
 
 #### WorkSuite
 
