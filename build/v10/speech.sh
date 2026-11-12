@@ -44,8 +44,10 @@ sha256() { if command -v sha256sum >/dev/null; then sha256sum "$1" | cut -d' ' -
 python=python3; command -v python3 >/dev/null 2>&1 && python3 -c 'import sys' >/dev/null 2>&1 || python=python
 "$python" -m venv venv
 if [ -x venv/bin/python ]; then py=venv/bin/python; else py=venv/Scripts/python.exe; fi
-"$py" -m pip install -q --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
-"$py" -m pip install -q transformers==4.46.3 numpy huggingface_hub==0.26.2
+# wheels only: an index offering a newer release only as source made pip build it, and the PyTorch
+# index has no build backend for it ("No matching distribution found for flit_core", Linux run 57)
+"$py" -m pip install -q --only-binary=:all: --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+"$py" -m pip install -q --only-binary=:all: transformers==4.46.3 numpy huggingface_hub==0.26.2
 [ -d openai-whisper ] || { git clone -q https://github.com/openai/whisper.git openai-whisper && git -C openai-whisper checkout -q "$OPENAI_WHISPER_REV"; }
 "$py" - "$MODEL_REPO" "$MODEL_REV" hf <<'EOF'
 import sys
