@@ -29,6 +29,9 @@
 
 #### PDF
 
+* Fixed the copies the PDF Tools and Convert make opening in a tab that
+  says "Check your Internet connection": the new PDF or document now opens
+  in its tab
 * Fixed the PDF Tools (protect, stamp, merge, images to PDF, form data, sign,
   page size, versions) waiting for ever on "Please, wait..." and never
   making their file: their requests to WorkSuite Local AI went out without
