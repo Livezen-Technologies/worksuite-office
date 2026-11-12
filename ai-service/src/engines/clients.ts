@@ -29,11 +29,12 @@ export async function startWhisper(cmd: Command, m: Manifest, dir: string, opts:
   return s;
 }
 
-/** whisper.cpp's audio_ctx for a 16 kHz mono 16-bit WAV: 1500 frames are 30 s; 0 (all) from 30 s on. */
-export function audioCtxFor(wav: Buffer): number {
-  const seconds = Math.max(0, wav.length - 44) / 2 / 16000;
-  if (seconds >= 30) return 0;
-  return Math.min(1500, Math.ceil((seconds / 30) * 1500) + 64);
+/** whisper.cpp's audio_ctx: 0, the whole 30 s window. A window sized to the audio was twice as fast, but
+ * the Sinhala model was fine-tuned on full windows and with a smaller one it lost the thread: on the 60
+ * held-out OpenSLR 52 clips, sized windows gave WER 1.55 / CER 0.93 with 12 clips turned to repeated
+ * characters, a floor of 500 or 750 frames WER 0.33 / CER 0.11, the whole window WER 0.25 / CER 0.04. */
+export function audioCtxFor(_wav: Buffer): number {
+  return 0;
 }
 
 export async function whisperInference(baseUrl: string, wav: Buffer, o: { language?: string; signal?: AbortSignal; prompt?: string }): Promise<WhisperResult> {
@@ -42,9 +43,8 @@ export async function whisperInference(baseUrl: string, wav: Buffer, o: { langua
   fd.append("response_format", "verbose_json");
   fd.append("temperature", "0.0");
   fd.append("language", o.language && o.language !== "auto" ? o.language : "auto");
-  // Whisper encodes a 30 s window whatever the length of the audio; a window sized to the audio halves the
-  // time for a sentence on a CPU (12.8 s -> 6.2 s for 6.3 s of Sinhala, same text). Sent with every request:
-  // whisper-server keeps a request's audio_ctx for the requests after it.
+  // the whole window (see audioCtxFor). Sent with every request: whisper-server keeps a request's audio_ctx
+  // for the requests after it.
   fd.append("audio_ctx", String(audioCtxFor(wav)));
   if (o.prompt) fd.append("prompt", o.prompt);
   let res: Response;

@@ -102,6 +102,10 @@
 * Fixed a recording made with a quiet microphone being transcribed as nothing,
   without an error: speech below a fixed loudness was all taken for silence.
   The level now follows the recording
+* Fixed Sinhala voice typing and transcription now and then writing a line of
+  repeated letters instead of what was said: recognition uses the speech
+  model's whole listening window again. It is slower, about 1.6 times the
+  length of the speech on a 4-core computer
 
 #### Sinhala
 

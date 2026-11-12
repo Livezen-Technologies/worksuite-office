@@ -36,12 +36,10 @@ describe("splitOnSilence", () => {
 });
 
 describe("audioCtxFor", () => {
-  it("sizes whisper's window to the audio, with a margin, and uses the whole window from 30 s on", async () => {
+  it("uses whisper's whole window, whatever the length: smaller windows made the Sinhala model run away", async () => {
     const { audioCtxFor } = await import("../src/engines/clients");
     const { pcmToWav } = await import("../src/audio");
-    expect(audioCtxFor(pcmToWav(tone(6000)))).toBe(Math.ceil((6 / 30) * 1500) + 64);
-    expect(audioCtxFor(pcmToWav(tone(29000)))).toBe(1500);
-    expect(audioCtxFor(pcmToWav(tone(30000)))).toBe(0);
+    for (const ms of [2000, 6000, 29000, 30000, 45000]) expect(audioCtxFor(pcmToWav(tone(ms)))).toBe(0);
   });
 });
 

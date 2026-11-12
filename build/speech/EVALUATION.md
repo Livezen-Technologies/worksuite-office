@@ -46,8 +46,8 @@ Development set (greedy, 30 s window), to choose:
 Lingalingeswaran/whisper-small-sinhala scored WER 0.067 on OpenSLR 52 but 0.459 on OpenSLR 30: it had
 learned OpenSLR 52 itself, and was set aside.
 
-The chosen model, seniruk/whisper-small-si at revision fbd37479362cfd32fd99709a8757bb8bad2bd5ed, as
-shipped (greedy, window sized to the utterance):
+The chosen model, seniruk/whisper-small-si at revision fbd37479362cfd32fd99709a8757bb8bad2bd5ed, greedy,
+with whisper-cli and a window sized to the utterance:
 
 | Set | WER | CER | Real-time factor |
 | --- | --- | --- | --- |
@@ -59,6 +59,21 @@ shipped (greedy, window sized to the utterance):
 With a full 30 s window the held-out test was WER 0.213, CER 0.052, at a real-time factor of 1.63: the
 sized window is 2.5 times faster, with fewer character errors and slightly more word errors.
 
+**Shipped: the whole 30 s window.** The app does not run whisper-cli but whisper-server, through
+worksuite-ai, and there the sized window did not hold: on 12 of the 60 OpenSLR 52 clips the model ran
+away into repeated characters. Measured straight against the shipped whisper-server and model (16 kHz
+WAV, greedy, `-nt`, Sinhala), on those 60 clips:
+
+| Window (`audio_ctx`) | WER | CER | Clips run away |
+| --- | --- | --- | --- |
+| sized to the audio (+64 frames) | 1.548 | 0.925 | 12 |
+| sized, at least 500 frames | 0.330 | 0.114 | 0 |
+| sized, at least 750 frames | 0.337 | 0.105 | 1 |
+| **whole window (0)** | **0.252** | **0.043** | **0** |
+
+So worksuite-ai sends `audio_ctx` 0 with every request; the gate result for it is the full-window one
+above (held-out test WER 0.213, CER 0.052). It costs speed: about 2.5 times the sized window's time.
+
 ## Limits
 
 - The model's training data (seniruk/sinscribe-sinhala-stt) is private, so it cannot be ruled out that
@@ -69,8 +84,9 @@ sized window is 2.5 times faster, with fewer character errors and slightly more 
   about what people will correct.
 - Typical differences: words written together or apart (ගම් වැසියන් / ගම්වැසියන්), colloquial forms
   (අපට / අපිට), aspiration (සුබ / සුභ).
-- On a 4-core computer recognition runs at about 0.5 to 0.7 of real time; the dock records and writes
-  the text when you stop where live dictation would fall behind.
+- With the whole window, recognition on a 4-core computer takes about 1.6 times the length of the speech
+  (0.5 to 0.7 with the sized window, which is not reliable through whisper-server); the dock records and
+  writes the text when you stop where live dictation would fall behind.
 - Memory while recognising: whisper-server about 510 MB, worksuite-ai about 120 MB.
 
 ## In the installed app
