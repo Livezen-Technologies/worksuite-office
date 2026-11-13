@@ -1,5 +1,17 @@
 # Change log
 
+## 9.3.8
+
+### Fixes
+
+#### WorkSuite
+
+* Removed the community edition label, license link and upstream credit from
+  the About screen
+* Changed vendor website links throughout the desktop app and editors to
+  open the WorkSuite website
+* Removed the vendor cloud connectors and the default online template service
+
 ## 9.3.7
 
 ### New features
