@@ -17,10 +17,11 @@ WHISPER_TAG=v1.8.2
 MODEL_REPO=seniruk/whisper-small-si
 MODEL_REV=fbd37479362cfd32fd99709a8757bb8bad2bd5ed
 OPENAI_WHISPER_REV=86098128c0b4f24f0e2aa2994de830614b474227   # mel_filters.npz for the converter
-# Prebuilt model for platforms that cannot run the PyTorch converter (Intel macOS has no torch x86_64
-# wheel past 2.2.2). A GitHub release asset of this repository, byte-for-byte what the converter makes
-# (checked against the SHA-256 below). Override with WS_SPEECH_MODEL_URL.
-MODEL_URL="${WS_SPEECH_MODEL_URL:-https://github.com/Livezen-Technologies/worksuite-office/releases/download/speech-model-v1/ggml-small-si-q5_1.bin}"
+# PyTorch for the converter. Intel macOS has no torch wheel past 2.2.2 (and that one needs numpy 1), so it
+# converts with 2.2.2: the result is byte-for-byte the same model (checked against the SHA-256 below;
+# reproduced with both versions on Linux). WS_SPEECH_MODEL_URL, when set, fetches a prebuilt model instead.
+TORCH=2.5.1; NUMPY=numpy
+if [ "$(uname -s)" = "Darwin" ] && [ "$(uname -m)" = "x86_64" ]; then TORCH=2.2.2; NUMPY="numpy<2"; fi
 [ -d "$dest" ] || { echo "::error::app folder $dest does not exist"; exit 1; }
 
 expected_sha="$(sed -n 's/.*path: "ggml-small-si-q5_1.bin", size: \([0-9]*\), sha256: "\([0-9a-f]*\)".*/\2/p' "$repo/ai-service/src/bundled.ts")"
@@ -43,15 +44,13 @@ quant="$(find whisper.cpp/build -type f -name "quantize$exe" -o -type f -name "w
 cp "$srv" "$dest/speech/whisper-server$exe"
 cp whisper.cpp/LICENSE "$dest/speech/LICENSE-whisper.cpp.txt"
 
-# 2. the Sinhala model (q5_1, checked against the SHA-256 compiled into worksuite-ai). On Intel macOS
-#    PyTorch has no x86_64 wheel past 2.2.2, so there the model is fetched prebuilt (the same bytes,
-#    verified below) rather than converted; every other platform converts it from the Hugging Face
-#    model with PyTorch.
+# 2. the Sinhala model (q5_1, checked against the SHA-256 compiled into worksuite-ai), converted from the
+#    Hugging Face model with PyTorch ($TORCH), or fetched prebuilt from WS_SPEECH_MODEL_URL when that is set.
 sha256() { if command -v sha256sum >/dev/null; then sha256sum "$1" | cut -d' ' -f1; else shasum -a 256 "$1" | cut -d' ' -f1; fi; }
 mkdir -p ggml
-if [ "$(uname -s)" = "Darwin" ] && [ "$(uname -m)" = "x86_64" ]; then
-  echo "Intel macOS: fetching the prebuilt Sinhala model (no PyTorch x86_64 wheel) from $MODEL_URL"
-  curl -fsSL --retry 3 -o ggml/ggml-small-si-q5_1.bin "$MODEL_URL"
+if [ -n "${WS_SPEECH_MODEL_URL:-}" ]; then
+  echo "fetching the prebuilt Sinhala model from $WS_SPEECH_MODEL_URL"
+  curl -fsSL --retry 3 -o ggml/ggml-small-si-q5_1.bin "$WS_SPEECH_MODEL_URL"
 else
   python=python3; command -v python3 >/dev/null 2>&1 && python3 -c 'import sys' >/dev/null 2>&1 || python=python
   "$python" -m venv venv
@@ -61,8 +60,8 @@ else
   # Linux run 59) and, without --only-binary, built them from source and failed (flit_core, run 57)
   "$py" -m pip install -q --upgrade pip==26.3
   # wheels only: nothing is built from source, no build scripts run
-  "$py" -m pip install -q --only-binary=:all: --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
-  "$py" -m pip install -q --only-binary=:all: transformers==4.46.3 numpy huggingface_hub==0.26.2
+  "$py" -m pip install -q --only-binary=:all: --index-url https://download.pytorch.org/whl/cpu "torch==$TORCH"
+  "$py" -m pip install -q --only-binary=:all: transformers==4.46.3 "$NUMPY" huggingface_hub==0.26.2
   [ -d openai-whisper ] || { git clone -q https://github.com/openai/whisper.git openai-whisper && git -C openai-whisper checkout -q "$OPENAI_WHISPER_REV"; }
   "$py" - "$MODEL_REPO" "$MODEL_REV" hf <<'EOF'
 import sys

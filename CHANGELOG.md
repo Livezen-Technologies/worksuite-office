@@ -31,6 +31,41 @@
 * Protect on a PDF/A file now explains that PDF/A files cannot have a password,
   instead of failing with an internal error
 
+## 10.1.33
+
+### New features
+
+#### Branding
+
+* New loading icons from the WorkSuite set: WorkSuite Office opens with the
+  "flash" logo (its squares flash white, then a light sweep) and its name, on
+  dark navy, both in the first window and on the start page, so the two match.
+  The opening screen stays up for at least one flash and shows the still logo
+  when reduced motion is asked for
+* Every loader now uses the same "assemble" logo (the squares build up, hold,
+  then come apart): on the start page, in a tab that is opening a document and
+  on downloads, where it used to turn in quarter steps
+
+### Fixes
+
+#### Security
+
+* Fixed the licence link command being able to open any file or program: the
+  desktop shell now opens only the app's own licence (the GNU AGPL page, or the
+  EULA or LICENSE file installed with WorkSuite Office) this way
+
+#### macOS
+
+* The start page's About and Settings show the WorkSuite Office version and
+  its licence on macOS too, and the licence link opens the licence
+
+#### Voice typing
+
+* Fixed the link to the microphone settings in voice typing doing nothing when
+  the microphone was blocked: it now opens the system's microphone privacy
+  settings on Windows and macOS. WorkSuite Office opens only those settings and
+  secure web pages this way
+
 ## 10.1.32
 
 ### New features
