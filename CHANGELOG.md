@@ -15,6 +15,15 @@
   then come apart): on the start page, in a tab that is opening a document and
   on downloads, where it used to turn in quarter steps
 
+### Fixes
+
+#### Voice typing
+
+* Fixed the link to the microphone settings in voice typing doing nothing when
+  the microphone was blocked: it now opens the system's microphone privacy
+  settings on Windows and macOS. WorkSuite Office opens only those settings and
+  secure web pages this way
+
 ## 10.1.32
 
 ### New features
