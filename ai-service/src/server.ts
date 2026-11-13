@@ -33,7 +33,7 @@ import { mediaOf, pcmToWav, wavHeader } from "./audio";
 import { encode, resolveVoice, synthesize, voices } from "./tts";
 import { legacyDecode, legacyEncode, legacyFonts, segmentWords, sinhalaNormalize, sinhalaTransliterate, sinhalaValidate } from "./sinhala/routes";
 import { Priority } from "./scheduler";
-import { layoutJob, officeJob, PDF_OPS, pdfInfo, pdfJob, pptxJob, sanitizeJob, signJob, stampJob, filePath, verifyPdf } from "./pdf/tools";
+import { layoutJob, officeJob, PDF_OPS, pdfInfo, pdfJob, pptxJob, pdfaCheck, sanitizeJob, signJob, stampJob, filePath, verifyPdf } from "./pdf/tools";
 import { VersionStore } from "./pdf/versions";
 import { listStoreCertificates, storeAvailable } from "./pdf/os-certs";
 import { OcrLanguages } from "./ocr/languages";
@@ -419,6 +419,7 @@ export class Service {
     // the certificates this computer may sign with (Windows store, macOS keychain); empty elsewhere
     r.get("/v1/pdf/certificates", async () => ({ available: storeAvailable(), certificates: await listStoreCertificates() }));
     r.post("/v1/pdf/verify", async (c) => verifyPdf(await c.body()));
+    r.post("/v1/pdf/check-pdfa", async (c) => pdfaCheck(await c.body()));
 
     // OCR languages beyond the ones the app ships: downloaded on request, read by the editor's tesseract.js
     r.get("/v1/ocr/languages", () => ({ languages: this.ocrLanguages.list() }));

@@ -160,6 +160,8 @@ define([
                         cls: 'btn-toolbar x-huge icon-top',
                         iconCls: 'svgicon btn-ws-convert-pdfa',
                         caption: me.capPdfa,
+                        split: true,
+                        menu: true,
                         lock: [_set.lostConnect, _set.disableOnStart],
                         dataHint: '1',
                         dataHintDirection: 'bottom',
@@ -230,6 +232,10 @@ define([
                 this.btnPdfa && this.btnPdfa.on('click', function () {
                     me.fireEvent('convert:format', [Asc.c_oAscFileType.PDFA]);
                 });
+                this.btnPdfa && this.btnPdfa.setMenu(new Common.UI.Menu({items: [
+                    {caption: me.txtPdfaSave, value: 'save'},
+                    {caption: me.txtPdfaCheck, value: 'check'}
+                ]}).on('item:click', function (menu, item) { me.fireEvent('convert:pdfa', [item.value]); }));
                 this.btnPdfa && this.btnPdfa.updateHint(this.tipPdfa);
                 this.btnAllFormats.on('click', function () {
                     me.fireEvent('convert:all');
@@ -276,7 +282,34 @@ define([
             capOcr: 'Recognise text',
             tipOcr: 'Recognise the text of scanned pages (OCR), on this computer',
             capPdfa: 'PDF/A',
-            tipPdfa: 'Save as PDF/A-2, for long-term archiving',
+            tipPdfa: 'Save as PDF/A-2, for long-term archiving, or check whether this PDF meets PDF/A',
+            txtPdfaSave: 'Save as PDF/A-2',
+            txtPdfaCheck: 'Check PDF/A',
+            txtPdfaPassed: 'No PDF/A problems were found. This PDF says it meets PDF/A-{0}.',
+            txtPdfaFailed: 'This PDF does not meet PDF/A:',
+            txtPdfaScope: 'This checks the main PDF/A-2 requirements in the structure of the file. It does not check the page content itself, so a full PDF/A validator can still find problems.',
+            txtPdfaWarning: '(warning)',
+            txtPdfaCount: '({0})',
+            txtPdfa_pdfa_id_missing: 'It does not say it is PDF/A (no PDF/A identification in its metadata).',
+            txtPdfa_pdfa_part_other: 'It says it is {0}; this check is for PDF/A-2 and PDF/A-3.',
+            txtPdfa_file_id_missing: 'It has no file identifier.',
+            txtPdfa_output_intent_missing: 'It has no PDF/A output intent (the colour profile its colours are meant for).',
+            txtPdfa_output_intent_no_profile: 'Its output intent has no embedded colour profile.',
+            txtPdfa_encrypted: 'It is encrypted (password-protected). PDF/A does not allow that.',
+            txtPdfa_font_not_embedded: 'Fonts are not embedded: {0}.',
+            txtPdfa_javascript: 'It contains JavaScript.',
+            txtPdfa_forbidden_action: 'It contains actions PDF/A does not allow: {0}.',
+            txtPdfa_additional_actions: 'It runs actions when it or a page opens.',
+            txtPdfa_embedded_files: 'It has attached files. PDF/A-2 allows only attached PDF/A files.',
+            txtPdfa_xfa: 'Its form is an XFA form.',
+            txtPdfa_need_appearances: 'Its form fields have no fixed appearance.',
+            txtPdfa_lzw: 'It uses LZW compression.',
+            txtPdfa_external_stream: 'It refers to content in other files.',
+            txtPdfa_transfer_function: 'It uses transfer functions.',
+            txtPdfa_postscript: 'It contains PostScript.',
+            txtPdfa_forbidden_annotation: 'It has annotations PDF/A does not allow: {0}.',
+            txtPdfa_annotation_not_printable: 'Some annotations are hidden or not set to print: {0}.',
+            txtPdfa_annotation_no_appearance: 'Some annotations have no appearance: {0}.',
             txtOcrLoading: 'Loading the text recognition…',
             txtOcrPage: 'Recognising page {0} of {1}…',
             txtOcrNothing: 'There were no scanned pages to recognise.',

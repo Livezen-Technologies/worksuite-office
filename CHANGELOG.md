@@ -13,6 +13,18 @@
   form fields stay, earlier saved versions inside the file are dropped, and the
   copy lists what was removed. Layers are kept as they are and the copy says so.
   A PDF with parts that cannot be read is refused rather than saved damaged
+* Check PDF/A: the PDF/A button's menu checks the saved PDF against the main
+  PDF/A-2 requirements (identification, colour profile, embedded fonts, no
+  scripts or forbidden actions, printable annotations, no encryption and more)
+  and lists every problem in plain words. It checks the structure of the file,
+  not the page content, and says so
+
+### Fixes
+
+#### PDF Editor
+
+* Protect on a PDF/A file now explains that PDF/A files cannot have a password,
+  instead of failing with an internal error
 
 ## 10.1.32
 

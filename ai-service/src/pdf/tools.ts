@@ -14,6 +14,7 @@ import { pageTexts } from "./text";
 import { Certificate, checkSignatures, FoundSignature, signPdf } from "./sign";
 import { StoreSigner } from "./os-certs";
 import { sanitizePdf, SanitizeReport, unreadableRefs } from "./sanitize";
+import { checkPdfA, PdfAReport } from "./pdfa";
 
 export const PDF_OPS = ["merge", "split", "rotate", "protect", "unprotect", "images-to-pdf"] as const;
 export type PdfOp = (typeof PDF_OPS)[number];
@@ -204,7 +205,13 @@ export function pdfJob(op: PdfOp, raw: unknown): (job: JobControl) => Promise<Pd
       return async () => {
         const doc = await load(path, pw);
         // no owner password given: a random one, so the permissions cannot be lifted with an empty password
-        doc.encrypt({ userPassword: userPassword || "", ownerPassword: ownerPassword || randomPassword(), permissions: mapPermissions(perms), algorithm: "AES-256" });
+        try {
+          doc.encrypt({ userPassword: userPassword || "", ownerPassword: ownerPassword || randomPassword(), permissions: mapPermissions(perms), algorithm: "AES-256" });
+        } catch (e) {
+          if (/PDF\/A/.test((e as Error).message || ""))
+            throw new ApiError("bad_request", "A PDF/A file cannot have a password: PDF/A forbids encryption", { path, reason: "pdfa" });
+          throw e;
+        }
         const out = outFor(body, path, " (protected)");
         return { file: out, files: [out], contentType: "application/pdf", pages: await write(doc, out) };
       };
@@ -546,4 +553,24 @@ export function sanitizeJob(raw: unknown): (job: JobControl) => Promise<PdfResul
     const out = outFor(body, path, " (sanitized)");
     return { file: out, files: [out], contentType: "application/pdf", pages: await write(doc, out), removed };
   };
+}
+
+/** PDF/A check (pdfa.ts): the main PDF/A-2b requirements that the file's structure shows. An encrypted file
+ * fails PDF/A on that alone; with its password it is checked in full and the encryption listed too. */
+export async function pdfaCheck(raw: unknown): Promise<PdfAReport & { pages: number | null }> {
+  const body = obj(raw, "body");
+  const path = filePath(body.path, "path", /\.pdf$/i);
+  const pw = password(body.password, "password");
+  const encrypted = { code: "encrypted", severity: "error" as const, count: 1 };
+  let doc: PDFDocument;
+  try {
+    doc = await load(path, pw, false);
+  } catch (e) {
+    if (e instanceof ApiError && e.detail && (e.detail as { reason?: string }).reason === "password_required")
+      return { claimed: null, passed: false, issues: [encrypted], scope: "structure", pages: null };
+    throw e;
+  }
+  const report = checkPdfA(doc);
+  if (pw) { report.issues.unshift(encrypted); report.passed = false; }
+  return { ...report, pages: doc.getPageCount() };
 }
