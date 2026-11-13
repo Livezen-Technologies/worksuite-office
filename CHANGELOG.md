@@ -26,6 +26,9 @@
 * Fixed a web link being able to install a plugin from anywhere without asking:
   an install-plugin link now takes only a plain plugin name from the plugin
   store, and WorkSuite Office asks before installing it
+* Fixed a plugin package being able to write files outside the plugins folder:
+  a plugin's folder name is now required to be a real identifier, so a crafted
+  one in the package cannot place files elsewhere when the package is opened
 
 #### Windows
 

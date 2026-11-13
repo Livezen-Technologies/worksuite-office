@@ -11,6 +11,7 @@ python "$repo/build/patch-pdf-convert.py" web-apps
 python "$repo/build/patch-branding.py" web-apps
 python "$repo/build/patch-help.py" web-apps
 python "$repo/build/patch-ai-panel.py" desktop-sdk desktop-apps
+python "$repo/build/patch-plugin-guid.py" desktop-sdk
 python "$repo/build/patch-ai-tab.py" onlyoffice.github.io
 python "$repo/build/patch-sdkjs-keys.py" sdkjs
 python "$repo/build/patch-core-numfmts.py" core
