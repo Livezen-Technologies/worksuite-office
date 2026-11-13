@@ -21,6 +21,12 @@
 
 ### Fixes
 
+#### Security
+
+* Fixed a web link being able to install a plugin from anywhere without asking:
+  an install-plugin link now takes only a plain plugin name from the plugin
+  store, and WorkSuite Office asks before installing it
+
 #### Windows
 
 * The Windows installer no longer installs an update service that WorkSuite
