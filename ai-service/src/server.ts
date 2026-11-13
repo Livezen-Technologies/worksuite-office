@@ -380,12 +380,14 @@ export class Service {
     });
     for (const op of ["to-xlsx", "form-export", "form-fill", "flatten"] as const) {
       r.post(`/v1/pdf/${op}`, async (c) => {
+        if (op === "to-xlsx") this.license.require("convert");
         const run = officeJob(op, await c.body());
         return withStatus(202, { jobId: this.jobs.start(`pdf.${op}`, run).id });
       });
     }
     // multipart: "options" {path, pages:[{widthPt, heightPt}]} and one picture per page, in order
     r.post("/v1/pdf/to-pptx", async (c) => {
+      this.license.require("convert");
       const { files, fields } = await parseMultipart(c.req, join(this.paths.cacheDir, "uploads"), 64 * 1024 ** 2, 2000);
       const drop = () => { for (const f of files) rmSync(f.path, { force: true }); };
       let opts: { path?: unknown; pages?: { widthPt?: unknown; heightPt?: unknown }[] };
@@ -406,6 +408,7 @@ export class Service {
       });
     }
     r.post("/v1/pdf/sign", async (c) => {
+      this.license.require("pdf.sign");
       const run = signJob(await c.body());
       return withStatus(202, { jobId: this.jobs.start("pdf.sign", run).id });
     });
@@ -416,11 +419,13 @@ export class Service {
     // OCR languages beyond the ones the app ships: downloaded on request, read by the editor's tesseract.js
     r.get("/v1/ocr/languages", () => ({ languages: this.ocrLanguages.list() }));
     r.post("/v1/ocr/languages/:id/install", (c) => {
+      this.license.require("ocr");
       const run = this.ocrLanguages.install(c.params.id);
       return withStatus(202, { jobId: this.jobs.start("ocr.language", run, { modelId: c.params.id }).id });
     });
     r.delete("/v1/ocr/languages/:id", (c) => this.ocrLanguages.remove(c.params.id));
     r.get("/v1/ocr/languages/:id/data", (c) => {
+      this.license.require("ocr");
       const data = this.ocrLanguages.data(c.params.id);
       c.res.writeHead(200, { "content-type": "application/octet-stream", "content-length": data.length });
       c.res.end(data);
@@ -583,7 +588,7 @@ export class Service {
       data: (this.policy.features.assistant ? this.models.withTask("assistant").filter((m) => this.models.policyAllows(m.manifest.id)) : [])
         .map((m) => ({ id: m.manifest.id, object: "model", created: Math.floor(new Date(m.installedAt).getTime() / 1000), owned_by: "worksuite-local", name: m.manifest.name || m.manifest.id })),
     }));
-    r.post("/v1/openai/chat/completions", (c) => this.chat(c));
+    r.post("/v1/openai/chat/completions", (c) => { this.license.require("assistant"); return this.chat(c); });
 
     // policy, privacy, diagnostics
     r.get("/v1/policy", async (c) => { if (c.query.get("refresh") === "1") await this.reloadPolicy(); return this.policy; });

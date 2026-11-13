@@ -85,7 +85,9 @@ Release this device's seat (user signs out of Pro / moves machines).
 
 ## Which features are Pro
 
-Kept out of code as a product decision: `PRO_FEATURES` in `src/license.ts` is **empty** (nothing gated),
-extendable by policy or `WS_AI_PRO_FEATURES`. To make a feature Pro, add its key there and call
-`license.require("<key>")` at that feature's entry point; `GET /v1/license` reports the active set in
-`proFeatures`.
+`PRO_FEATURES` in `src/license.ts` lists the gated keys: **`ocr`, `pdf.sign`, `convert`, `assistant`**
+(OCR, PDF signing, format conversion to xlsx/pptx, and the AI assistant). Everything else — viewing,
+stamps, merge, form-fill, redaction, and the rest of the editors — is Free. The set is extendable by
+policy or `WS_AI_PRO_FEATURES`, and `WS_AI_LICENSE_ALL=1` is a managed-config "all features on"
+override (off by default). To make a feature Pro, add its key there and call `license.require("<key>")`
+at that feature's entry point; `GET /v1/license` reports the active set in `proFeatures`.

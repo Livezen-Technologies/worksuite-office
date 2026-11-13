@@ -137,3 +137,17 @@ describe("parseLicense", () => {
   });
   it("rejects junk", () => { expect(() => parseLicense("not a license")).toThrow(); });
 });
+
+describe("default Pro feature set", () => {
+  it("ocr, pdf.sign, convert, assistant are gated out of the box; others are free", () => {
+    const { pub } = keypair();
+    const { s, dir } = store({ pub }); // no extra pro list: use the built-in PRO_FEATURES
+    try {
+      for (const f of ["ocr", "pdf.sign", "convert", "assistant"]) {
+        expect(s.entitled(f)).toBe(false);
+        expect(() => s.require(f)).toThrow(/Pro/);
+      }
+      for (const f of ["view", "stamp", "merge", "form-fill"]) expect(s.entitled(f)).toBe(true);
+    } finally { rmSync(dir, { recursive: true, force: true }); }
+  });
+});

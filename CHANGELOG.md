@@ -6,10 +6,12 @@
 
 #### Licensing
 
-* WorkSuite Office Pro: enter a license key to unlock Pro features. The key is
-  verified on the computer itself (no network needed) and checked with the
+* WorkSuite Office Pro: enter a license key to unlock the Pro features — OCR,
+  PDF signing, converting to Excel and PowerPoint, and the AI assistant. The key
+  is verified on the computer itself (no network needed) and checked with the
   download center for revocation and seats; Pro keeps working offline for up to
-  30 days between checks. With no key, everything that is free today stays free
+  30 days between checks. With no key, everything else — viewing and editing,
+  stamps, merge, form filling and redaction — stays free
 
 #### Branding
 

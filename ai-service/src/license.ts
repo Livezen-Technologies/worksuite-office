@@ -7,9 +7,10 @@
 //     It is not required to use Pro: when the Update Center cannot be reached the last good offline
 //     entitlement stands for GRACE_MS, then Pro is suspended until the next successful check.
 //
-// Which features are Pro is a product decision, kept out of the code: PRO_FEATURES is empty here, so
-// nothing is gated until the list is filled in (or supplied by policy/WS_AI_PRO_FEATURES). The gate
-// mechanism is live and tested regardless, so turning a feature Pro is a one-line change.
+// Which features are Pro is a product decision: PRO_FEATURES lists the gated keys (ocr, pdf.sign,
+// convert, assistant). Policy or WS_AI_PRO_FEATURES can extend it, and WS_AI_LICENSE_ALL=1 is a
+// managed-config "all features on" override. Turning a feature Pro is a one-line change plus a
+// license.require("<key>") at its entry point.
 import { createHash, KeyObject } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync, rmSync } from "node:fs";
 import { hostname, userInfo } from "node:os";
@@ -20,9 +21,9 @@ import { checkSignature } from "./signing";
 export const LICENSE_VERSION = 1;
 const GRACE_MS = 30 * 24 * 3600 * 1000; // offline grace after the last good online check
 
-/** The Pro feature keys. Empty until the product owner supplies the list (see module note). A feature
- * key here is gated; anything not listed is Free. Policy or WS_AI_PRO_FEATURES can extend it. */
-export const PRO_FEATURES: readonly string[] = [];
+/** The Pro feature keys. A key here is gated; anything not listed is Free. Policy or
+ * WS_AI_PRO_FEATURES can extend it; WS_AI_LICENSE_ALL=1 unlocks everything (managed config). */
+export const PRO_FEATURES: readonly string[] = ["ocr", "pdf.sign", "convert", "assistant"];
 
 export interface LicenseDoc {
   v: number;
@@ -123,6 +124,7 @@ export class LicenseStore {
   /** The current entitlement, honouring offline grace and the last known online status. */
   status(): LicenseStatus {
     const s = this.read();
+    if (this.env.WS_AI_LICENSE_ALL === "1" && !s) return { plan: "pro", active: true, features: ["*"], issuedTo: "Site license" };
     if (!s) return { plan: "free", active: true, features: [] };
     const v = this.verify(s.doc);
     const base = { licenseId: s.doc.licenseId, issuedTo: s.doc.issuedTo, expiresAt: s.doc.expiresAt ?? null, features: s.doc.features, online: s.online ?? "unknown", lastOnlineOk: s.lastOnlineOk ?? null };
@@ -137,6 +139,8 @@ export class LicenseStore {
   /** True when the caller may use `feature`: Free features always; Pro features only with an active Pro
    * license that grants them ("*" or the exact key). */
   entitled(feature: string): boolean {
+    // Site/enterprise "all features on" override (managed config); off unless explicitly set.
+    if (this.env.WS_AI_LICENSE_ALL === "1") return true;
     if (!proFeatureSet(this.env, this.extraPro).has(feature)) return true;
     const st = this.status();
     if (st.plan !== "pro" || !st.active) return false;
