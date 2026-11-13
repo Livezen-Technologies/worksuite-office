@@ -1,5 +1,20 @@
 # Change log
 
+## 10.1.33
+
+### New features
+
+#### Branding
+
+* New loading icons from the WorkSuite set: WorkSuite Office opens with the
+  "flash" logo (its squares flash white, then a light sweep) and its name, on
+  dark navy, both in the first window and on the start page, so the two match.
+  The opening screen stays up for at least one flash and shows the still logo
+  when reduced motion is asked for
+* Every loader now uses the same "assemble" logo (the squares build up, hold,
+  then come apart): on the start page, in a tab that is opening a document and
+  on downloads, where it used to turn in quarter steps
+
 ## 10.1.32
 
 ### New features
