@@ -18,6 +18,7 @@ import { normalizePolicy, Policy, PolicyReader, systemPolicyReader } from "./pol
 import { layout, Layout } from "./paths";
 import { SettingsStore } from "./settings";
 import { trustedKeys } from "./signing";
+import { LicenseStore } from "./license";
 import { Catalog, Fetcher } from "./catalog";
 import { EngineRegistry } from "./engines/registry";
 import { ModelStore } from "./models";
@@ -68,6 +69,7 @@ export class Service {
   readonly dict: Dictionaries;
   readonly text: TextService;
   readonly versions: VersionStore;
+  readonly license: LicenseStore;
   readonly ocrLanguages: OcrLanguages;
   hardware: Hardware | null = null;
   policy: Policy = normalizePolicy(null);
@@ -102,6 +104,7 @@ export class Service {
     });
     this.runtime = new Runtime(this.models, this.engines, this.jobs, this.events, () => this.policy);
     this.versions = new VersionStore(join(o.dataDir, "versions"));
+    this.license = new LicenseStore(o.dataDir, keys, o.fetcher, this.env);
     this.ocrLanguages = new OcrLanguages(join(o.dataDir, "ocr", "lang"), o.fetcher);
     this.dict = new Dictionaries(this.paths.dictionariesDir, o.fetcher);
     this.text = new TextService(this.dict, this.models, this.runtime, () => this.policy, this.diag, this.env);
@@ -138,6 +141,7 @@ export class Service {
     this.runtime.pool.startSweeper();
     this.timers.push(setInterval(() => void this.reloadPolicy(), 60000));
     this.timers.push(setInterval(() => void this.dict.refreshOrg(this.policy.orgDictionaryUrl), 6 * 3600 * 1000));
+    this.timers.push(setInterval(() => void this.license.refresh(), 24 * 3600 * 1000));
     const idle = this.o.idleExitMs ?? 30 * 60 * 1000;
     if (idle > 0) this.timers.push(setInterval(() => this.checkIdle(idle), Math.min(60000, idle / 2)));
     for (const t of this.timers) t.unref();
@@ -436,6 +440,12 @@ export class Service {
     });
     r.delete("/v1/versions", (c) => ({ removed: this.versions.clear(versioned(c.query.get("path") || undefined)) }));
     r.post("/v1/pdf/info", async (c) => pdfInfo(await c.body()));
+
+    // Licensing (Free by default; a signed license unlocks Pro). Offline-verified; online check with the download center.
+    r.get("/v1/license", () => ({ ...this.license.status(), proFeatures: this.license.proFeatures() }));
+    r.post("/v1/license/activate", async (c) => this.license.activate(str((await c.body()).key, "key")));
+    r.post("/v1/license/refresh", () => this.license.refresh());
+    r.post("/v1/license/deactivate", () => this.license.deactivate());
     r.delete("/v1/requests/:id", (c) => ({ id: c.params.id, cancelled: this.requests.cancel(c.params.id) }));
 
     // speech

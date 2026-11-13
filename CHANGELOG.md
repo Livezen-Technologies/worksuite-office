@@ -4,6 +4,13 @@
 
 ### New features
 
+#### Licensing
+
+* WorkSuite Office Pro: enter a license key to unlock Pro features. The key is
+  verified on the computer itself (no network needed) and checked with the
+  download center for revocation and seats; Pro keeps working offline for up to
+  30 days between checks. With no key, everything that is free today stays free
+
 #### Branding
 
 * The loading icons are the animated WorkSuite logo: on the start page it
