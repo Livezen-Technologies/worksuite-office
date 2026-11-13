@@ -154,8 +154,10 @@ jobs:
           # the rpm: worksuite-ai must survive brp-strip (desktop-apps rpm/common.spec)
           for r in rpm/build/RPMS/*/*.rpm; do
             [ -f "$r" ] || continue
+            r="$(readlink -f "$r")"  # absolute: rpm2cpio runs after cd into the temp dir
             x="$(mktemp -d)"; (cd "$x" && rpm2cpio "$r" | cpio -idm --quiet)
             ai="$(find "$x" -type f -name worksuite-ai | head -1)"
+            [ -n "$ai" ] || { echo "::error::$r has no worksuite-ai"; exit 1; }
             "$ai" --version || { echo "::error::$r: worksuite-ai does not run (stripped?)"; exit 1; }
             rm -rf "$x"
           done
