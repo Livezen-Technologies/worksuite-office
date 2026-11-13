@@ -15,8 +15,8 @@
 * Manage Pro from the start page: Settings > WorkSuite Office Pro shows the plan,
   which features Pro unlocks, and a box to enter or remove a license key
 * Using a Pro feature without a license — PDF signing, converting to Excel or
-  PowerPoint, or text recognition — now explains that it needs Pro and offers to
-  upgrade, instead of a plain error
+  PowerPoint, text recognition, or the AI assistant — now explains that it needs
+  Pro and offers to upgrade, instead of a plain error
 
 #### Branding
 
