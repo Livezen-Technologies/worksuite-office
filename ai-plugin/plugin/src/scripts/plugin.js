@@ -541,7 +541,8 @@
   function openExternal(url) {
     if (!/^(x-apple\.systempreferences:|ms-settings:|https:)/.test(url || "")) return;
     var d = window.AscDesktopEditor || (host && host.AscDesktopEditor);
-    // TODO(desktop-apps): "worksuite:open-url" (open a system settings URL); window.open is the fallback
+    // the desktop shell opens it ("worksuite:open-url", allow-listed there: the microphone settings or an https
+    // page); window.open only outside the desktop app
     if (d && d.execCommand) { try { d.execCommand("worksuite:open-url", JSON.stringify({ url: url })); return; } catch (e) { /* fall back */ } }
     window.open(url, "_blank");
   }
