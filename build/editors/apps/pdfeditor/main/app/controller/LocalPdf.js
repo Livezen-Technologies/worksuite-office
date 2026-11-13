@@ -137,7 +137,8 @@ define([], function () {
     function binary(path) {
         return discover().then(function (ep) {
             return request('GET', ep.base + path, ep.token, undefined, 'arraybuffer').then(function (res) {
-                if (res.status < 200 || res.status >= 300) throw LocalPdfError(res.status === 404 ? 'not_found' : 'internal');
+                if (res.status < 200 || res.status >= 300)
+                    throw LocalPdfError(res.status === 404 ? 'not_found' : res.status === 402 ? 'payment_required' : 'internal');
                 return res.buffer;
             });
         });

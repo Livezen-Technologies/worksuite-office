@@ -75,3 +75,15 @@ test("an unreachable service is service_unavailable", async () => {
   const { mod } = load(() => "unreachable");
   await assert.rejects(mod.run("merge", { paths: [] }), (e) => e.code === "service_unavailable");
 });
+
+test("a 402 from a Pro-gated job keeps the payment_required code for the upsell", async () => {
+  const { mod } = load(() => ({ status: 402, json: { error: { code: "payment_required", message: "\"pdf.sign\" needs WorkSuite Office Pro", detail: { feature: "pdf.sign" } } } }));
+  await assert.rejects(mod.run("sign", { path: "/x.pdf" }), (e) => e.code === "payment_required");
+});
+
+test("binary() surfaces a 402 as payment_required (not internal) so OCR data download can upsell", async () => {
+  const { mod } = load((r) => (r.url.endsWith("/data") ? { status: 402, buffer: undefined } : { status: 404, json: {} }));
+  await assert.rejects(mod.binary("/ocr/languages/si/data"), (e) => e.code === "payment_required");
+  const notFound = load(() => ({ status: 404, buffer: undefined }));
+  await assert.rejects(notFound.mod.binary("/ocr/languages/zz/data"), (e) => e.code === "not_found");
+});

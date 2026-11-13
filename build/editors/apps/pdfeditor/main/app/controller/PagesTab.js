@@ -18,8 +18,9 @@ define([
     'pdfeditor/main/app/view/StampDialog',
     'pdfeditor/main/app/view/SignDialog',
     'pdfeditor/main/app/controller/PageRanges',
-    'pdfeditor/main/app/controller/LocalPdf'
-], function (core, view, dialog, protectDialog, stampDialog, signDialog, PageRanges, LocalPdf) {
+    'pdfeditor/main/app/controller/LocalPdf',
+    'pdfeditor/main/app/controller/ProUpgrade'
+], function (core, view, dialog, protectDialog, stampDialog, signDialog, PageRanges, LocalPdf, ProUpgrade) {
     'use strict';
 
     // Must match desktop-apps common/loginpage/src/worksuite/pdf-tools.js
@@ -266,7 +267,9 @@ define([
                 }});
             }, function (err) {
                 end();
-                if (err.code === 'service_unavailable' || err.code === 'forbidden_by_policy')
+                if (ProUpgrade.is402(err))
+                    ProUpgrade.prompt({title: v.txtProTitle, msg: v.txtProSign, upgrade: v.txtProUpgrade, close: v.txtProClose});
+                else if (err.code === 'service_unavailable' || err.code === 'forbidden_by_policy')
                     Common.UI.warning({msg: v.txtNoService});
                 else if (err.detail && err.detail.reason === 'no_fields')
                     Common.UI.warning({msg: v.txtNoFields});

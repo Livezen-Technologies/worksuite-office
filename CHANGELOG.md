@@ -12,6 +12,11 @@
   download center for revocation and seats; Pro keeps working offline for up to
   30 days between checks. With no key, everything else — viewing and editing,
   stamps, merge, form filling and redaction — stays free
+* Manage Pro from the start page: Settings > WorkSuite Office Pro shows the plan,
+  which features Pro unlocks, and a box to enter or remove a license key
+* Using a Pro feature without a license — PDF signing, converting to Excel or
+  PowerPoint, or text recognition — now explains that it needs Pro and offers to
+  upgrade, instead of a plain error
 
 #### Branding
 
