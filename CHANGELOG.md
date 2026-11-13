@@ -23,6 +23,11 @@
   desktop shell now opens only the app's own licence (the GNU AGPL page, or the
   EULA or LICENSE file installed with WorkSuite Office) this way
 
+#### macOS
+
+* The start page's About and Settings show the WorkSuite Office version and
+  its licence on macOS too, and the licence link opens the licence
+
 #### Voice typing
 
 * Fixed the link to the microphone settings in voice typing doing nothing when
