@@ -280,9 +280,12 @@
     });
   }
 
+  var pendingGo = null;
   function runQuery(a) {
     if (delayTimer) { window.clearTimeout(delayTimer); delayTimer = null; }
+    pendingGo = null;
     var go = function () {
+      pendingGo = null;
       lookup(a.seq, { before: a.before, mode: a.mode, manual: a.manual }, function (result) {
         result.before = a.before;
         result.key = a.seq + ":" + result.token;
@@ -291,7 +294,17 @@
         if (settings.ai && result.items.length && typing && typing.isVisible) ai.schedule(result.key);
       });
     };
-    if (settings.delay > 0 && !a.manual) delayTimer = window.setTimeout(go, settings.delay); else go();
+    if (settings.delay > 0 && !a.manual) { pendingGo = go; delayTimer = window.setTimeout(go, settings.delay); } else go();
+  }
+
+  // A key that ends the word came while the word's suggestions were still on their way (the worker
+  // starting up, or the suggestion delay): answer that lookup now, here, so the word is written instead of
+  // staying in Latin ("mama gedhara" typed fast after opening left "gedhara").
+  var WORD_END = /[ .,;:!?)\]}"'\u0DF4\-1-9]$/;
+  function settleNow() {
+    if (delayTimer) { window.clearTimeout(delayTimer); delayTimer = null; }
+    if (pendingGo) pendingGo();
+    flushToLocal();
   }
 
   function learn(item, token) {
@@ -365,6 +378,7 @@
     // spreadsheets: never while a formula is being written
     if (editorType() === "cell" && /^[=+]/.test(text)) { if (typing && typing.isVisible) apply(typing.stop()); return; }
     ai.cancel(); // a new keystroke: the last question is moot
+    if (typing && typing.state === "pending" && WORD_END.test(text)) settleNow();
     apply(machine().input(text));
   };
 
@@ -426,8 +440,23 @@
     if (context && active()) apply(machine().input(context));
   }
 
+  // --- warming up ---------------------------------------------------------------------------------
+  // The first word written after the editor opens paid two cold starts: the editor's command engine
+  // (the first callCommand took ~110 ms, against ~25 ms later, and keys typed meanwhile never reached
+  // the document: "mama gedhara" became "මම එදර") and the suggestion worker with its word list (a word
+  // finished before its first suggestions arrived stayed in Latin). Both are paid here instead, when the
+  // plugin starts, before anything is typed.
+  var warmed = false;
+  function warmUp() {
+    if (warmed) return;
+    warmed = true;
+    if (editorType() === "word") plugin.callCommand(function () { return true; }, false, false);
+    if (active()) lookup(-1, { before: "a", mode: settings.mode, manual: false }, function () { /* warming only */ });
+  }
+
   // --- for plugin.js (the toolbar, the panel and Suggestions › Settings) --------------------------
   window.WorkSuiteSinhalaIme = {
+    warmUp: warmUp,
     isOn: on,
     mode: function () { return settings.mode; },
     setMode: setMode,

@@ -105,6 +105,8 @@ export function segment(latin: string): Segment[] {
       const options: Option[] = [{ piece: { kind: "v", vowel: first }, penalty: 0 }];
       // a short "a" after a consonant may be long, at the end of a word most of all (amma අම්මා, thaththa තාත්තා)
       if (first === "a" && prevIsConsonant) options.push({ piece: { kind: "v", vowel: "aa" }, penalty: final ? 1 : 2.5 });
+      // and so may an "a" that starts a word (ayubowan ආයුබෝවන්, adaraya ආදරය), ranked by the word list
+      else if (first === "a" && (i === 0 || !/[A-Za-z]/.test(latin[i - 1]))) options.push({ piece: { kind: "v", vowel: "aa" }, penalty: 2.5 });
       alts.forEach((a, n) => options.push({ piece: { kind: "v", vowel: a }, penalty: (final ? 1 : 2) + n }));
       out.push({ latin: l, options });
       i += l.length; continue;

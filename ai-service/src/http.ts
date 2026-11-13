@@ -34,7 +34,10 @@ export class Router {
   delete(p: string, h: Handler) { return this.add("DELETE", p, h); }
 
   match(method: string, pathname: string): { handler: Handler; params: Record<string, string> } | "method" | null {
-    const parts = pathname.split("/").filter(Boolean).map(decodeURIComponent);
+    const parts = pathname.split("/").filter(Boolean).map((part) => {
+      // a broken %-escape is the caller's mistake (400), not a fault of the service (it read as 500)
+      try { return decodeURIComponent(part); } catch { throw new ApiError("bad_request", "The address has a malformed %-escape"); }
+    });
     let methodMismatch = false;
     for (const r of this.routes) {
       if (r.parts.length !== parts.length) continue;

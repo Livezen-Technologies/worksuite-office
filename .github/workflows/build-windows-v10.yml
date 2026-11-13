@@ -36,8 +36,8 @@ env:
   OO_TAG: v10.0.0.176
   BUILD_TOOLS_REF: release/v9.4.0
   BUILD_TOOLS_SHA: cf4cac0846d03e2e00a6fec5d1ecd4e9463086d5
-  DESKTOP_APPS_REF: e30f30ba328832b3c50d13c98e1dd8ae02200068
-  PRODUCT_VERSION: 10.1.31
+  DESKTOP_APPS_REF: fccff8054f4e52fd78cd8289708a31e74a0f965c
+  PRODUCT_VERSION: 10.1.32
   # depot_tools (V8) stays at the pinned commit: its self-update collides with build_tools' bootstrap edits
   DEPOT_TOOLS_UPDATE: '0'
   # build/v10/prepare.sh: CMake builds use VS 2022's generator with the 2019 toolset (v142)
@@ -221,6 +221,9 @@ jobs:
 
       - name: Local AI service (worksuite-ai.exe) in the install dir
         run: bash worksuite-office/build/v10/ai-service.sh "$GITHUB_WORKSPACE/worksuite-office" C:/oo/build_tools/out/win_64/onlyoffice/DesktopEditors
+
+      - name: Sinhala voice typing (whisper-server.exe and the Sinhala speech model) in the install dir
+        run: bash worksuite-office/build/v10/speech.sh "$GITHUB_WORKSPACE/worksuite-office" C:/oo/build_tools/out/win_64/onlyoffice/DesktopEditors
 
       - name: Sign the app (Authenticode, certificate)
         if: steps.signing.outputs.mode == 'pfx'

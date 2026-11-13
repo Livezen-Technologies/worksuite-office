@@ -90,7 +90,7 @@ export async function start(opts: { models?: ModelSpec[]; env?: Record<string, s
   const env: NodeJS.ProcessEnv = {
     PATH: process.env.PATH, WS_AI_TRUSTED_KEYS: keys.publicKey, WS_AI_CATALOG_URL: CATALOG_URL,
     WS_AI_WHISPER_SERVER: join(FIX, "fake-whisper.mjs"), WS_AI_LLAMA_SERVER: join(FIX, "fake-llama.mjs"), WS_AI_PIPER: join(FIX, "fake-piper.mjs"),
-    WS_AI_GHOST_TIMEOUT_MS: "3000",
+    WS_AI_GHOST_TIMEOUT_MS: "3000", WS_AI_LICENSE_ALL: "1", // tests exercise features regardless of licensing
     ...opts.env,
   };
   const svc = new Service({

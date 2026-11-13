@@ -14,8 +14,9 @@ define([
     'pdfeditor/main/app/view/OcrDialog',
     'pdfeditor/main/app/view/OcrExtraDialogs',
     'pdfeditor/main/app/controller/OcrImage',
-    'pdfeditor/main/app/controller/LocalPdf'
-], function (core, view, dialog, extraDialogs, OcrImage, LocalPdf) {
+    'pdfeditor/main/app/controller/LocalPdf',
+    'pdfeditor/main/app/controller/ProUpgrade'
+], function (core, view, dialog, extraDialogs, OcrImage, LocalPdf, ProUpgrade) {
     'use strict';
 
     PDFE.Controllers.ConvertTab = Backbone.Controller.extend(_.extend({
@@ -106,7 +107,8 @@ define([
                 }});
             }, function (err) {
                 end();
-                if (err.code === 'service_unavailable' || err.code === 'forbidden_by_policy') Common.UI.warning({msg: v.txtNoService});
+                if (ProUpgrade.is402(err)) ProUpgrade.prompt({title: v.txtProTitle, msg: v.txtProConvert, upgrade: v.txtProUpgrade, close: v.txtProClose});
+                else if (err.code === 'service_unavailable' || err.code === 'forbidden_by_policy') Common.UI.warning({msg: v.txtNoService});
                 else if (err.detail && err.detail.reason === 'no_text') Common.UI.warning({msg: v.txtNoText});
                 else Common.UI.warning({msg: Common.Utils.String.format(v.txtFailed, Common.Utils.String.htmlEncode(err.message || err.code))});
             });
@@ -205,6 +207,10 @@ define([
                     }, function (err) {
                         me.ocrJob = null;
                         if (job.cancelled || (err && err.message === 'cancelled')) return dlg.showResult('cancelled');
+                        if (ProUpgrade.is402(err)) {
+                            dlg.showResult('error', me.view.txtProOcrShort);
+                            return ProUpgrade.prompt({title: me.view.txtProTitle, msg: me.view.txtProOcr, upgrade: me.view.txtProUpgrade, close: me.view.txtProClose});
+                        }
                         console.error('WorkSuite OCR', err);
                         dlg.showResult('error', me.view.txtOcrFailed);
                     });
@@ -228,7 +234,10 @@ define([
                     onInstall: function (code, done) {
                         LocalPdf.call('POST', '/ocr/languages/' + encodeURIComponent(code) + '/install', {}).then(function (started) {
                             return LocalPdf.wait(started.jobId);
-                        }).then(function () { done(); }, function (err) { done(err || true); });
+                        }).then(function () { done(); }, function (err) {
+                            done(err || true);
+                            if (ProUpgrade.is402(err)) ProUpgrade.prompt({title: v.txtProTitle, msg: v.txtProOcr, upgrade: v.txtProUpgrade, close: v.txtProClose});
+                        });
                     },
                     onRemove: function (code, done) {
                         LocalPdf.call('DELETE', '/ocr/languages/' + encodeURIComponent(code)).then(function () { done(); }, function (err) { done(err || true); });

@@ -84,3 +84,14 @@ test("learning is capped", () => {
   assert.equal(Object.keys(learner.data.picks).length, 3);
   assert.equal(Object.keys(learner.data.words).length, 3);
 });
+
+test("a word-initial 'a' may be long: ayubowan offers ආයුබෝවන්, and the rule's own reading stays first", () => {
+  const lexicon = new S.Lexicon(["ආයුබෝවන්", "ආදරය", "අම්මා"]);
+  const texts = (latin) => S.candidates(latin, { lexicon }).map((c) => c.text);
+  assert.ok(texts("ayubowan").includes("ආයුබෝවන්"), texts("ayubowan").join(" | "));
+  assert.equal(texts("ayubowan")[0], "ආයුබෝවන්"); // the dictionary word ranks first
+  assert.ok(texts("adaraya").includes("ආදරය"));
+  assert.equal(texts("amma")[0], "අම්මා"); // a known short-a word is not displaced
+  assert.equal(S.transliterate("ayubowan"), "අයුබොවන්"); // plain transliteration keeps the strict scheme
+  assert.ok(!S.variants("kada", 64).some((v) => v.text.startsWith("ආ"))); // only at the start of a word
+});

@@ -19,7 +19,8 @@ import type { Policy } from "../policy";
 
 export interface StreamOptions { lang: string; model?: string | null; punctuate: boolean }
 
-export const TUNING = { silenceMs: 700, maxSegmentMs: 25000, partialEveryMs: 1000, minSpeechMs: 250, minRms: 350 };
+export const TUNING = { silenceMs: 700, maxSegmentMs: 25000, partialEveryMs: 1000, minSpeechMs: 250, minRms: 350, maxPartialRtf: 0.6 };
+const EARLY_MAX_BYTES = 30 * 16000 * 2; // audio kept while the model loads: 30 s
 
 const BYTES_PER_MS = (RATE * 2) / 1000;
 
@@ -42,6 +43,8 @@ export class SpeechStream {
   private partialRunning = false;
   private noise = 200;
   private loaded: Loaded | null = null;
+  private early: Buffer[] = [];
+  private endRequested = false;
   private model: InstalledModel | null = null;
   private ac = new AbortController();
   private recording: Buffer[] | null;
@@ -66,18 +69,27 @@ export class SpeechStream {
       this.model = this.models.resolve("stt", this.o.model);
       if (this.o.lang === "si" && !passesSiStt(this.model.manifest)) throw new ApiError("capability_unavailable", "Sinhala speech to text is not available yet", { capability: "speech.stt.si" });
       this.send({ type: "state", state: "starting", model: this.model.manifest.id });
+      // Audio sent while the model loads is kept and recognised once it is ready (the dock shows
+      // "listening" when the socket opens, so people start speaking at once): it used to be dropped,
+      // and the first words of a dictation went missing.
+      this.ws.on("message", (data, isBinary) => {
+        if (!isBinary) { this.control(String(data)); return; }
+        const frame = Buffer.isBuffer(data) ? data : Buffer.from(data as ArrayBuffer);
+        if (this.loaded) this.audio(frame);
+        else if (this.early.reduce((n, f) => n + f.length, 0) < EARLY_MAX_BYTES) this.early.push(frame);
+      });
       this.loaded = await this.runtime.pool.acquire(this.model.manifest.id, this.model.manifest.ramMB);
       this.models.touch(this.model.manifest.id);
       this.send({ type: "state", state: "listening" });
+      const early = this.early;
+      this.early = [];
+      for (const f of early) this.audio(f);
+      if (this.endRequested) void this.end();
     } catch (e) {
       const err = e instanceof ApiError ? e : new ApiError("internal", (e as Error).message);
       this.fail(err.code, err.message);
       return;
     }
-    this.ws.on("message", (data, isBinary) => {
-      if (isBinary) this.audio(Buffer.isBuffer(data) ? data : Buffer.from(data as ArrayBuffer));
-      else this.control(String(data));
-    });
   }
 
   private control(text: string): void {
@@ -85,7 +97,7 @@ export class SpeechStream {
     try { msg = JSON.parse(text); } catch { this.send({ type: "error", code: "bad_request" }); return; }
     if (msg.type === "pause") { this.paused = true; this.send({ type: "state", state: "paused" }); }
     else if (msg.type === "resume") { this.paused = false; this.send({ type: "state", state: "listening" }); }
-    else if (msg.type === "end") void this.end();
+    else if (msg.type === "end") { if (this.loaded) void this.end(); else this.endRequested = true; }
     else this.send({ type: "error", code: "bad_request" });
   }
 
@@ -107,7 +119,7 @@ export class SpeechStream {
       this.finalize();
     } else if (this.silenceBytes >= TUNING.silenceMs * BYTES_PER_MS) {
       this.reset(); // a click or breath, not speech
-    } else if (this.sincePartial >= TUNING.partialEveryMs * BYTES_PER_MS && !this.partialRunning && this.speechBytes >= TUNING.minSpeechMs * BYTES_PER_MS) {
+    } else if (this.partialsOn() && this.sincePartial >= TUNING.partialEveryMs * BYTES_PER_MS && !this.partialRunning && this.speechBytes >= TUNING.minSpeechMs * BYTES_PER_MS) {
       this.sincePartial = 0;
       this.partial();
     }
@@ -119,8 +131,21 @@ export class SpeechStream {
 
   private infer(pcm: Buffer) {
     const l = this.loaded!;
-    return this.runtime.scheduler.run(l.device, Priority.Speech, () => whisperInference(l.baseUrl, pcmToWav(pcm), { language: this.langParam(), signal: this.ac.signal }), this.ac.signal);
+    const t0 = Date.now();
+    return this.runtime.scheduler.run(l.device, Priority.Speech, () => whisperInference(l.baseUrl, pcmToWav(pcm), { language: this.langParam(), signal: this.ac.signal }), this.ac.signal)
+      .then((r) => { this.noteSpeed(Date.now() - t0, pcm.length / BYTES_PER_MS); return r; });
   }
+
+  // Partials re-recognise the open segment about once a second. Where recognition is slower than
+  // TUNING.maxPartialRtf of real time (a CPU-only computer with a small model) they would queue in front
+  // of the finals and the text would come tens of seconds late, so they stop for this dictation.
+  private rtf = 0;
+  private noteSpeed(ms: number, audioMs: number): void {
+    if (audioMs < 500) return;
+    const x = ms / audioMs;
+    this.rtf = this.rtf ? this.rtf * 0.5 + x * 0.5 : x;
+  }
+  private partialsOn(): boolean { return !this.rtf || this.rtf <= TUNING.maxPartialRtf; }
 
   private partial(): void {
     const pcm = Buffer.concat(this.seg);

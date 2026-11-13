@@ -19,8 +19,22 @@ export async function startWhisper(cmd: Command, m: Manifest, dir: string, opts:
   const args = ["-m", model, "--host", "127.0.0.1", "--port", String(s.port), "-t", threads()];
   if (cmd.backend === "cpu") args.push("-ng");
   if (opts.tdrz) args.push("-tdrz");
+  // Without timestamps the server returns each utterance as one segment. With them, its verbose_json
+  // splits segments at timestamp tokens that can fall inside a multi-byte character, and every piece is
+  // JSON-encoded on its own: Sinhala came back with U+FFFD and line breaks inside words, and the first
+  // words of a long window went missing. The callers segment the audio themselves (speech stream: voice
+  // activity; transcribe: pauses), so the timestamps are not needed. tinydiarize needs them.
+  else args.push("-nt");
   await s.start(cmd, args, "/health");
   return s;
+}
+
+/** whisper.cpp's audio_ctx: 0, the whole 30 s window. A window sized to the audio was twice as fast, but
+ * the Sinhala model was fine-tuned on full windows and with a smaller one it lost the thread: on the 60
+ * held-out OpenSLR 52 clips, sized windows gave WER 1.55 / CER 0.93 with 12 clips turned to repeated
+ * characters, a floor of 500 or 750 frames WER 0.33 / CER 0.11, the whole window WER 0.25 / CER 0.04. */
+export function audioCtxFor(_wav: Buffer): number {
+  return 0;
 }
 
 export async function whisperInference(baseUrl: string, wav: Buffer, o: { language?: string; signal?: AbortSignal; prompt?: string }): Promise<WhisperResult> {
@@ -29,6 +43,9 @@ export async function whisperInference(baseUrl: string, wav: Buffer, o: { langua
   fd.append("response_format", "verbose_json");
   fd.append("temperature", "0.0");
   fd.append("language", o.language && o.language !== "auto" ? o.language : "auto");
+  // the whole window (see audioCtxFor). Sent with every request: whisper-server keeps a request's audio_ctx
+  // for the requests after it.
+  fd.append("audio_ctx", String(audioCtxFor(wav)));
   if (o.prompt) fd.append("prompt", o.prompt);
   let res: Response;
   try {
@@ -39,9 +56,10 @@ export async function whisperInference(baseUrl: string, wav: Buffer, o: { langua
   }
   if (!res.ok) throw new ApiError("internal", `whisper-server: HTTP ${res.status}`);
   const j = (await res.json()) as { text?: string; language?: string; segments?: { start: number; end: number; text: string; avg_logprob?: number; speaker_turn_next?: boolean; tokens?: unknown[] }[] };
+  const whole = Number((j as { duration?: number }).duration) || 0;
   const segments = (j.segments || []).map((s) => ({
     start: Number(s.start) || 0,
-    end: Number(s.end) || 0,
+    end: s.end === undefined ? whole : Number(s.end) || 0, // no timestamps (-nt): the segment is the whole input
     text: String(s.text || "").replace(/\s*\[SPEAKER_TURN\]\s*/g, " ").trim(),
     confidence: typeof s.avg_logprob === "number" ? Math.round(Math.exp(s.avg_logprob) * 1000) / 1000 : 0.8,
     speakerTurn: !!s.speaker_turn_next || /\[SPEAKER_TURN\]/.test(String(s.text || "")),

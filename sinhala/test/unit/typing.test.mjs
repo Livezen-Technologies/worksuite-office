@@ -144,7 +144,8 @@ test("each word is one editor command, and the font stays for what is typed next
   const h = harness();
   h.ime.setMode("unicode");
   h.type("mama ");
-  assert.deepEqual(h.calls.filter((c) => c[0] === "callCommand"), [["callCommand", true]]);
+  // (the empty warm-up command plugin.init runs, with no recalculation, is not a word: cold-start.test.mjs)
+  assert.deepEqual(h.calls.filter((c) => c[0] === "callCommand" && c[1] === true), [["callCommand", true]]);
   h.doc.key("x");
   assert.equal(h.doc.chars.at(-1).font, "Noto Sans Sinhala");
 });
@@ -157,7 +158,7 @@ test("Sinhala legacy font: the word encoded with the font's map, in that font, i
   const fm = S.getProfile("fm-abhaya");
   assert.equal(h.doc.text(), S.toLegacy("ශ්‍රී ", fm).text + S.toLegacy("ලංකාව ", fm).text);
   assert.ok(h.doc.fonts().every((f) => f === "FMAbhaya"));
-  assert.equal(h.calls.filter((c) => c[0] === "callCommand").length, 2);
+  assert.equal(h.calls.filter((c) => c[0] === "callCommand" && c[1] === true).length, 2);
 });
 
 test("legacy mode: a character the map lacks (the full stop) is warned about once", () => {

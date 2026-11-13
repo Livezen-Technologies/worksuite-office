@@ -45,8 +45,8 @@ env:
   BUILD_TOOLS_REF: release/v9.4.0
   BUILD_TOOLS_SHA: cf4cac0846d03e2e00a6fec5d1ecd4e9463086d5
   # desktop-apps' v10 branch, the same commit as the Windows and Linux 10 builds
-  DESKTOP_APPS_REF: e30f30ba328832b3c50d13c98e1dd8ae02200068
-  PRODUCT_VERSION: 10.1.31
+  DESKTOP_APPS_REF: fccff8054f4e52fd78cd8289708a31e74a0f965c
+  PRODUCT_VERSION: 10.1.32
   COMPANY_NAME: WorkSuite
   UPDATE_CENTER: https://download.worksuitecloud.com
   UPDATE_APP_ID: lk.worksuite.office
@@ -160,6 +160,13 @@ jobs:
           python worksuite-office/build/patch-branding.py oo/web-apps
           python worksuite-office/build/patch-help.py oo/web-apps
           python worksuite-office/build/patch-ai-panel.py oo/desktop-sdk oo/desktop-apps
+          python worksuite-office/build/patch-plugin-guid.py oo/desktop-sdk
+          python worksuite-office/build/patch-ai-tab.py oo/onlyoffice.github.io
+          python worksuite-office/build/patch-sdkjs-keys.py oo/sdkjs
+          python worksuite-office/build/patch-core-numfmts.py oo/core
+          python worksuite-office/build/patch-core-fontranges.py oo/core
+          python worksuite-office/build/patch-core-rtfstyles.py oo/core
+          python worksuite-office/build/patch-core-epub.py oo/core
 
       - name: Sinhala Tools (plugin and Noto Sinhala fonts)
         working-directory: oo
@@ -300,13 +307,19 @@ jobs:
         run: |
           app="$GITHUB_WORKSPACE/oo/desktop-apps/macos/build/dd/Build/Products/Release/ONLYOFFICE.app"
           bash worksuite-office/build/v10/ai-service.sh "$GITHUB_WORKSPACE/worksuite-office" "$app/Contents/MacOS"
+          # Sinhala voice typing: whisper-server and the model in Contents/Resources/speech (data files do not
+          # belong in Contents/MacOS); worksuite-ai looks there on macOS
+          mkdir -p "$app/Contents/Resources"
+          bash worksuite-office/build/v10/speech.sh "$GITHUB_WORKSPACE/worksuite-office" "$app/Contents/Resources"
           ent="$GITHUB_WORKSPACE/worksuite-office/ai-service/packaging/macos/worksuite-ai.entitlements"
           if [ -n "$SIGN_IDENTITY" ]; then
+            codesign --force --timestamp --options runtime --sign "$SIGN_IDENTITY" "$app/Contents/Resources/speech/whisper-server"
             codesign --force --timestamp --options runtime --entitlements "$ent" --sign "$SIGN_IDENTITY" "$app/Contents/MacOS/worksuite-ai"
             # the bundle's seal now covers worksuite-ai: sign the app again, keeping its own entitlements
             codesign --force --timestamp --options runtime --preserve-metadata=entitlements,requirements,flags,runtime --sign "$SIGN_IDENTITY" "$app"
             codesign --verify --deep --strict --verbose=2 "$app"
           else
+            codesign --force --sign - "$app/Contents/Resources/speech/whisper-server"
             codesign --force --sign - --entitlements "$ent" "$app/Contents/MacOS/worksuite-ai"
             codesign --force --sign - --preserve-metadata=entitlements,requirements,flags "$app"
           fi

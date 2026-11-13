@@ -70,7 +70,7 @@ for font in manifest["unicode"]:
         got = hashlib.sha256(content).hexdigest()
         if got != sha:
             sys.exit(f"{member}: sha256 {got}, expected {sha}")
-        name = os.path.basename(member)
+        name = font.get("names", {}).get(member, os.path.basename(member))  # e.g. a second OFL.txt
         write(dest, name, content)
         print(f"{font['family']} {font['version']}: {name}")
 

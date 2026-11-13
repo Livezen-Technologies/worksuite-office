@@ -26,7 +26,7 @@ define([
         initialize: function (options) {
             var me = this;
             _.extend(this.options, {title: me.txtTitle}, options || {});
-            var label = function (text, cls) { return '<div class="input-row" style="margin-bottom: 6px;"><label class="' + (cls || 'light') + '">' + text + '</label></div>'; };
+            var label = function (text, cls) { return '<div class="input-row" style="height: auto; margin-bottom: 6px;"><label class="' + (cls || 'light') + '">' + text + '</label></div>'; };
             var field = function (id) { return '<div id="' + id + '" style="margin-bottom: 8px;"></div>'; };
             var indent = function (html) { return '<div style="margin-left: 22px;">' + html + '</div>'; };
             this.options.tpl =

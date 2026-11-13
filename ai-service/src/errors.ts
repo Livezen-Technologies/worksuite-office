@@ -2,6 +2,7 @@
 export type ErrorCode =
   | "unauthorized"
   | "forbidden_by_policy"
+  | "payment_required"
   | "model_not_installed"
   | "model_loading"
   | "capability_unavailable"
@@ -20,6 +21,7 @@ export type ErrorCode =
 const STATUS: Record<ErrorCode, number> = {
   unauthorized: 401,
   forbidden_by_policy: 403,
+  payment_required: 402,
   model_not_installed: 409,
   model_loading: 503,
   capability_unavailable: 409,

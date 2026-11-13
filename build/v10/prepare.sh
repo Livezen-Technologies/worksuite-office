@@ -11,6 +11,13 @@ python "$repo/build/patch-pdf-convert.py" web-apps
 python "$repo/build/patch-branding.py" web-apps
 python "$repo/build/patch-help.py" web-apps
 python "$repo/build/patch-ai-panel.py" desktop-sdk desktop-apps
+python "$repo/build/patch-plugin-guid.py" desktop-sdk
+python "$repo/build/patch-ai-tab.py" onlyoffice.github.io
+python "$repo/build/patch-sdkjs-keys.py" sdkjs
+python "$repo/build/patch-core-numfmts.py" core
+python "$repo/build/patch-core-fontranges.py" core
+python "$repo/build/patch-core-rtfstyles.py" core
+python "$repo/build/patch-core-epub.py" core
 
 # The v10 start page is built with Vite (build_tools 9.4 only knows Grunt)
 ( cd desktop-apps/common/loginpage

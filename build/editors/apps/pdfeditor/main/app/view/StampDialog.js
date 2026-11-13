@@ -49,7 +49,7 @@ define([
                         '<tr><td></td><td class="light">' + me.txtLeft + '</td><td class="light">' + me.txtCenter + '</td><td class="light">' + me.txtRight + '</td></tr>' +
                         rowOf(me.txtHeader, 'ws-stamp-header') + rowOf(me.txtFooter, 'ws-stamp-footer') +
                     '</table>' +
-                    '<div class="input-row" style="margin-bottom: 4px;"><label class="light">' + me.txtTokens + '</label></div>' +
+                    '<div class="input-row" style="height: auto; margin-bottom: 4px;"><label class="light">' + me.txtTokens + '</label></div>' +
                     '<table style="margin: 6px 0 10px;"><tr>' +
                         '<td style="padding-right: 8px;"><label>' + me.txtNumbers + '</label></td><td style="width: 170px;"><div id="ws-stamp-numbers"></div></td>' +
                     '</tr></table>' +
@@ -62,7 +62,7 @@ define([
                     '<table style="margin-bottom: 10px;"><tr>' +
                         '<td style="padding-right: 8px;"><label>' + me.txtPages + '</label></td><td style="width: 200px;"><div id="ws-stamp-pages"></div></td>' +
                     '</tr></table>' +
-                    '<div class="input-row"><label class="light">' + me.txtNote + '</label></div>' +
+                    '<div class="input-row" style="height: auto;"><label class="light">' + me.txtNote + '</label></div>' +
                 '</div>' +
                 '<div class="footer center">' +
                     '<button class="btn normal dlg-btn primary" result="ok">' + me.txtOk + '</button>' +

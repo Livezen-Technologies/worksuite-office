@@ -18,6 +18,7 @@ import { normalizePolicy, Policy, PolicyReader, systemPolicyReader } from "./pol
 import { layout, Layout } from "./paths";
 import { SettingsStore } from "./settings";
 import { trustedKeys } from "./signing";
+import { LicenseStore } from "./license";
 import { Catalog, Fetcher } from "./catalog";
 import { EngineRegistry } from "./engines/registry";
 import { ModelStore } from "./models";
@@ -68,6 +69,7 @@ export class Service {
   readonly dict: Dictionaries;
   readonly text: TextService;
   readonly versions: VersionStore;
+  readonly license: LicenseStore;
   readonly ocrLanguages: OcrLanguages;
   hardware: Hardware | null = null;
   policy: Policy = normalizePolicy(null);
@@ -102,6 +104,7 @@ export class Service {
     });
     this.runtime = new Runtime(this.models, this.engines, this.jobs, this.events, () => this.policy);
     this.versions = new VersionStore(join(o.dataDir, "versions"));
+    this.license = new LicenseStore(o.dataDir, keys, o.fetcher, this.env);
     this.ocrLanguages = new OcrLanguages(join(o.dataDir, "ocr", "lang"), o.fetcher);
     this.dict = new Dictionaries(this.paths.dictionariesDir, o.fetcher);
     this.text = new TextService(this.dict, this.models, this.runtime, () => this.policy, this.diag, this.env);
@@ -138,6 +141,7 @@ export class Service {
     this.runtime.pool.startSweeper();
     this.timers.push(setInterval(() => void this.reloadPolicy(), 60000));
     this.timers.push(setInterval(() => void this.dict.refreshOrg(this.policy.orgDictionaryUrl), 6 * 3600 * 1000));
+    this.timers.push(setInterval(() => void this.license.refresh(), 24 * 3600 * 1000));
     const idle = this.o.idleExitMs ?? 30 * 60 * 1000;
     if (idle > 0) this.timers.push(setInterval(() => this.checkIdle(idle), Math.min(60000, idle / 2)));
     for (const t of this.timers) t.unref();
@@ -376,12 +380,14 @@ export class Service {
     });
     for (const op of ["to-xlsx", "form-export", "form-fill", "flatten"] as const) {
       r.post(`/v1/pdf/${op}`, async (c) => {
+        if (op === "to-xlsx") this.license.require("convert");
         const run = officeJob(op, await c.body());
         return withStatus(202, { jobId: this.jobs.start(`pdf.${op}`, run).id });
       });
     }
     // multipart: "options" {path, pages:[{widthPt, heightPt}]} and one picture per page, in order
     r.post("/v1/pdf/to-pptx", async (c) => {
+      this.license.require("convert");
       const { files, fields } = await parseMultipart(c.req, join(this.paths.cacheDir, "uploads"), 64 * 1024 ** 2, 2000);
       const drop = () => { for (const f of files) rmSync(f.path, { force: true }); };
       let opts: { path?: unknown; pages?: { widthPt?: unknown; heightPt?: unknown }[] };
@@ -402,6 +408,7 @@ export class Service {
       });
     }
     r.post("/v1/pdf/sign", async (c) => {
+      this.license.require("pdf.sign");
       const run = signJob(await c.body());
       return withStatus(202, { jobId: this.jobs.start("pdf.sign", run).id });
     });
@@ -412,11 +419,13 @@ export class Service {
     // OCR languages beyond the ones the app ships: downloaded on request, read by the editor's tesseract.js
     r.get("/v1/ocr/languages", () => ({ languages: this.ocrLanguages.list() }));
     r.post("/v1/ocr/languages/:id/install", (c) => {
+      this.license.require("ocr");
       const run = this.ocrLanguages.install(c.params.id);
       return withStatus(202, { jobId: this.jobs.start("ocr.language", run, { modelId: c.params.id }).id });
     });
     r.delete("/v1/ocr/languages/:id", (c) => this.ocrLanguages.remove(c.params.id));
     r.get("/v1/ocr/languages/:id/data", (c) => {
+      this.license.require("ocr");
       const data = this.ocrLanguages.data(c.params.id);
       c.res.writeHead(200, { "content-type": "application/octet-stream", "content-length": data.length });
       c.res.end(data);
@@ -436,6 +445,12 @@ export class Service {
     });
     r.delete("/v1/versions", (c) => ({ removed: this.versions.clear(versioned(c.query.get("path") || undefined)) }));
     r.post("/v1/pdf/info", async (c) => pdfInfo(await c.body()));
+
+    // Licensing (Free by default; a signed license unlocks Pro). Offline-verified; online check with the download center.
+    r.get("/v1/license", () => ({ ...this.license.status(), proFeatures: this.license.proFeatures() }));
+    r.post("/v1/license/activate", async (c) => this.license.activate(str((await c.body()).key, "key")));
+    r.post("/v1/license/refresh", () => this.license.refresh());
+    r.post("/v1/license/deactivate", () => this.license.deactivate());
     r.delete("/v1/requests/:id", (c) => ({ id: c.params.id, cancelled: this.requests.cancel(c.params.id) }));
 
     // speech
@@ -573,7 +588,7 @@ export class Service {
       data: (this.policy.features.assistant ? this.models.withTask("assistant").filter((m) => this.models.policyAllows(m.manifest.id)) : [])
         .map((m) => ({ id: m.manifest.id, object: "model", created: Math.floor(new Date(m.installedAt).getTime() / 1000), owned_by: "worksuite-local", name: m.manifest.name || m.manifest.id })),
     }));
-    r.post("/v1/openai/chat/completions", (c) => this.chat(c));
+    r.post("/v1/openai/chat/completions", (c) => { this.license.require("assistant"); return this.chat(c); });
 
     // policy, privacy, diagnostics
     r.get("/v1/policy", async (c) => { if (c.query.get("refresh") === "1") await this.reloadPolicy(); return this.policy; });

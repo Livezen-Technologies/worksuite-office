@@ -28,7 +28,7 @@ define([
             var me = this, mode = options.mode;
             this.ranges = PageRanges || window.WsPageRanges;
             _.extend(this.options, {title: me['title_' + mode]}, options || {});
-            var row = function (html) { return '<div class="input-row" style="margin-bottom: 8px;">' + html + '</div>'; };
+            var row = function (html) { return '<div class="input-row" style="height: auto; margin-bottom: 8px;">' + html + '</div>'; };
             var body = row('<label class="light">' + Common.Utils.String.format(me['intro_' + mode], options.count) + '</label>');
             if (mode === 'split') {
                 body += '<div id="ws-pages-by-ranges" style="margin-bottom: 6px;"></div>' +

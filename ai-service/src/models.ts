@@ -8,6 +8,7 @@ import { Catalog, CatalogModel, compareVersions, Fetcher } from "./catalog";
 import { download, requireDisk, sha256File } from "./download";
 import { JobControl, JobManager, JobView } from "./jobs";
 import { Manifest, manifestOf, ModelTask, requireSigned, validateManifest } from "./manifest";
+import { BUNDLED_STT, checkBundledStt } from "./bundled";
 import { devMode } from "./signing";
 import type { Policy } from "./policy";
 import { SettingsStore, Task, TASKS } from "./settings";
@@ -17,7 +18,7 @@ import type { EngineRegistry, EngineId } from "./engines/registry";
 import { fits, Hardware } from "./hardware";
 import type { Writable } from "node:stream";
 
-export interface InstalledModel { manifest: Manifest; dir: string; installedAt: string; lastUsed: string | null; sizeBytes: number }
+export interface InstalledModel { manifest: Manifest; dir: string; installedAt: string; lastUsed: string | null; sizeBytes: number; bundled?: boolean }
 
 export interface Deps {
   modelsDir: () => string;
@@ -48,8 +49,8 @@ export class ModelStore {
   scan(): void {
     this.index.clear();
     const root = this.d.modelsDir();
-    if (!existsSync(root)) return;
-    for (const id of readdirSync(root)) {
+    // (a fresh data folder has no models folder yet: the model shipped with the app still counts)
+    for (const id of existsSync(root) ? readdirSync(root) : []) {
       if (id.startsWith(".")) continue;
       const versions = existsSync(join(root, id)) ? readdirSync(join(root, id)).filter((v) => existsSync(join(root, id, v, "manifest.json"))) : [];
       versions.sort((a, b) => compareVersions(b, a));
@@ -64,6 +65,20 @@ export class ModelStore {
           break;
         } catch { /* a broken install is ignored; reinstall replaces it */ }
       }
+    }
+    this.addBundled();
+  }
+
+  /** The Sinhala speech model shipped with the app (src/bundled.ts), when its file checks out. */
+  private addBundled(): void {
+    const id = BUNDLED_STT.id;
+    if (this.index.has(id)) return; // an installed copy takes precedence
+    const c = checkBundledStt(this.d.cacheDir, this.env);
+    if (c.ok) {
+      this.failed.delete(id);
+      this.index.set(id, { manifest: c.model.manifest, dir: c.model.dir, installedAt: "bundled", lastUsed: null, sizeBytes: c.model.sizeBytes, bundled: true });
+    } else if (c.reason === "integrity_failed") {
+      this.failed.set(id, { version: BUNDLED_STT.version, error: `The Sinhala speech model shipped with the app is damaged (${c.detail}); reinstall WorkSuite Office` });
     }
   }
 
@@ -280,6 +295,7 @@ export class ModelStore {
     rmSync(join(this.d.modelsDir(), ".staging"), { recursive: true, force: true });
     this.failed.delete(id);
     if (!m) throw new ApiError("model_not_installed", `Model ${id} is not installed`);
+    if (m.bundled) throw new ApiError("bad_request", "Sinhala voice typing is part of WorkSuite Office and cannot be removed on its own", { id });
     this.d.unload(id);
     rmSync(join(this.d.modelsDir(), id), { recursive: true, force: true });
     this.index.delete(id);
@@ -292,6 +308,13 @@ export class ModelStore {
 
   /** "Checked on every load": the manifest's signature and the files' sizes (full hashes at install/import). */
   verifyForLoad(m: InstalledModel): void {
+    // the shipped model: its manifest is compiled into this signed executable and its file was hashed in full
+    if (m.bundled && m.manifest === BUNDLED_STT) {
+      const f = BUNDLED_STT.files[0];
+      const p = join(m.dir, f.path);
+      if (!existsSync(p) || statSync(p).size !== f.size) throw new ApiError("integrity_failed", "The Sinhala speech model shipped with the app is missing or changed; reinstall WorkSuite Office", { id: m.manifest.id });
+      return;
+    }
     requireSigned(m.manifest, this.d.keys(), this.env);
     for (const f of m.manifest.files) {
       const p = join(m.dir, f.path);

@@ -24,8 +24,8 @@ env:
   OO_TAG: v10.0.0.176
   BUILD_TOOLS_REF: release/v9.4.0
   BUILD_TOOLS_SHA: cf4cac0846d03e2e00a6fec5d1ecd4e9463086d5
-  DESKTOP_APPS_REF: e30f30ba328832b3c50d13c98e1dd8ae02200068
-  PRODUCT_VERSION: 10.1.31
+  DESKTOP_APPS_REF: fccff8054f4e52fd78cd8289708a31e74a0f965c
+  PRODUCT_VERSION: 10.1.32
   # depot_tools (V8) stays at the pinned commit: its self-update collides with build_tools' bootstrap edits
   DEPOT_TOOLS_UPDATE: '0'
 
@@ -88,6 +88,23 @@ jobs:
           ./python3/bin/python3 ./qt_binary_fetch.py all
           ls qt_build
 
+      - name: ICU 55 for Qt
+        working-directory: oo/build_tools/tools/linux
+        # build_tools' prebuilt Qt 5.9.9 was linked on Ubuntu 16.04 against its ICU 55 (libQt5Core needs
+        # libicui18n.so.55 and libicuuc.so.55), which ONLYOFFICE's builds take from their Ubuntu 16
+        # sysroot. Without a sysroot, build_tools' qt_copy_icu copied this runner's ICU 70 instead and
+        # 10.1.20 could not start anywhere. qt_copy_icu looks in Qt's lib directory first, so the ICU 55
+        # libraries go there. (The editors' own ICU, 74, is built by build_tools and lives in converter/.)
+        env:
+          ICU55_DEB: libicu55_55.1-7ubuntu0.5_amd64.deb
+          ICU55_SHA256: 5c7ab6a4e0850d20c35b0c3c23f15948e685227e85d76d2eb2afd186e6efe4ed
+        run: |
+          curl -fsSL --retry 3 -o "$RUNNER_TEMP/$ICU55_DEB" "http://archive.ubuntu.com/ubuntu/pool/main/i/icu/$ICU55_DEB"
+          echo "$ICU55_SHA256  $RUNNER_TEMP/$ICU55_DEB" | sha256sum -c -
+          dpkg-deb -x "$RUNNER_TEMP/$ICU55_DEB" "$RUNNER_TEMP/icu55"
+          cp -a "$RUNNER_TEMP"/icu55/usr/lib/x86_64-linux-gnu/libicu{data,i18n,uc}.so.55* qt_build/Qt-5.9.9/gcc_64/lib/
+          ls -la qt_build/Qt-5.9.9/gcc_64/lib/libicu*
+
       - name: Prepare v10 sources for build_tools 9.4
         working-directory: oo
         run: bash ../worksuite-office/build/v10/prepare.sh "$GITHUB_WORKSPACE/worksuite-office"
@@ -112,6 +129,9 @@ jobs:
       - name: Local AI service (worksuite-ai) next to the app
         run: bash worksuite-office/build/v10/ai-service.sh "$GITHUB_WORKSPACE/worksuite-office" "$GITHUB_WORKSPACE/oo/build_tools/out/linux_64/onlyoffice/desktopeditors"
 
+      - name: Sinhala voice typing (whisper-server and the Sinhala speech model) next to the app
+        run: bash worksuite-office/build/v10/speech.sh "$GITHUB_WORKSPACE/worksuite-office" "$GITHUB_WORKSPACE/oo/build_tools/out/linux_64/onlyoffice/desktopeditors"
+
       - name: Package (deb, rpm, tar)
         working-directory: oo/desktop-apps/package
         run: |
@@ -130,6 +150,19 @@ jobs:
           [ -z "$failed" ] || echo "::warning::package types that failed:$failed"
           ls deb/*.deb >/dev/null 2>&1 || { echo "::error::no .deb was made"; exit 1; }
           for d in deb/*.deb; do dpkg-deb -c "$d" | grep -q '/worksuite-ai$' || { echo "::error::$d has no worksuite-ai"; exit 1; }; done
+          for d in deb/*.deb; do dpkg-deb -c "$d" | grep -q '/speech/ggml-small-si-q5_1.bin$' || { echo "::error::$d has no Sinhala speech model"; exit 1; }; done
+          # the rpm: worksuite-ai must survive brp-strip (desktop-apps rpm/common.spec)
+          for r in rpm/build/RPMS/*/*.rpm; do
+            [ -f "$r" ] || continue
+            r="$(readlink -f "$r")"  # absolute: rpm2cpio runs after cd into the temp dir
+            x="$(mktemp -d)"; (cd "$x" && rpm2cpio "$r" | cpio -idm --quiet)
+            ai="$(find "$x" -type f -name worksuite-ai | head -1)"
+            [ -n "$ai" ] || { echo "::error::$r has no worksuite-ai"; exit 1; }
+            "$ai" --version || { echo "::error::$r: worksuite-ai does not run (stripped?)"; exit 1; }
+            rm -rf "$x"
+          done
+          # every program in the package must find its libraries (10.1.20 lacked Qt's ICU 55 and did not start)
+          for d in deb/*.deb; do bash "$GITHUB_WORKSPACE/worksuite-office/build/v10/check-linux-package.sh" "$d" || { echo "::error::$d cannot load its libraries"; exit 1; }; done
 
       - uses: actions/upload-artifact@v4
         if: always()

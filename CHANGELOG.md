@@ -1,5 +1,153 @@
 # Change log
 
+## 10.1.32
+
+### New features
+
+#### Licensing
+
+* WorkSuite Office Pro: enter a license key to unlock the Pro features — OCR,
+  PDF signing, converting to Excel and PowerPoint, and the AI assistant. The key
+  is verified on the computer itself (no network needed) and checked with the
+  download center for revocation and seats; Pro keeps working offline for up to
+  30 days between checks. With no key, everything else — viewing and editing,
+  stamps, merge, form filling and redaction — stays free
+* Manage Pro from the start page: Settings > WorkSuite Office Pro shows the plan,
+  which features Pro unlocks, and a box to enter or remove a license key
+* Using a Pro feature without a license — PDF signing, converting to Excel or
+  PowerPoint, text recognition, or the AI assistant — now explains that it needs
+  Pro and offers to upgrade, instead of a plain error
+
+#### Branding
+
+* The loading icons are the animated WorkSuite logo: on the start page it
+  builds up and comes apart, and in a tab that is opening a document and
+  on downloads it turns in quarter steps
+
+#### Sinhala
+
+* Sinhala voice typing works out of the box: Voice typing on the Sinhala
+  Tools tab listens in Sinhala and writes what you say at the cursor, in the
+  Sinhala font. The speech engine and a Sinhala speech model come with WorkSuite
+  Office, so there is nothing to install or set up, and your voice stays on
+  your computer. Measured on recordings of native speakers it gets about
+  96 % of letters right (WER 0.23, CER 0.04); see build/speech/EVALUATION.md
+
+### Fixes
+
+#### Security
+
+* Fixed a web link being able to install a plugin from anywhere without asking:
+  an install-plugin link now takes only a plain plugin name from the plugin
+  store, and WorkSuite Office asks before installing it
+* Fixed a plugin package being able to write files outside the plugins folder:
+  a plugin's folder name is now required to be a real identifier, so a crafted
+  one in the package cannot place files elsewhere when the package is opened
+* Restoring an earlier version of a PDF no longer writes through a symbolic
+  link left at the name it picks (on Windows the previous exclusive-copy check
+  missed a dangling link); the restored copy goes to a fresh name instead
+
+#### Windows
+
+* The Windows installer no longer installs an update service that WorkSuite
+  Office does not use. Updating to this version removes it
+
+#### Sinhala and Tamil
+
+* Fixed Sinhala and Tamil text exported to PDF (and drawn where the text's
+  own font has no Sinhala or Tamil letters) coming out invisible or as
+  maths symbols: most Sinhala letters, every vowel sign and the virama were
+  given to a fallback font that does not draw them, although Noto Sans
+  Sinhala comes with WorkSuite Office. The fonts are looked up again once
+  after the update
+* Tamil text has a font: Noto Sans Tamil now comes with WorkSuite Office
+
+#### Linux
+
+* Fixed the rpm package (Fedora, openSUSE, RHEL) not being made: its file
+  list named two programs WorkSuite Office does not have
+* Fixed WorkSuite Office not starting on Linux: it stopped at once with
+  "libicui18n.so.55: cannot open shared object file". The package now
+  includes the ICU libraries its Qt needs, and every Linux build checks that
+  each of its programs finds its libraries
+* Fixed the Local AI service not starting on Linux, so voice typing,
+  transcription, read aloud and the AI tools did not work: packaging stripped
+  it, which breaks it. The same for the rpm package
+* Fixed New document templates on Linux being copied to the top folder of the
+  computer when xdg-user-dir is not installed
+
+#### PDF
+
+* Fixed the explanation at the top of the Version history, Sign, Crop,
+  Stamp, Protect, Split and recognised-text dialogs running over the
+  rows under it when it took more than one line
+* Fixed the copies the PDF Tools and Convert make opening in a tab that
+  says "Check your Internet connection": the new PDF or document now opens
+  in its tab
+* Fixed the PDF Tools (protect, stamp, merge, images to PDF, form data, sign,
+  page size, versions) waiting for ever on "Please, wait..." and never
+  making their file: their requests to WorkSuite Local AI went out without
+  their settings
+
+#### Documents
+
+* Fixed a document saved as RTF losing its Normal style: the RTF had no
+  default paragraph style, so plain paragraphs changed font and spacing when
+  the RTF was opened again, here or in another program
+* Fixed every style of a document that went through RTF being marked as an
+  e-mail style
+* Fixed pictures in a document saved as an e-book (EPUB) not showing in many
+  e-book readers: they were left inside the page instead of being stored as
+  files of the book, and JPEG pictures were labelled as PNG. A book with no
+  language set now says en, not the invalid en-EN
+
+#### Spreadsheets
+
+* Fixed an OpenDocument spreadsheet saved as Excel making a file that strict
+  programs refuse to open: its list of number formats was written wrongly
+* Fixed dates, times and amounts in an OpenDocument spreadsheet that
+  WorkSuite Office saved showing as plain numbers (46024 for a date) when it
+  was opened again or saved as Excel
+* Fixed percentages, scientific numbers and fractions in an OpenDocument
+  spreadsheet losing their decimals when opened or saved as Excel (0.0%
+  became 0%)
+* Fixed an OpenDocument spreadsheet saved as Excel naming each sheet's
+  selected cell wrongly, so that strict programs refused the file
+
+#### WorkSuite
+
+* Files saved by WorkSuite Office now say WorkSuite Office as the program
+  that made them, not ONLYOFFICE: in Word, Excel and PowerPoint files, in
+  OpenDocument files and in PDF files
+* The AI tools are in one AI tab: the editors showed two tabs captioned AI
+
+* Fixed the first words of a dictation being lost while the speech model was
+  still starting, and the start of a sentence going missing or turning into
+  invented words when a recording was transcribed
+* Fixed voice typing saying WorkSuite Local AI is not running the first time
+  it is used after WorkSuite Office starts
+* Fixed dictated text written live being lost when voice typing switched to
+  recording on a slow computer
+* WorkSuite Local AI answers a request whose address has a broken %-escape
+  as a bad request, not as an internal error
+* Fixed a recording made with a quiet microphone being transcribed as nothing,
+  without an error: speech below a fixed loudness was all taken for silence.
+  The level now follows the recording
+* Fixed Sinhala voice typing and transcription now and then writing a line of
+  repeated letters instead of what was said: recognition uses the speech
+  model's whole listening window again. It is slower, about 1.6 times the
+  length of the speech on a 4-core computer
+
+#### Sinhala
+
+* Fixed letters going missing when typing Singlish quickly, above all right
+  after opening a document: "mama gedhara" could become මම එදර. The editors
+  dropped keys typed while a Singlish word was being written; they now keep
+  them and type them in order. A word finished before its suggestions arrived
+  is now written too, instead of staying in English letters
+* Fixed Singlish suggestions never offering a word that starts with a long ආ
+  when it is typed with one "a": ayubowan now suggests ආයුබෝවන්
+
 ## 10.1.31
 
 ### New features
