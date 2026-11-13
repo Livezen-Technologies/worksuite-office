@@ -43,6 +43,9 @@
 * Fixed a plugin package being able to write files outside the plugins folder:
   a plugin's folder name is now required to be a real identifier, so a crafted
   one in the package cannot place files elsewhere when the package is opened
+* Restoring an earlier version of a PDF no longer writes through a symbolic
+  link left at the name it picks (on Windows the previous exclusive-copy check
+  missed a dangling link); the restored copy goes to a fresh name instead
 
 #### Windows
 

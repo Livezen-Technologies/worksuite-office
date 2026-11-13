@@ -2,7 +2,7 @@
 // first, at most `keep` per file. Identical content is not kept twice. Restoring never overwrites: the old version
 // is written next to the file as "<name> (version <date>).<ext>".
 import { createHash } from "node:crypto";
-import { constants as fsConstants, copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { constants as fsConstants, copyFileSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { basename, dirname, extname, join } from "node:path";
 import { ApiError } from "../errors";
 
@@ -61,8 +61,11 @@ export class VersionStore {
     const stem = basename(path, extname(path));
     for (let i = 1; ; i++) {
       const out = join(dirname(path), `${stem} (version ${stamp})${i > 1 ? ` (${i})` : ""}${extname(path)}`);
-      // exclusive: never over a file that appeared meanwhile, nor through a (dangling) symlink at the name,
-      // which existsSync() reports as absent
+      // Skip any name already taken: a file that appeared meanwhile, or a (possibly dangling) symlink
+      // planted at the name. lstat sees the link itself and works on every platform; COPYFILE_EXCL
+      // alone let a dangling link through on Windows (CopyFileEx does not treat it as existing).
+      if (lstatSync(out, { throwIfNoEntry: false })) continue;
+      // exclusive even so: never over a file that appears between the check and the copy
       try { copyFileSync(src, out, fsConstants.COPYFILE_EXCL); return out; }
       catch (e) { if ((e as NodeJS.ErrnoException).code !== "EEXIST") throw e; }
     }
