@@ -14,7 +14,9 @@ function lib() {
   return (pdfjs = require("pdfjs-dist/legacy/build/pdf.js"));
 }
 
-export interface TextItem { str: string; x: number; y: number; w: number; h: number }
+/** A run of text: x/y/w/h in viewport points with y from the top (as shown); px/py/pw/ph the same run in the
+ * page's own PDF coordinates (baseline origin, y up), for placing annotations on it. */
+export interface TextItem { str: string; x: number; y: number; w: number; h: number; px?: number; py?: number; pw?: number; ph?: number }
 export interface PageText { width: number; height: number; items: TextItem[] }
 
 /** Text items of each page, with y measured from the top. */
@@ -31,7 +33,7 @@ export async function pageTexts(bytes: Uint8Array, password?: string): Promise<P
         if (typeof it.str !== "string" || !it.str.trim()) continue;
         const [x, y] = vp.convertToViewportPoint(it.transform[4], it.transform[5]);
         const h = Math.abs(it.height || it.transform[3]);
-        items.push({ str: it.str, x, y: y - h, w: it.width, h });
+        items.push({ str: it.str, x, y: y - h, w: it.width, h, px: it.transform[4], py: it.transform[5], pw: it.width, ph: h });
       }
       out.push({ width: vp.width, height: vp.height, items });
       page.cleanup();

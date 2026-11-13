@@ -62,6 +62,7 @@ define([
                     'pages:split': this.onSplit.bind(this),
                     'pages:protect': this.onProtect.bind(this),
                     'pages:sanitize': this.onSanitize.bind(this),
+                    'pages:compare': this.onCompare.bind(this),
                     'pages:stamp': this.onStamp.bind(this),
                     'pages:images': this.onImages.bind(this),
                     'pages:formdata': this.onFormData.bind(this),
@@ -258,6 +259,9 @@ define([
             };
             LocalPdf.run(op, body).then(function (result) {
                 end();
+                // a comparison with nothing to show: say so instead of opening an unmarked copy
+                if (result.summary && (result.summary.identical || result.summary.noText))
+                    return Common.UI.info({msg: result.summary.noText ? v.txtCompareNoText : v.txtCompareSame});
                 var name = result.file.replace(/^.*[\\\/]/, ''),
                     msg = Common.Utils.String.format(doneMsg, Common.Utils.String.htmlEncode(name),
                                                      Common.Utils.String.htmlEncode(result.signer ? result.signer.name : ''));
@@ -265,6 +269,8 @@ define([
                     msg += '<br><br>' + Common.Utils.String.format(v.txtFormUnknown, Common.Utils.String.htmlEncode(result.unknown.join(', ')));
                 if (result.removed)
                     msg += '<br><br>' + me.sanitizeSummary(result.removed);
+                if (result.summary)
+                    msg += '<br><br>' + me.compareSummary(result.summary);
                 Common.UI.info({msg: msg, callback: function () {
                     open !== false && native.execCommand('open:recent', JSON.stringify({id: -1, path: result.file, name: name}));
                 }});
@@ -290,6 +296,24 @@ define([
             new PDFE.Views.ProtectDialog({onOk: function (options) {
                 me.runToNewPdf('protect', _.extend({path: source}, options), me.view.txtProtected);
             }}).show();
+        },
+
+        // Compare (worksuite-ai /v1/pdf/compare): this PDF is the later version; the one chosen is the earlier.
+        onCompare: function () {
+            var me = this, source = this.localSource(), native = window.AscDesktopEditor;
+            if (!source) return;
+            Common.UI.info({msg: this.view.txtCompareChoose, callback: function () {
+                native.OpenFilenameDialog('(*.pdf)', false, function (files) {
+                    var other = (Array.isArray(files) ? files : [files]).filter(function (f) { return !!f; })[0];
+                    if (other) me.runToNewPdf('compare', {path: source, other: other}, me.view.txtCompared);
+                });
+            }});
+        },
+
+        compareSummary: function (s) {
+            var v = this.view, f = Common.Utils.String.format;
+            var text = f(v.txtCompareSummary, s.changes, (s.pages || []).join(', '), s.added, s.removed);
+            return s.byPage ? text + '<br>' + v.txtCompareByPage : text;
         },
 
         // A copy without the hidden information (worksuite-ai /v1/pdf/sanitize): metadata, scripts, attachments,

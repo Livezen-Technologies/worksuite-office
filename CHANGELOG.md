@@ -18,6 +18,11 @@
   scripts or forbidden actions, printable annotations, no encryption and more)
   and lists every problem in plain words. It checks the structure of the file,
   not the page content, and says so
+* Compare: PDF Tools › Compare compares the PDF with an earlier version and opens
+  a copy with the differences marked: added words highlighted, removed or
+  replaced text in notes, in any script. The whole text is compared, so text
+  that only moved to another line or page is not a change, and a summary lists
+  the changes and their pages. Pictures and layout are not compared
 
 ### Fixes
 

@@ -33,7 +33,7 @@ import { mediaOf, pcmToWav, wavHeader } from "./audio";
 import { encode, resolveVoice, synthesize, voices } from "./tts";
 import { legacyDecode, legacyEncode, legacyFonts, segmentWords, sinhalaNormalize, sinhalaTransliterate, sinhalaValidate } from "./sinhala/routes";
 import { Priority } from "./scheduler";
-import { layoutJob, officeJob, PDF_OPS, pdfInfo, pdfJob, pptxJob, pdfaCheck, sanitizeJob, signJob, stampJob, filePath, verifyPdf } from "./pdf/tools";
+import { compareJob, layoutJob, officeJob, PDF_OPS, pdfInfo, pdfJob, pptxJob, pdfaCheck, sanitizeJob, signJob, stampJob, filePath, verifyPdf } from "./pdf/tools";
 import { VersionStore } from "./pdf/versions";
 import { listStoreCertificates, storeAvailable } from "./pdf/os-certs";
 import { OcrLanguages } from "./ocr/languages";
@@ -407,6 +407,10 @@ export class Service {
         return withStatus(202, { jobId: this.jobs.start(`pdf.${op}`, run).id });
       });
     }
+    r.post("/v1/pdf/compare", async (c) => {
+      const run = compareJob(await c.body());
+      return withStatus(202, { jobId: this.jobs.start("pdf.compare", run).id });
+    });
     r.post("/v1/pdf/sanitize", async (c) => {
       const run = sanitizeJob(await c.body());
       return withStatus(202, { jobId: this.jobs.start("pdf.sanitize", run).id });

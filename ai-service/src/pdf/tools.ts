@@ -15,6 +15,7 @@ import { Certificate, checkSignatures, FoundSignature, signPdf } from "./sign";
 import { StoreSigner } from "./os-certs";
 import { sanitizePdf, SanitizeReport, unreadableRefs } from "./sanitize";
 import { checkPdfA, PdfAReport } from "./pdfa";
+import { Change, CompareSummary, markChanges } from "./compare";
 
 export const PDF_OPS = ["merge", "split", "rotate", "protect", "unprotect", "images-to-pdf"] as const;
 export type PdfOp = (typeof PDF_OPS)[number];
@@ -573,4 +574,35 @@ export async function pdfaCheck(raw: unknown): Promise<PdfAReport & { pages: num
   const report = checkPdfA(doc);
   if (pw) { report.issues.unshift(encrypted); report.passed = false; }
   return { ...report, pages: doc.getPageCount() };
+}
+
+async function textOf(path: string, pw: string | undefined, which: string) {
+  try { return await pageTexts(new Uint8Array(input(path)), pw); } catch (e) {
+    if (e instanceof ApiError) throw e;
+    const msg = (e as Error).message || "";
+    if (/password/i.test(msg)) throw new ApiError("bad_request", `The ${which} PDF has a password`, { path, reason: pw ? "password_incorrect" : "password_required", which });
+    throw new ApiError("unsupported_media", `The ${which} PDF is not a PDF that can be read`, { path, which });
+  }
+}
+
+/** Compare (compare.ts): `path` is the later version, `other` the earlier one. The result is a copy of the later
+ * PDF with added words highlighted and removed or replaced passages noted, plus a summary and the changes. */
+export function compareJob(raw: unknown): (job: JobControl) => Promise<PdfResult & { summary: CompareSummary; changes: Change[] }> {
+  const body = obj(raw, "body");
+  const path = filePath(body.path, "path", /\.pdf$/i);
+  const other = filePath(body.other, "other", /\.pdf$/i);
+  if (path === other) throw new ApiError("bad_request", "Choose a different PDF to compare with");
+  const pw = password(body.password, "password");
+  const otherPw = password(body.otherPassword, "otherPassword");
+  return async (job) => {
+    job.progress(0.1, "reading the earlier version");
+    const earlier = await textOf(other, otherPw, "earlier");
+    job.progress(0.4, "reading this version");
+    const laterText = await textOf(path, pw, "later");
+    job.progress(0.7, "comparing");
+    const doc = await load(path, pw);
+    const { summary, changes } = markChanges(doc, earlier, laterText);
+    const out = outFor(body, path, " (compared)");
+    return { file: out, files: [out], contentType: "application/pdf", pages: await write(doc, out), summary, changes: changes.slice(0, 200) };
+  };
 }
