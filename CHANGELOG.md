@@ -21,6 +21,11 @@
 
 ### Fixes
 
+#### Windows
+
+* The Windows installer no longer installs an update service that WorkSuite
+  Office does not use. Updating to this version removes it
+
 #### Sinhala and Tamil
 
 * Fixed Sinhala and Tamil text exported to PDF (and drawn where the text's
