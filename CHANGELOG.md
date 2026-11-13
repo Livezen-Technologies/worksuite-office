@@ -17,6 +17,12 @@
 
 ### Fixes
 
+#### Security
+
+* Fixed the licence link command being able to open any file or program: the
+  desktop shell now opens only the app's own licence (the GNU AGPL page, or the
+  EULA or LICENSE file installed with WorkSuite Office) this way
+
 #### Voice typing
 
 * Fixed the link to the microphone settings in voice typing doing nothing when
