@@ -1,5 +1,19 @@
 # Change log
 
+## 10.1.34
+
+### New features
+
+#### PDF Editor
+
+* Remove hidden information: PDF Tools › Remove hidden info saves a copy of the
+  PDF without what a reader does not see but could still pull out of the file:
+  document information and XMP metadata, JavaScript, attached files, comments
+  and highlights, page thumbnails and other programs' private data. Links and
+  form fields stay, earlier saved versions inside the file are dropped, and the
+  copy lists what was removed. Layers are kept as they are and the copy says so.
+  A PDF with parts that cannot be read is refused rather than saved damaged
+
 ## 10.1.32
 
 ### New features

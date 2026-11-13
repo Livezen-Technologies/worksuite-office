@@ -61,6 +61,7 @@ define([
                     'pages:extract': this.onExtract.bind(this),
                     'pages:split': this.onSplit.bind(this),
                     'pages:protect': this.onProtect.bind(this),
+                    'pages:sanitize': this.onSanitize.bind(this),
                     'pages:stamp': this.onStamp.bind(this),
                     'pages:images': this.onImages.bind(this),
                     'pages:formdata': this.onFormData.bind(this),
@@ -250,7 +251,7 @@ define([
 
         // Runs a worksuite-ai PDF job that writes a new PDF next to its input, then opens that PDF in a new tab.
         runToNewPdf: function (op, body, doneMsg, open) {
-            var native = window.AscDesktopEditor, v = this.view, api = this.api;
+            var me = this, native = window.AscDesktopEditor, v = this.view, api = this.api;
             api.sync_StartAction && api.sync_StartAction(Asc.c_oAscAsyncActionType.BlockInteraction, Asc.c_oAscAsyncAction.Waiting);
             var end = function () {
                 api.sync_EndAction && api.sync_EndAction(Asc.c_oAscAsyncActionType.BlockInteraction, Asc.c_oAscAsyncAction.Waiting);
@@ -262,6 +263,8 @@ define([
                                                      Common.Utils.String.htmlEncode(result.signer ? result.signer.name : ''));
                 if (result.unknown && result.unknown.length)
                     msg += '<br><br>' + Common.Utils.String.format(v.txtFormUnknown, Common.Utils.String.htmlEncode(result.unknown.join(', ')));
+                if (result.removed)
+                    msg += '<br><br>' + me.sanitizeSummary(result.removed);
                 Common.UI.info({msg: msg, callback: function () {
                     open !== false && native.execCommand('open:recent', JSON.stringify({id: -1, path: result.file, name: name}));
                 }});
@@ -273,6 +276,8 @@ define([
                     Common.UI.warning({msg: v.txtNoService});
                 else if (err.detail && err.detail.reason === 'no_fields')
                     Common.UI.warning({msg: v.txtNoFields});
+                else if (err.detail && err.detail.reason === 'unreadable_parts')
+                    Common.UI.warning({msg: v.txtUnreadable});
                 else
                     Common.UI.warning({msg: Common.Utils.String.format(v.txtJobFailed, Common.Utils.String.htmlEncode(err.message || err.code))});
             });
@@ -285,6 +290,27 @@ define([
             new PDFE.Views.ProtectDialog({onOk: function (options) {
                 me.runToNewPdf('protect', _.extend({path: source}, options), me.view.txtProtected);
             }}).show();
+        },
+
+        // A copy without the hidden information (worksuite-ai /v1/pdf/sanitize): metadata, scripts, attachments,
+        // comments, thumbnails and private data. Asks first, saying what goes; the PDF itself is not changed.
+        onSanitize: function () {
+            var me = this, source = this.localSource();
+            if (!source) return;
+            Common.UI.confirm({msg: this.view.txtSanitizeAsk, callback: function (btn) {
+                if (btn === 'yes' || btn === 'ok') me.runToNewPdf('sanitize', {path: source}, me.view.txtSanitized);
+            }});
+        },
+
+        // What a sanitize removed, as one line, and a note when the file has layers (they are left as they are).
+        sanitizeSummary: function (removed) {
+            var v = this.view, f = Common.Utils.String.format, parts = [];
+            [['metadata', v.txtSanMetadata], ['scripts', v.txtSanScripts], ['attachments', v.txtSanAttachments],
+             ['comments', v.txtSanComments], ['thumbnails', v.txtSanThumbnails], ['privateData', v.txtSanPrivate]].forEach(function (p) {
+                if (removed[p[0]] > 0) parts.push(f(p[1], removed[p[0]]));
+            });
+            var text = parts.length ? f(v.txtSanitizeRemoved, parts.join(', ')) : v.txtSanitizeNothing;
+            return removed.hiddenLayers ? text + '<br>' + v.txtSanitizeLayers : text;
         },
 
         // A copy with headers, footers, page numbers, Bates numbers and/or a watermark.

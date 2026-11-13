@@ -13,6 +13,7 @@ import { pageTable } from "./tables";
 import { pageTexts } from "./text";
 import { Certificate, checkSignatures, FoundSignature, signPdf } from "./sign";
 import { StoreSigner } from "./os-certs";
+import { sanitizePdf, SanitizeReport, unreadableRefs } from "./sanitize";
 
 export const PDF_OPS = ["merge", "split", "rotate", "protect", "unprotect", "images-to-pdf"] as const;
 export type PdfOp = (typeof PDF_OPS)[number];
@@ -65,10 +66,10 @@ function outFor(body: Record<string, unknown>, source: string, suffix: string): 
   return freeName(dirname(source), basename(source, extname(source)) + suffix);
 }
 
-async function load(path: string, password?: string): Promise<PDFDocument> {
+async function load(path: string, password?: string, updateMetadata = true): Promise<PDFDocument> {
   const bytes = input(path);
   try {
-    const doc = await PDFDocument.load(bytes, password ? { password, ignoreEncryption: false } : { ignoreEncryption: false });
+    const doc = await PDFDocument.load(bytes, password ? { password, ignoreEncryption: false, updateMetadata } : { ignoreEncryption: false, updateMetadata });
     if (password) dropEncryptDict(doc);
     return doc;
   } catch (e) {
@@ -529,4 +530,20 @@ export function signJob(raw: unknown): (job: JobControl) => Promise<FileResult &
 export function verifyPdf(raw: unknown): { signatures: FoundSignature[] } {
   const path = filePath(obj(raw, "body").path, "path", /\.pdf$/i);
   return { signatures: checkSignatures(input(path)) };
+}
+
+/** A copy with the hidden information removed (sanitize.ts): metadata, JavaScript, attachments, comments,
+ * thumbnails and private data, then everything left unreferenced. The original is never changed. */
+export function sanitizeJob(raw: unknown): (job: JobControl) => Promise<PdfResult & { removed: SanitizeReport }> {
+  const body = obj(raw, "body");
+  const path = filePath(body.path, "path", /\.pdf$/i);
+  const pw = password(body.password, "password");
+  return async () => {
+    const doc = await load(path, pw, false);
+    const removed = sanitizePdf(doc);
+    if (unreadableRefs(doc))
+      throw new ApiError("unsupported_media", "Parts of this PDF could not be read, so a sanitized copy would be damaged", { path, reason: "unreadable_parts" });
+    const out = outFor(body, path, " (sanitized)");
+    return { file: out, files: [out], contentType: "application/pdf", pages: await write(doc, out), removed };
+  };
 }
