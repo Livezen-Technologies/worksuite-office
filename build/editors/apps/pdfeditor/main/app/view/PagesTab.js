@@ -29,7 +29,9 @@ define([
         'btn-ws-pages-sign':      sheet(5.5, 4.5) + '<path d="M15 22c2-3 3.5-6 5-6s-1 5 .5 5 2-2.5 3-2.5M15 24.5h9.5" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>',
         'btn-ws-pages-pagesize':  '<path d="M6.5 3.5v18h18" fill="none" stroke="currentColor"/><path d="M3.5 6.5h18v18" fill="none" stroke="currentColor"/><path d="M10 10h8v8h-8z" fill="none" stroke="currentColor" stroke-dasharray="2 1.5"/>',
         'btn-ws-pages-versions':  '<circle cx="14" cy="14" r="8.5" fill="none" stroke="currentColor"/><path d="M14 9.5V14l3 2" fill="none" stroke="currentColor" stroke-linecap="round"/><path d="M4 9.5l1.5 2.5 2.5-1.5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"/>',
-        'btn-ws-pages-protect':   sheet(5.5, 4.5) + '<path d="M16.5 18.5h8v6h-8z" fill="none" stroke="currentColor"/><path d="M18.5 18.5v-2a2 2 0 0 1 4 0v2" fill="none" stroke="currentColor"/>'
+        'btn-ws-pages-protect':   sheet(5.5, 4.5) + '<path d="M16.5 18.5h8v6h-8z" fill="none" stroke="currentColor"/><path d="M18.5 18.5v-2a2 2 0 0 1 4 0v2" fill="none" stroke="currentColor"/>',
+        'btn-ws-pages-compare':   '<path d="M3.5 4.5h9v15h-9zM15.5 8.5h9v15h-9z" fill="none" stroke="currentColor"/><path d="M5.5 8.5h5M5.5 11.5h5M5.5 14.5h3M17.5 12.5h5M17.5 15.5h5M17.5 18.5h3" fill="none" stroke="currentColor" stroke-linecap="round"/>',
+        'btn-ws-pages-sanitize':  sheet(5.5, 4.5) + '<path d="M15.5 23.5l5-7 3.5 2.5-5 7z" fill="none" stroke="currentColor" stroke-linejoin="round"/><path d="M14.5 24.5h5" fill="none" stroke="currentColor" stroke-linecap="round"/>'
     };
     var STYLE =
         '.panel[data-tab="wspages"] svg.icon { color: var(--icon-normal, #444); }' +
@@ -50,12 +52,13 @@ define([
     }
 
     PDFE.Views.PagesTab = Common.UI.BaseView.extend(_.extend((function () {
-        var NAMES = ['merge', 'images', 'insert', 'replace', 'duplicate', 'extract', 'split', 'pagesize', 'stamp', 'formdata', 'protect', 'sign', 'versions'];
+        var NAMES = ['merge', 'images', 'compare', 'insert', 'replace', 'duplicate', 'extract', 'split', 'pagesize', 'stamp', 'formdata', 'protect', 'sanitize', 'sign', 'versions'];
         var template =
             '<section class="panel" data-tab="wspages" role="tabpanel">' +
                 '<div class="group">' +
                     '<span class="btn-slot text x-huge" id="slot-btn-wspages-merge"></span>' +
                     '<span class="btn-slot text x-huge" id="slot-btn-wspages-images"></span>' +
+                    '<span class="btn-slot text x-huge" id="slot-btn-wspages-compare"></span>' +
                 '</div>' +
                 '<div class="separator long"></div>' +
                 '<div class="group">' +
@@ -74,6 +77,7 @@ define([
                     '<span class="btn-slot text x-huge" id="slot-btn-wspages-stamp"></span>' +
                     '<span class="btn-slot text x-huge" id="slot-btn-wspages-formdata"></span>' +
                     '<span class="btn-slot text x-huge" id="slot-btn-wspages-protect"></span>' +
+                    '<span class="btn-slot text x-huge" id="slot-btn-wspages-sanitize"></span>' +
                     '<span class="btn-slot text x-huge" id="slot-btn-wspages-sign"></span>' +
                     '<span class="btn-slot text x-huge" id="slot-btn-wspages-versions"></span>' +
                 '</div>' +
@@ -151,7 +155,7 @@ define([
                     {caption: me.txtVersionSave, value: 'save'},
                     {caption: me.txtVersionList, value: 'list'}
                 ]}).on('item:click', function (menu, item) { me.fireEvent('pages:versions', [item.value]); }));
-                ['merge', 'images', 'replace', 'duplicate', 'extract', 'split', 'stamp', 'protect'].forEach(function (name) {
+                ['merge', 'images', 'compare', 'replace', 'duplicate', 'extract', 'split', 'stamp', 'protect', 'sanitize'].forEach(function (name) {
                     b[name].on('click', function () { me.fireEvent('pages:' + name); });
                 });
                 NAMES.forEach(function (name) { b[name].updateHint(me['tip_' + name]); });
@@ -231,6 +235,28 @@ define([
             txtStamped: 'The stamped copy is saved as {0}. It opens in a new tab.',
             txtImagesDone: 'The new PDF is saved as {0}, next to the first image. It opens in a new tab.',
             txtProtected: 'The protected copy is saved as {0}. It opens in a new tab.',
+            cap_compare: 'Compare',
+            tip_compare: 'Compare this PDF with an earlier version: what was added is highlighted, what was removed or replaced is noted',
+            txtCompareChoose: 'Choose the earlier version of this PDF to compare it with.',
+            txtCompared: 'The comparison is saved as {0}. It opens in a new tab: added text is highlighted, and removed or replaced text is in notes.',
+            txtCompareSummary: '{0} changes on pages {1}: {2} words added, {3} removed.',
+            txtCompareByPage: 'The two versions are very different, so they were compared page by page.',
+            txtCompareSame: 'The text of the two PDFs is the same. Pictures and layout are not compared.',
+            txtCompareNoText: 'One of the PDFs has no text to compare, for example a scanned PDF. Recognise its text (Convert › Recognise text) first.',
+            cap_sanitize: 'Remove hidden info',
+            tip_sanitize: 'Save a copy without the information a reader does not see: metadata, scripts, attachments, comments and private data',
+            txtSanitizeAsk: 'A copy of this PDF will be saved without its hidden information:<br>• document information and XMP metadata (author, title, programs, dates)<br>• JavaScript and actions that run scripts<br>• attached files<br>• comments and highlights (links and form fields stay)<br>• page thumbnails and private data of other programs<br><br>This PDF itself is not changed.',
+            txtSanitized: 'The copy without hidden information is saved as {0}. It opens in a new tab.',
+            txtSanitizeRemoved: 'Removed: {0}.',
+            txtSanitizeNothing: 'There was no hidden information to remove.',
+            txtSanitizeLayers: 'This PDF has layers. Their content, hidden or not, is still in the copy.',
+            txtSanMetadata: 'metadata ({0})',
+            txtSanScripts: 'scripts ({0})',
+            txtSanAttachments: 'attachments ({0})',
+            txtSanComments: 'comments ({0})',
+            txtSanThumbnails: 'thumbnails ({0})',
+            txtSanPrivate: 'private data ({0})',
+            txtUnreadable: 'Parts of this PDF could not be read, so a copy made from it would be damaged. Nothing was saved.',
             txtNoService: 'This tool needs the WorkSuite Local AI service, which is not running or is turned off by your organization.',
             txtJobFailed: 'The PDF could not be made: {0}',
             txtProTitle: 'WorkSuite Office Pro',

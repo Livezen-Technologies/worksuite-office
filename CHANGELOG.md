@@ -1,5 +1,36 @@
 # Change log
 
+## 10.1.34
+
+### New features
+
+#### PDF Editor
+
+* Remove hidden information: PDF Tools › Remove hidden info saves a copy of the
+  PDF without what a reader does not see but could still pull out of the file:
+  document information and XMP metadata, JavaScript, attached files, comments
+  and highlights, page thumbnails and other programs' private data. Links and
+  form fields stay, earlier saved versions inside the file are dropped, and the
+  copy lists what was removed. Layers are kept as they are and the copy says so.
+  A PDF with parts that cannot be read is refused rather than saved damaged
+* Check PDF/A: the PDF/A button's menu checks the saved PDF against the main
+  PDF/A-2 requirements (identification, colour profile, embedded fonts, no
+  scripts or forbidden actions, printable annotations, no encryption and more)
+  and lists every problem in plain words. It checks the structure of the file,
+  not the page content, and says so
+* Compare: PDF Tools › Compare compares the PDF with an earlier version and opens
+  a copy with the differences marked: added words highlighted, removed or
+  replaced text in notes, in any script. The whole text is compared, so text
+  that only moved to another line or page is not a change, and a summary lists
+  the changes and their pages. Pictures and layout are not compared
+
+### Fixes
+
+#### PDF Editor
+
+* Protect on a PDF/A file now explains that PDF/A files cannot have a password,
+  instead of failing with an internal error
+
 ## 10.1.33
 
 ### New features

@@ -13,6 +13,9 @@ import { pageTable } from "./tables";
 import { pageTexts } from "./text";
 import { Certificate, checkSignatures, FoundSignature, signPdf } from "./sign";
 import { StoreSigner } from "./os-certs";
+import { sanitizePdf, SanitizeReport, unreadableRefs } from "./sanitize";
+import { checkPdfA, PdfAReport } from "./pdfa";
+import { Change, CompareSummary, markChanges } from "./compare";
 
 export const PDF_OPS = ["merge", "split", "rotate", "protect", "unprotect", "images-to-pdf"] as const;
 export type PdfOp = (typeof PDF_OPS)[number];
@@ -65,10 +68,10 @@ function outFor(body: Record<string, unknown>, source: string, suffix: string): 
   return freeName(dirname(source), basename(source, extname(source)) + suffix);
 }
 
-async function load(path: string, password?: string): Promise<PDFDocument> {
+async function load(path: string, password?: string, updateMetadata = true): Promise<PDFDocument> {
   const bytes = input(path);
   try {
-    const doc = await PDFDocument.load(bytes, password ? { password, ignoreEncryption: false } : { ignoreEncryption: false });
+    const doc = await PDFDocument.load(bytes, password ? { password, ignoreEncryption: false, updateMetadata } : { ignoreEncryption: false, updateMetadata });
     if (password) dropEncryptDict(doc);
     return doc;
   } catch (e) {
@@ -203,7 +206,13 @@ export function pdfJob(op: PdfOp, raw: unknown): (job: JobControl) => Promise<Pd
       return async () => {
         const doc = await load(path, pw);
         // no owner password given: a random one, so the permissions cannot be lifted with an empty password
-        doc.encrypt({ userPassword: userPassword || "", ownerPassword: ownerPassword || randomPassword(), permissions: mapPermissions(perms), algorithm: "AES-256" });
+        try {
+          doc.encrypt({ userPassword: userPassword || "", ownerPassword: ownerPassword || randomPassword(), permissions: mapPermissions(perms), algorithm: "AES-256" });
+        } catch (e) {
+          if (/PDF\/A/.test((e as Error).message || ""))
+            throw new ApiError("bad_request", "A PDF/A file cannot have a password: PDF/A forbids encryption", { path, reason: "pdfa" });
+          throw e;
+        }
         const out = outFor(body, path, " (protected)");
         return { file: out, files: [out], contentType: "application/pdf", pages: await write(doc, out) };
       };
@@ -529,4 +538,71 @@ export function signJob(raw: unknown): (job: JobControl) => Promise<FileResult &
 export function verifyPdf(raw: unknown): { signatures: FoundSignature[] } {
   const path = filePath(obj(raw, "body").path, "path", /\.pdf$/i);
   return { signatures: checkSignatures(input(path)) };
+}
+
+/** A copy with the hidden information removed (sanitize.ts): metadata, JavaScript, attachments, comments,
+ * thumbnails and private data, then everything left unreferenced. The original is never changed. */
+export function sanitizeJob(raw: unknown): (job: JobControl) => Promise<PdfResult & { removed: SanitizeReport }> {
+  const body = obj(raw, "body");
+  const path = filePath(body.path, "path", /\.pdf$/i);
+  const pw = password(body.password, "password");
+  return async () => {
+    const doc = await load(path, pw, false);
+    const removed = sanitizePdf(doc);
+    if (unreadableRefs(doc))
+      throw new ApiError("unsupported_media", "Parts of this PDF could not be read, so a sanitized copy would be damaged", { path, reason: "unreadable_parts" });
+    const out = outFor(body, path, " (sanitized)");
+    return { file: out, files: [out], contentType: "application/pdf", pages: await write(doc, out), removed };
+  };
+}
+
+/** PDF/A check (pdfa.ts): the main PDF/A-2b requirements that the file's structure shows. An encrypted file
+ * fails PDF/A on that alone; with its password it is checked in full and the encryption listed too. */
+export async function pdfaCheck(raw: unknown): Promise<PdfAReport & { pages: number | null }> {
+  const body = obj(raw, "body");
+  const path = filePath(body.path, "path", /\.pdf$/i);
+  const pw = password(body.password, "password");
+  const encrypted = { code: "encrypted", severity: "error" as const, count: 1 };
+  let doc: PDFDocument;
+  try {
+    doc = await load(path, pw, false);
+  } catch (e) {
+    if (e instanceof ApiError && e.detail && (e.detail as { reason?: string }).reason === "password_required")
+      return { claimed: null, passed: false, issues: [encrypted], scope: "structure", pages: null };
+    throw e;
+  }
+  const report = checkPdfA(doc);
+  if (pw) { report.issues.unshift(encrypted); report.passed = false; }
+  return { ...report, pages: doc.getPageCount() };
+}
+
+async function textOf(path: string, pw: string | undefined, which: string) {
+  try { return await pageTexts(new Uint8Array(input(path)), pw); } catch (e) {
+    if (e instanceof ApiError) throw e;
+    const msg = (e as Error).message || "";
+    if (/password/i.test(msg)) throw new ApiError("bad_request", `The ${which} PDF has a password`, { path, reason: pw ? "password_incorrect" : "password_required", which });
+    throw new ApiError("unsupported_media", `The ${which} PDF is not a PDF that can be read`, { path, which });
+  }
+}
+
+/** Compare (compare.ts): `path` is the later version, `other` the earlier one. The result is a copy of the later
+ * PDF with added words highlighted and removed or replaced passages noted, plus a summary and the changes. */
+export function compareJob(raw: unknown): (job: JobControl) => Promise<PdfResult & { summary: CompareSummary; changes: Change[] }> {
+  const body = obj(raw, "body");
+  const path = filePath(body.path, "path", /\.pdf$/i);
+  const other = filePath(body.other, "other", /\.pdf$/i);
+  if (path === other) throw new ApiError("bad_request", "Choose a different PDF to compare with");
+  const pw = password(body.password, "password");
+  const otherPw = password(body.otherPassword, "otherPassword");
+  return async (job) => {
+    job.progress(0.1, "reading the earlier version");
+    const earlier = await textOf(other, otherPw, "earlier");
+    job.progress(0.4, "reading this version");
+    const laterText = await textOf(path, pw, "later");
+    job.progress(0.7, "comparing");
+    const doc = await load(path, pw);
+    const { summary, changes } = markChanges(doc, earlier, laterText);
+    const out = outFor(body, path, " (compared)");
+    return { file: out, files: [out], contentType: "application/pdf", pages: await write(doc, out), summary, changes: changes.slice(0, 200) };
+  };
 }

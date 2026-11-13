@@ -49,7 +49,8 @@ define([
                     'convert:all': this.onConvertAll.bind(this),
                     'convert:ocr': this.onOcr.bind(this),
                     'convert:xlsx': this.onToXlsx.bind(this),
-                    'convert:pptx': this.onToPptx.bind(this)
+                    'convert:pptx': this.onToPptx.bind(this),
+                    'convert:pdfa': this.onPdfa.bind(this)
                 }
             });
 
@@ -112,6 +113,33 @@ define([
                 else if (err.detail && err.detail.reason === 'no_text') Common.UI.warning({msg: v.txtNoText});
                 else Common.UI.warning({msg: Common.Utils.String.format(v.txtFailed, Common.Utils.String.htmlEncode(err.message || err.code))});
             });
+        },
+
+        // The PDF/A button's menu: save as PDF/A-2, or check the saved PDF against PDF/A (worksuite-ai).
+        onPdfa: function (action) {
+            if (action === 'save') return this.onConvert(Asc.c_oAscFileType.PDFA);
+            var me = this, v = this.view, source = this.localSource();
+            if (!source) return;
+            LocalPdf.call('POST', '/pdf/check-pdfa', {path: source}).then(function (report) {
+                me.showPdfaReport(report);
+            }, function (err) {
+                if (err.code === 'service_unavailable' || err.code === 'forbidden_by_policy') Common.UI.warning({msg: v.txtNoService});
+                else Common.UI.warning({msg: Common.Utils.String.format(v.txtFailed, Common.Utils.String.htmlEncode(err.message || err.code))});
+            });
+        },
+
+        showPdfaReport: function (report) {
+            var v = this.view, f = Common.Utils.String.format, enc = Common.Utils.String.htmlEncode;
+            var scope = '<br><br><span style="opacity:.75">' + v.txtPdfaScope + '</span>';
+            if (report.passed)
+                return Common.UI.info({msg: f(v.txtPdfaPassed, enc(String(report.claimed || '').toUpperCase())) + scope});
+            var items = (report.issues || []).map(function (i) {
+                var text = v['txtPdfa_' + i.code] ? f(v['txtPdfa_' + i.code], enc((i.detail || []).join(', '))) : enc(i.code);
+                if (!i.detail && i.count > 1) text += ' ' + f(v.txtPdfaCount, i.count);
+                if (i.severity === 'warning') text += ' ' + v.txtPdfaWarning;
+                return '<li>' + text + '</li>';
+            });
+            Common.UI.warning({msg: v.txtPdfaFailed + '<ul style="margin:6px 0 0 18px;padding:0">' + items.join('') + '</ul>' + scope});
         },
 
         // Excel: worksuite-ai reads the PDF's text and lays its tables out in rows and columns.
