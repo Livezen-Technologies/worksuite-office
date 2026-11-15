@@ -134,6 +134,72 @@ links or shapes (checked by comparing the files' models before and after).
 - AI assistant: a plan from text ("plan a 3-month office move"), a diagram from text or from a table.
 - Files in WorkSuite Drive, shared and edited together, like documents.
 
+### Stage 5: full project management (about 12 to 16 weeks)
+
+Parity with a professional project-planning tool, in WorkSuite's own design.
+
+- Task types (fixed units, fixed duration, fixed work), effort-driven scheduling, recurring tasks, inactive tasks,
+  deadlines, task calendars, WBS codes, split tasks.
+- Resources: work, material and cost resources; rates and cost per use; availability over time; assignment
+  contours; resource levelling with priorities; shared resource pools across projects.
+- Costs: fixed costs and accrual, budgets, earned value (BCWS, BCWP, ACWP, SPI, CPI) and cost variance.
+- Tracking: up to 11 baselines, interim plans, progress lines, variance columns, status date updates.
+- Views: Tracking Gantt, network diagram, calendar, timeline, task and resource usage, resource sheet, team planner,
+  task board (Kanban), with tables, filters, groups, highlights and saved views.
+- Custom fields with formulas, lookup tables and graphical indicators.
+- Multiple projects: subprojects, master projects, links across projects.
+- Reports: dashboards (burndown, cost overview, resource overview, late tasks), custom reports, print to scale.
+
+### Stage 6: full diagramming (about 12 to 16 weeks)
+
+Parity with a professional diagramming tool, in WorkSuite's own design.
+
+- Templates and stencils: cross-functional (swimlane) flowcharts, BPMN 2.0, UML (all diagram types), ERD and
+  database, network and rack, cloud architecture, electrical and engineering (P&ID), floor and site plans, mind maps,
+  timelines and calendars, value stream maps, brainstorming, org charts. Every shape drawn by WorkSuite.
+- Smart shapes: shape data (properties), shape behaviour (resize, text, connection points) and formulas, so users
+  can build their own masters and stencils.
+- Data: link shapes to XLSX, CSV or a database; data graphics (icons, bars, colours by value); refresh; build
+  org charts and diagrams from data; reports on shape data.
+- Containers, lists and callouts; themes and variants; backgrounds and borders; hyperlinks between pages and to
+  files.
+- Connectors: dynamic glue, line jumps, re-layout of a whole page, auto-align and spacing.
+- Scale drawings with measurements (floor plans), print tiling across pages.
+- Diagram validation with rules (flowchart, BPMN), comments and review.
+- Files: VSDX, VSD, VSDM, VSSX/VSS (stencils) and VSTX/VST (templates); export PDF, PNG, SVG, VSDX.
+
+### Parity catalogue
+
+Every feature of both apps, with the stage that brings it. Progress is tracked in the issues under #71.
+
+| Area | WorkSuite Project | Stage | Area | WorkSuite Diagram | Stage |
+|---|---|---|---|---|---|
+| Tasks | Outline, durations, milestones, summaries | 2 | Canvas | Pages, layers, groups, snapping, guides | 2 |
+| Links | FS, SS, FF, SF with lag | 2 | Shapes | Text, fill, line, shadow, properties | 2 |
+| Gantt | Bars, summaries, milestones, links, zoom | 2 | Connectors | Glued, elbow, curved, routing, labels | 2 |
+| Files | `.wsproj`, PDF, CSV, XLSX | 2 | Libraries | Basic, flowchart, org chart, network | 2 |
+| Scheduling | Auto-schedule, constraints, critical path | 3 | Files | `.wsdiagram`, PDF, PNG, SVG | 2 |
+| Calendars | Working time, holidays (Sri Lanka built in) | 3 | Visio files | VSDX edit and save, VSD read | 3 |
+| Baselines | One baseline, plan against actual | 3 | Embedding | Diagrams in documents and slides | 3 |
+| Project files | Project XML read/write, MPP read | 3 | Libraries | Floor plan, UML, BPMN, cloud | 4 |
+| Resources | Assignments, workload, over-allocation | 4 | Layout | Auto-layout org charts, flowcharts | 4 |
+| Tracking | % complete, actuals, status date | 4 | AI | Diagram from text or a table | 4 |
+| AI | Plan from text | 4 | Together | Shared editing in WorkSuite Drive | 4 |
+| Together | Shared editing in WorkSuite Drive | 4 | Templates | Swimlane, BPMN 2.0, UML, ERD, P&ID, more | 6 |
+| Task types | Fixed units/duration/work, effort-driven | 5 | Smart shapes | Shape data, behaviour, formulas, own stencils | 6 |
+| Advanced tasks | Recurring, inactive, deadlines, splits, WBS | 5 | Data | Link to XLSX/CSV/DB, data graphics, refresh | 6 |
+| Resources | Work/material/cost, rates, contours, pools | 5 | Data diagrams | Org charts and diagrams from data, reports | 6 |
+| Levelling | Resource levelling with priorities | 5 | Structure | Containers, lists, callouts, themes, links | 6 |
+| Costs | Fixed costs, budgets, earned value | 5 | Connectors | Line jumps, re-layout, auto-align | 6 |
+| Tracking | 11 baselines, interim plans, progress lines | 5 | Scale | Measured drawings, print tiling | 6 |
+| Views | Tracking Gantt, network, calendar, timeline, usage, team planner, board | 5 | Validation | Rules for flowchart and BPMN, review | 6 |
+| Fields | Custom fields, formulas, indicators | 5 | Visio files | Stencils (VSSX/VSS), templates (VSTX/VST) | 6 |
+| Multi-project | Subprojects, master projects, cross-links | 5 | | | |
+| Reports | Dashboards, burndown, custom reports | 5 | | | |
+
+Altogether stages 2 to 6 are about 44 to 58 weeks of work: roughly a year to full parity, with a usable editor for
+each app after stage 2 (about 2 months) and every stage shipping on its own.
+
 ## Risks
 
 | Risk | What we do |
