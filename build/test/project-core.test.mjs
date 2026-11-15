@@ -1,11 +1,11 @@
-// build/editors/apps/projecteditor/core/project.js: the WorkSuite Project document (.wsproj, schema 1) and its
+// build/apps/project/core/project.js: the WorkSuite Project document (.wsproj, schema 1) and its
 // task model (#74): validation, migration, canonical save, outline edits, links without loops, summary roll-ups,
 // undo and redo, and a 200-task round trip that saves to the same bytes.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   APP, SCHEMA_VERSION, newProject, validate, migrate, serialize, parse, hasCycle, finishOf, ProjectModel,
-} from "../editors/apps/projecteditor/core/project.js";
+} from "../apps/project/core/project.js";
 
 function officeMove() {
   const m = new ProjectModel(newProject("Office move", "2026-02-02"));

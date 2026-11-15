@@ -1,7 +1,8 @@
 /*
  * WorkSuite Project: the .wsproj document and its task model (#74, roadmap docs/project-diagram/roadmap.md).
  *
- * Pure ES module, no DOM: the editor (apps/projecteditor) and the tests use it alike.
+ * Pure ES module, no DOM: the editor (stage 2, #75) and the tests use it alike. It lives outside build/editors/,
+ * which patch-pdf-convert.py copies over web-apps.
  *
  * The document (schema version 1), saved as canonical JSON inside the .wsproj zip:
  *   { app: "worksuite.project", v: 1, name, start, tasks: [Task], links: [Link], calendars: [], resources: [] }
