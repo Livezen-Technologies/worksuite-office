@@ -10,7 +10,8 @@ rewrites what a user sees or the app opens:
   the desktop editor page's feedback link (helpdesk.onlyoffice.com) and the embedded/forms viewers'
   header logo link;
 - the product name in page titles, the "browser not supported" text and the licence-limit titles of
-  the locales that spell it out instead of using %1.
+  the locales that spell it out instead of using %1;
+- the engine's name: "Document Server" in the editors' messages becomes "WorkSuite Document Engine".
 
 Kept: the About panel's licensor block (ONLYOFFICE / Ascensio System SIA, its address, mail, phone and
 www.onlyoffice.com), which is the upstream's legal notice; the ONLYOFFICE logo images; internal markers
@@ -126,3 +127,18 @@ for editor in EDITORS:
             loc.write_text(new, encoding="utf-8", newline="\n")
             locales += 1
 print(f"patched the product name in {locales} locales")
+
+# 4. The engine's name: the editors' messages send users to their "Document Server administrator";
+#    WorkSuite's engine is the WorkSuite Document Engine (locales that translate the phrase stay as they are)
+ENGINE = "WorkSuite Document Engine"
+engines = 0
+for editor in EDITORS:
+    for loc in sorted((root / "apps" / editor).glob("*/locale/*.json")):
+        text = loc.read_text(encoding="utf-8")
+        new = text.replace("Document Server", ENGINE)
+        if new != text:
+            loc.write_text(new, encoding="utf-8", newline="\n")
+            engines += 1
+if engines == 0:
+    fail('no editor locale names the "Document Server" any more')
+print(f"patched the engine name in {engines} locales")
