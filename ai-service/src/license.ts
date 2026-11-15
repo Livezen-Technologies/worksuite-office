@@ -8,7 +8,8 @@
 //     entitlement stands for GRACE_MS, then Pro is suspended until the next successful check.
 //
 // Which features are Pro is a product decision: PRO_FEATURES lists the gated keys (ocr, pdf.sign,
-// convert, assistant). Policy or WS_AI_PRO_FEATURES can extend it, and WS_AI_LICENSE_ALL=1 is a
+// convert, assistant, and for WorkSuite Project and Diagram project.edit and diagram.edit: viewing
+// their files is free, creating and editing them is Pro, docs/project-diagram/roadmap.md). Policy or WS_AI_PRO_FEATURES can extend it, and WS_AI_LICENSE_ALL=1 is a
 // managed-config "all features on" override. Turning a feature Pro is a one-line change plus a
 // license.require("<key>") at its entry point.
 import { createHash, KeyObject } from "node:crypto";
@@ -23,7 +24,7 @@ const GRACE_MS = 30 * 24 * 3600 * 1000; // offline grace after the last good onl
 
 /** The Pro feature keys. A key here is gated; anything not listed is Free. Policy or
  * WS_AI_PRO_FEATURES can extend it; WS_AI_LICENSE_ALL=1 unlocks everything (managed config). */
-export const PRO_FEATURES: readonly string[] = ["ocr", "pdf.sign", "convert", "assistant"];
+export const PRO_FEATURES: readonly string[] = ["ocr", "pdf.sign", "convert", "assistant", "project.edit", "diagram.edit"];
 
 export interface LicenseDoc {
   v: number;

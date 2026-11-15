@@ -1,5 +1,17 @@
 # Change log
 
+## 10.1.37
+
+### New features
+
+#### Licensing
+
+* WorkSuite Project and WorkSuite Diagram are licensed as decided: viewing
+  their files is free, creating and editing them is Pro. The local AI service
+  knows the two new Pro keys, project.edit and diagram.edit, ready for the
+  editors; a lapsed licence still opens every file read-only. Nothing changes
+  for users yet
+
 ## 10.1.36
 
 ### New features
