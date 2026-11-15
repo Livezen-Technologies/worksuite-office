@@ -1,5 +1,17 @@
 # Change log
 
+## 10.1.35
+
+### New features
+
+#### Editors
+
+* The editors' messages name the WorkSuite Document Engine: errors that sent
+  users to their "Document Server administrator" (rights, file size, security
+  token, fonts) now say "WorkSuite Document Engine administrator", in every
+  editor and in the languages that keep the English name. The licence notice
+  in About stays as it is
+
 ## 10.1.34
 
 ### New features
