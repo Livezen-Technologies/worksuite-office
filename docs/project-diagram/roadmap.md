@@ -42,6 +42,25 @@ The editors are web apps like the others, so Windows, Linux and macOS get them f
 Each editor saves through the native shell's local file API, so recent files, autosave and recovery
 work as for documents.
 
+## Licensing
+
+Decided: **viewing is free, creating and editing is Pro**, for both apps.
+
+| | Free | Pro |
+|---|---|---|
+| WorkSuite Project | Open `.wsproj`, Project XML and MPP files; read the task list and Gantt chart; zoom, scroll, print, export to PDF | Create projects; edit tasks, links, calendars, baselines and resources; save; export to XLSX and CSV; AI plan from text |
+| WorkSuite Diagram | Open `.wsdiagram`, VSDX, VSD and VSDM files; view pages and layers; zoom, print, export to PDF and PNG | Create diagrams; edit shapes, connectors and pages; save, including VSDX; export to SVG; AI diagram from text |
+
+How it works:
+
+- Two new keys, `project.edit` and `diagram.edit`, join `PRO_FEATURES` in `ai-service/src/license.ts` in stage 2, when the
+  editors exist. Policy and `WS_AI_LICENSE_ALL=1` work for them as for the others.
+- Without Pro, a file opens read-only: the editing tools are shown but disabled, with an Upgrade button, and
+  **New project** / **New diagram** opens the upgrade prompt (the 402 upsell the PDF Editor already uses).
+- A file is never locked away: anyone can open, read, print and export to PDF what someone else made, and a
+  lapsed licence still opens every file read-only.
+- Today (stage 1) nothing changes: opening Visio drawings to view and print stays free.
+
 ## Roadmap
 
 ### Stage 1: on the start page (10.1.36)
@@ -76,7 +95,7 @@ Done when: tiles and pages ship in all three builds, with start page tests (`new
 - Native `create:new project` and `create:new diagram`. The start page tiles create a file instead of
   opening the stage 1 page.
 - File associations and icons in the Windows, Linux and macOS installers.
-- Pro gating decision: free, or a Pro feature (`project`, `diagram` in `PRO_FEATURES`).
+- Pro gating as decided (see Licensing): `project.edit` and `diagram.edit` join `PRO_FEATURES`.
 
 Done when: a project with 200 tasks and a diagram with 300 shapes stay smooth, save, reopen and export
 the same, on all three platforms. Unit tests for the schema, the editors' models and the exports.
