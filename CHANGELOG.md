@@ -1,5 +1,15 @@
 # Change log
 
+## 9.3.9
+
+### Fixes
+
+#### WorkSuite
+
+* Applied the WorkSuite Office name to desktop and online editor titles,
+  translated messages, themes and logo fallbacks
+* Named the engine, SDK and document server consistently in their build metadata
+
 ## 9.3.8
 
 ### Fixes

@@ -25,7 +25,7 @@ on:
 
 env:
   OO_TAG: v9.3.1.8
-  PRODUCT_VERSION: 9.3.8
+  PRODUCT_VERSION: 9.3.9
   COMPANY_NAME: WorkSuite
   UPDATE_CENTER: https://download.worksuitecloud.com
   UPDATE_APP_ID: lk.worksuite.office
@@ -106,6 +106,7 @@ jobs:
           python worksuite-office/build/patch-editor-menu.py oo/web-apps
           python worksuite-office/build/patch-pdf-convert.py oo/web-apps
           python worksuite-office/build/patch-branding.py oo/web-apps oo/desktop-apps
+          python worksuite-office/build/patch-engine-branding.py oo/web-apps oo/desktop-apps
 
       - name: Build core, editors and SDK (build_tools)
         working-directory: oo/build_tools

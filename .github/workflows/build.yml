@@ -13,7 +13,7 @@ on:
       - 'v*'
 
 env:
-  PRODUCT_VERSION: 9.3.8
+  PRODUCT_VERSION: 9.3.9
   BUILD_NUMBER: dev.1
   BUILD_ROOT: /package
   COMPANY_NAME: WorkSuite
@@ -65,6 +65,7 @@ jobs:
           python3 build/patch-editor-menu.py web-apps
           python3 build/patch-pdf-convert.py web-apps
           python3 build/patch-branding.py web-apps desktop-apps
+          python3 build/patch-engine-branding.py web-apps desktop-apps
 
       - name: Build the common payload
         uses: docker/bake-action@4a9a8d494466d37134e2bfca2d3a8de8fb2681ad # v5.13.0
@@ -215,6 +216,9 @@ jobs:
         run: |
           sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
           df -h /
+
+      - name: Apply WorkSuite engine branding
+        run: python3 build/patch-engine-branding.py web-apps desktop-apps
 
       - name: Repair the upstream build-from-source path
         run: python3 build/patch-upstream.py

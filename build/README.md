@@ -1,6 +1,6 @@
-# Building Euro-Office DesktopEditors
+# Building WorkSuite Office
 
-This directory holds everything needed to build **Euro-Office DesktopEditors**
+This directory holds everything needed to build **WorkSuite Office**
 (a fork of ONLYOFFICE DesktopEditors) from source, on Linux and Windows.
 
 If you just want to build, go straight to your platform:
@@ -19,8 +19,8 @@ real code is in submodules — `core`, `core-fonts`, `desktop-apps`, `desktop-sd
 **must** check them out before building:
 
 ```sh
-git clone https://github.com/Euro-Office/DesktopEditors.git
-cd DesktopEditors
+git clone https://github.com/Livezen-Technologies/worksuite-office.git
+cd worksuite-office
 git submodule update --init --recursive
 ```
 
@@ -106,7 +106,7 @@ locally:
 
 | Variable                          | Meaning                                  | Default                |
 | --------------------------------- | ---------------------------------------- | ---------------------- |
-| `PRODUCT_VERSION`                 | marketing version                        | `9.3.8`                |
+| `PRODUCT_VERSION`                 | marketing version                        | `9.3.9`                |
 | `BUILD_NUMBER`                    | build identifier                         | `dev.1`                |
 | `COMPANY_NAME` / `PRODUCT_NAME`   | shown in the app's About page            | `Euro-Office` / `DesktopEditors` |
 
