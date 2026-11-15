@@ -12,6 +12,15 @@
   editors; a lapsed licence still opens every file read-only. Nothing changes
   for users yet
 
+### Fixes
+
+#### PDF Editor
+
+* Signatures: about one in sixteen signed PDFs showed the signer's certificate
+  without its issuer, and its signature as not intact, when the signature's
+  last byte ended in a zero digit. The signature is now read to the length its
+  own header gives instead of trimming zeros
+
 ## 10.1.36
 
 ### New features

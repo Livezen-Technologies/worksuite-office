@@ -102,6 +102,26 @@ export async function signPdf(doc: PDFDocument, using: SignWith, opts: SignOptio
   return { pdf, signer: "p12" in using ? signer : signerOf(pdf) ?? signer };
 }
 
+/**
+ * The CMS signature in a signature's /Contents: the hex is zero-padded to the reserved size, so the DER is cut at
+ * the length its own header gives. (Trimming trailing "0"s instead also cut a signature whose last byte ends in
+ * a zero digit, about one in sixteen, and the signature then read as unknown and not intact.)
+ */
+export function contentsDer(hex: string): Buffer {
+  const all = Buffer.from(hex.length % 2 ? hex + "0" : hex, "hex");
+  if (all.length < 2 || all[0] !== 0x30) throw new Error("not a CMS signature");
+  let len = all[1], head = 2;
+  if (len & 0x80) {
+    const n = len & 0x7f;
+    if (n < 1 || n > 4 || all.length < 2 + n) throw new Error("bad CMS length");
+    len = 0;
+    for (let i = 0; i < n; i++) len = len * 256 + all[2 + i];
+    head = 2 + n;
+  }
+  if (head + len > all.length) throw new Error("CMS signature is cut short");
+  return all.subarray(0, head + len);
+}
+
 /** The signing certificate of a signed PDF's (last) signature, or null. */
 export function signerOf(pdf: Buffer): Certificate | null {
   const text = pdf.toString("latin1");
@@ -109,9 +129,9 @@ export function signerOf(pdf: Buffer): Certificate | null {
   const m = all[all.length - 1];
   if (!m) return null;
   const [a, b, c] = m.slice(1).map(Number);
-  const hex = text.slice(a + b + 1, c - 1).replace(/0+$/, "");
+  const hex = text.slice(a + b + 1, c - 1);
   try {
-    const msg = forge.pkcs7.messageFromAsn1(forge.asn1.fromDer(forge.util.createBuffer(Buffer.from(hex.length % 2 ? hex + "0" : hex, "hex").toString("binary")))) as forge.pkcs7.PkcsSignedData;
+    const msg = forge.pkcs7.messageFromAsn1(forge.asn1.fromDer(forge.util.createBuffer(contentsDer(hex).toString("binary")))) as forge.pkcs7.PkcsSignedData;
     const cert = msg.certificates[0];
     if (!cert) return null;
     const email = cert.subject.attributes.find((x) => x.shortName === "E" || x.name === "emailAddress")?.value as string | undefined;
@@ -135,11 +155,11 @@ export function checkSignatures(pdf: Buffer): FoundSignature[] {
   while ((m = re.exec(text))) {
     const [a, b, c, d] = m.slice(1).map(Number);
     if (c + d > pdf.length || b > c) continue;
-    const hex = text.slice(a + b + 1, c - 1).replace(/0+$/, "");
+    const hex = text.slice(a + b + 1, c - 1);
     const signed = Buffer.concat([pdf.subarray(a, a + b), pdf.subarray(c, c + d)]);
     let intact = false, signer = "Unknown", signedAt: string | undefined;
     try {
-      const der = Buffer.from(hex.length % 2 ? hex + "0" : hex, "hex");
+      const der = contentsDer(hex);
       const msg = forge.pkcs7.messageFromAsn1(forge.asn1.fromDer(forge.util.createBuffer(der.toString("binary")))) as forge.pkcs7.PkcsSignedData & {
         rawCapture: { authenticatedAttributes?: forge.asn1.Asn1[]; signature: string; digestAlgorithm: string };
       };
