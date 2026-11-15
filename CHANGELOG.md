@@ -1,5 +1,16 @@
 # Change log
 
+## 10.1.36
+
+### New features
+
+#### Start page
+
+* WorkSuite Project and WorkSuite Diagram on Home: the quick actions gain
+  Project and Diagram, four cards to a row. Each opens a page with what the
+  app does today and the stages of its roadmap. Diagram opens Visio drawings
+  (VSDX, VSD, VSDM) in the diagram viewer; Project cannot create files yet
+
 ## 10.1.35
 
 ### New features
