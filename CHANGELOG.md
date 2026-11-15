@@ -11,6 +11,15 @@
   app does today and the stages of its roadmap. Diagram opens Visio drawings
   (VSDX, VSD, VSDM) in the diagram viewer; Project cannot create files yet
 
+### Fixes
+
+#### Start page
+
+* The Drive account panel's expired state matches the theme: it no longer
+  fills with the warning colour or says "Session expired" four times. The
+  message is in the normal text colour, the badge shows only while
+  reconnecting, and Reconnect is the theme's main button
+
 ## 10.1.35
 
 ### New features
