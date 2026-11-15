@@ -70,7 +70,7 @@ param(
     [switch]$BuildCommon,
 
     # Values that the workflow takes from its top-level env block.
-    [string]$ProductVersion = '9.3.8',
+    [string]$ProductVersion = '9.3.9',
     [string]$BuildNumber    = 'dev.1',
     [string]$Arch           = 'x64',
     [string]$Target         = 'standalone',
@@ -113,6 +113,10 @@ if (-not $CommonDir) { $CommonDir = Join-Path $RepoRoot 'common' }
 $VersionFull = "$ProductVersion.0"            # make.ps1 wants a 4-part System.Version
 $InstallDir  = Join-Path $RepoRoot 'desktopeditors'
 $PackageDir  = Join-Path $RepoRoot 'desktop-apps\package'
+
+# Brand native sources and installer resources for both CI and local builds.
+& python (Join-Path $RepoRoot 'build\patch-engine-branding.py') (Join-Path $RepoRoot 'web-apps') (Join-Path $RepoRoot 'desktop-apps')
+if ($LASTEXITCODE -ne 0) { throw 'Applying WorkSuite engine branding failed' }
 
 # ───────────────────────────── helpers ──────────────────────────────────────
 # When this runs inside GitHub Actions, emit ::group::/::endgroup:: so each

@@ -9,6 +9,31 @@ Installers are produced by the **Build WorkSuite Office** workflow in the Action
 The branding changes live in the `desktop-apps` submodule and in `build/`; every other
 submodule is the unmodified Euro-Office source.
 
+### Product and component names
+
+| Component | Name |
+| --- | --- |
+| Desktop and online editor UI | WorkSuite Office |
+| Document engine | WorkSuite Document Engine |
+| SDK | WorkSuite Office SDK |
+| Online document server | WorkSuite Document Server |
+
+`build/engine-branding.json` defines these names. `build/patch-engine-branding.py` applies
+branding to the pinned sources before compilation, including translated messages, editor themes,
+web page titles and logo fallbacks. CI and local native build scripts apply it.
+
+For a WorkSuite Document Server build using the same web editor sources, apply branding before
+building its web payload:
+
+```sh
+python3 build/patch-engine-branding.py --web-only /path/to/web-apps
+```
+
+The online editors display **WorkSuite Office**. This repository builds desktop packages; it does
+not deploy a running document server. Source repository URLs, public SDK symbols, package IDs,
+credential storage, document links and update identities remain compatible with existing clients.
+Original copyright and license notices remain in their legal documents and source headers.
+
 ### Updates
 
 **macOS.** The app updates through Sparkle. It reads its feed from the WorkSuite Update Center:
