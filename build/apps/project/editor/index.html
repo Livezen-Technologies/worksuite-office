@@ -11,6 +11,7 @@
   <nav class="wp-tabs" role="tablist">
     <button class="wp-tab" data-tab="file">File</button>
     <button class="wp-tab is-on" data-tab="task">Task</button>
+    <button class="wp-tab" data-tab="schedule">Schedule</button>
     <button class="wp-tab" data-tab="view">View</button>
     <span class="wp-title" id="wp-title"></span>
     <span class="wp-mode" id="wp-mode" role="status" hidden><span id="wp-mode-text">Read-only</span> · <button type="button" id="wp-upgrade">Upgrade to Pro</button><button type="button" id="wp-retry" hidden>Try again</button></span>
@@ -35,6 +36,12 @@
     <div class="wp-group" data-tab="task">
       <button data-cmd="undo" data-edit>Undo</button><button data-cmd="redo" data-edit>Redo</button>
       <span class="wp-glabel">History</span>
+    </div>
+    <div class="wp-group" data-tab="schedule">
+      <label>Calendar <select id="wp-cal"><option value="standard">Standard (Mon–Fri)</option><option value="lk">Sri Lanka (Mon–Fri, public holidays)</option></select></label>
+      <button data-cmd="autoSchedule" data-edit>Schedule now</button>
+      <label><input type="checkbox" id="wp-critical"> Critical path</label>
+      <span class="wp-glabel">Scheduling</span>
     </div>
     <div class="wp-group" data-tab="view">
       <label>Zoom <select id="wp-zoom"><option value="day">Days</option><option value="week" selected>Weeks</option><option value="month">Months</option><option value="quarter">Quarters</option></select></label>

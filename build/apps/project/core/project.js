@@ -22,7 +22,14 @@ const DAY = 86400000;
 export const toDay = (iso) => Math.round(Date.parse(iso + "T00:00:00Z") / DAY);
 export const fromDay = (n) => new Date(n * DAY).toISOString().slice(0, 10);
 /** a task's finish: the last day it runs (a milestone finishes the day it starts) */
-export const finishOf = (t) => fromDay(toDay(t.start) + Math.max(0, t.duration - 1));
+/** With a working calendar (isWork(day) → bool) the duration counts working days, from the first working day. */
+export function finishOf(t, isWork = null) {
+  if (!isWork) return fromDay(toDay(t.start) + Math.max(0, t.duration - 1));
+  let d = toDay(t.start), left = Math.max(0, t.duration - 1), guard = 0;
+  while (!isWork(d)) { d++; if (++guard > 3660) throw new Error("the calendar has no working days"); }
+  while (left > 0) { d++; if (isWork(d)) left--; if (++guard > 40000) throw new Error("the calendar has too few working days"); }
+  return fromDay(d);
+}
 
 /* ---- the document ---- */
 export function newProject(name = "Project", start = "2026-01-05") {
@@ -102,6 +109,7 @@ export class ProjectModel {
     this.doc = validate(structuredClone(migrate(doc)));
     this.undoStack = [];
     this.redoStack = [];
+    this.isWork = null; // a working calendar's isWork(day): durations then count working days (stage 3, schedule.js)
     this.seq = this.doc.tasks.reduce((m, t) => Math.max(m, Number(String(t.id).replace(/\D/g, "")) || 0), 0);
   }
 
@@ -177,13 +185,15 @@ export class ProjectModel {
   /** What the grid and chart show for a task: summaries roll up their subtasks' dates and progress. */
   view(id) {
     const tasks = this.doc.tasks, i = this.indexOf(id), t = tasks[i];
-    const finish = finishOf(t);
+    const finish = finishOf(t, this.isWork);
     if (!this.isSummary(id)) return { ...t, finish, summary: false, milestone: t.duration === 0 };
     const kids = tasks.slice(i + 1, this.endOf(tasks, i)).filter((k, n, all) => !(n + 1 < all.length && all[n + 1].level > k.level));
     const s = Math.min(...kids.map((k) => toDay(k.start)));
-    const f = Math.max(...kids.map((k) => toDay(finishOf(k))));
+    const f = Math.max(...kids.map((k) => toDay(finishOf(k, this.isWork))));
     const weight = kids.reduce((a, k) => a + Math.max(1, k.duration), 0);
     const progress = Math.round(kids.reduce((a, k) => a + k.progress * Math.max(1, k.duration), 0) / weight);
-    return { ...t, start: fromDay(s), finish: fromDay(f), duration: f - s + 1, progress, summary: true, milestone: false };
+    let duration = f - s + 1;
+    if (this.isWork) { duration = 0; for (let d = s; d <= f; d++) if (this.isWork(d)) duration++; }
+    return { ...t, start: fromDay(s), finish: fromDay(f), duration, progress, summary: true, milestone: false };
   }
 }
