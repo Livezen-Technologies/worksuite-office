@@ -11,6 +11,7 @@
  * file, read it back and switch read-only mode (free viewing, #73).
  */
 import { DiagramModel, newDiagram, parse, serialize, connectionPoints, pointOn, APP } from "../core/diagram.js";
+import { checkEdit, reasonText, openUpgrade } from "../../common/licence.js";
 import { packDocument, unpackDocument } from "../../common/zip.js";
 import { shapePath, LIBRARIES, libraryShape, snap, alignGuides, route, midpoint, resizeBox } from "./geometry.js";
 
@@ -230,6 +231,9 @@ function render() {
     renderPages();
     $("wd-title").textContent = state.fileName.replace(/\.wsdiagram$/, "") + (state.model.undoStack.length !== (state.saved || 0) ? " •" : ""); // • unsaved changes
     $("wd-mode").hidden = !state.readOnly;
+  $("wd-mode-text").textContent = reasonText(state.licence || "no_license");
+  $("wd-upgrade").hidden = state.licence === "unavailable" || state.licence === "unknown";
+  $("wd-retry").hidden = !$("wd-upgrade").hidden;
     document.querySelectorAll("[data-edit]").forEach((b) => (b.disabled = state.readOnly));
     document.querySelectorAll("[data-tool]").forEach((b) => b.classList.toggle("is-on", b.dataset.tool === state.tool));
     $("wd-zoomlabel").textContent = Math.round(state.zoom * 100) + "%";
@@ -390,7 +394,14 @@ $("wd-ribbon").addEventListener("click", (e) => {
   if (b.dataset.tool) { state.tool = b.dataset.tool; render(); }
 });
 $("wd-grid").addEventListener("change", (e) => { state.grid = e.target.checked; render(); });
-$("wd-upgrade").addEventListener("click", () => window.WorkSuiteDiagram?.onUpgrade?.());
+$("wd-upgrade").addEventListener("click", () => (window.WorkSuiteDiagram.onUpgrade || openUpgrade)());
+$("wd-retry").addEventListener("click", () => applyLicence());
+/** Free viewing, Pro editing (#73): asks the local service at startup and on Try again. */
+async function applyLicence() {
+  const r = await checkEdit("diagram.edit");
+  state.licence = r.reason;
+  window.WorkSuiteDiagram.setReadOnly(!r.edit);
+}
 $("wd-lib").addEventListener("click", (e) => { const b = e.target.closest("[data-shape]"); if (b && !b.disabled) addFromLibrary(b.dataset.shape); });
 $("wd-lib").addEventListener("dragstart", (e) => { const b = e.target.closest("[data-shape]"); if (b) e.dataTransfer.setData("text/x-worksuite-shape", b.dataset.shape); });
 $("wd-canvas").addEventListener("dragover", (e) => { if (e.dataTransfer.types.includes("text/x-worksuite-shape")) e.preventDefault(); });
@@ -472,5 +483,6 @@ if (new URLSearchParams(location.search).has("sample")) {
   state.sel = [c];
 }
 if (new URLSearchParams(location.search).has("readonly")) state.readOnly = true;
+else applyLicence();
 showTab("home");
 render();

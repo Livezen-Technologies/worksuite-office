@@ -10,6 +10,7 @@
  * window.WorkSuiteProject lets the shell load a file, read it back and switch read-only mode (free viewing, #73).
  */
 import { ProjectModel, newProject, parse, serialize, finishOf, APP } from "../core/project.js";
+import { checkEdit, reasonText, openUpgrade } from "../../common/licence.js";
 import { packDocument, unpackDocument, xlsx } from "../../common/zip.js";
 import { ROW_H, visibleRows, timescale, headers, bars, linkPath, dragStart, dragDuration, parseDuration } from "./gantt.js";
 
@@ -204,6 +205,9 @@ function draw() {
   renderChart(rows);
   $("wp-title").textContent = state.fileName.replace(/\.wsproj$/, "") + (state.model.undoStack.length !== (state.saved || 0) ? " •" : ""); // • unsaved changes
   $("wp-mode").hidden = !state.readOnly;
+  $("wp-mode-text").textContent = reasonText(state.licence || "no_license");
+  $("wp-upgrade").hidden = state.licence === "unavailable" || state.licence === "unknown";
+  $("wp-retry").hidden = !$("wp-upgrade").hidden;
   for (const b of document.querySelectorAll("[data-edit]")) b.disabled = state.readOnly;
   $("wp-ribbon").querySelector('[data-cmd="undo"]').disabled ||= !state.model.undoStack.length;
   $("wp-ribbon").querySelector('[data-cmd="redo"]').disabled ||= !state.model.redoStack.length;
@@ -220,7 +224,14 @@ function showTab(name) {
 }
 $("wp-ribbon").addEventListener("click", (e) => { const b = e.target.closest("[data-cmd]"); if (b && !b.disabled) commands[b.dataset.cmd](); });
 $("wp-zoom").addEventListener("change", (e) => { state.zoom = e.target.value; render(); });
-$("wp-upgrade").addEventListener("click", () => window.WorkSuiteProject?.onUpgrade?.());
+$("wp-upgrade").addEventListener("click", () => (window.WorkSuiteProject.onUpgrade || openUpgrade)());
+$("wp-retry").addEventListener("click", () => applyLicence());
+/** Free viewing, Pro editing (#73): asks the local service at startup and on Try again. */
+async function applyLicence() {
+  const r = await checkEdit("project.edit");
+  state.licence = r.reason;
+  window.WorkSuiteProject.setReadOnly(!r.edit);
+}
 
 $("wp-grid").addEventListener("click", (e) => {
   const tog = e.target.closest("[data-toggle]");
@@ -354,5 +365,6 @@ if (new URLSearchParams(location.search).has("sample")) {
   state.fileName = "Office move.wsproj";
 }
 if (new URLSearchParams(location.search).has("readonly")) state.readOnly = true;
+else applyLicence();
 showTab("task");
 render();
