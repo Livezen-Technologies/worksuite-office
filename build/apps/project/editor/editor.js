@@ -9,7 +9,9 @@
  * The page stands alone until the native shell hosts it (#72): it saves and opens through the browser, and
  * window.WorkSuiteProject lets the shell load a file, read it back and switch read-only mode (free viewing, #73).
  */
-import { ProjectModel, newProject, parse, serialize, finishOf } from "../core/project.js";
+import { ProjectModel, newProject, parse, serialize, finishOf, APP } from "../core/project.js";
+import { checkEdit, reasonText, openUpgrade } from "../../common/licence.js";
+import { packDocument, unpackDocument, xlsx } from "../../common/zip.js";
 import { ROW_H, visibleRows, timescale, headers, bars, linkPath, dragStart, dragDuration, parseDuration } from "./gantt.js";
 
 const $ = (id) => document.getElementById(id);
@@ -56,8 +58,10 @@ const first = () => selected()[0];
 const commands = {
   new: () => { if (confirmDiscard()) { state.model = new ProjectModel(newProject("Untitled project", mondayOf(new Date()))); state.sel = []; state.fileName = "Untitled project.wsproj"; render(); } },
   open: () => $("wp-file").click(),
-  save: () => download(state.fileName, serialize(state.model.doc), "application/json"),
+  save: () => { download(state.fileName, packDocument(APP, serialize(state.model.doc)), "application/zip"); state.saved = state.model.undoStack.length; render(); },
   exportCsv: () => download(state.fileName.replace(/\.wsproj$/, "") + ".csv", toCsv(), "text/csv"),
+  exportXlsx: () => download(state.fileName.replace(/\.wsproj$/, "") + ".xlsx", xlsx(tableRows(), state.model.doc.name), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
+  print: () => { fitForPrint(); window.print(); },
   addTask: () => run(() => { const id = state.model.addTask({ start: startForNew() }, first() || null); state.sel = [id]; startEdit(id, "name"); }),
   addMilestone: () => run(() => { const id = state.model.addMilestone({ start: startForNew() }, first() || null); state.sel = [id]; }),
   remove: () => run(() => { for (const id of selected()) if (state.model.tasks.some((t) => t.id === id)) state.model.removeTask(id); state.sel = []; }),
@@ -86,15 +90,19 @@ function download(name, text, type) {
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
-function toCsv() {
-  const q = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
-  const lines = [["ID", "Level", "Task name", "Duration (days)", "Start", "Finish", "% done", "Owner", "Predecessors"].map(q).join(",")];
+/** The task list as rows, for CSV and XLSX: a header, then one row per task with its predecessors. */
+function tableRows() {
+  const rows = [["ID", "Level", "Task name", "Duration (days)", "Start", "Finish", "% done", "Owner", "Predecessors"]];
   state.model.tasks.forEach((t, i) => {
     const v = state.model.view(t.id);
     const preds = state.model.doc.links.filter((l) => l.to === t.id).map((l) => `${state.model.indexOf(l.from) + 1}${l.type}${l.lag ? (l.lag > 0 ? "+" : "") + l.lag + "d" : ""}`).join(";");
-    lines.push([i + 1, t.level, t.name, v.duration, v.start, v.finish, v.progress, t.owner, preds].map(q).join(","));
+    rows.push([i + 1, t.level, "  ".repeat(t.level) + t.name, v.duration, v.start, v.finish, v.progress, t.owner || "", preds]);
   });
-  return lines.join("\r\n") + "\r\n";
+  return rows;
+}
+function toCsv() {
+  const q = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+  return tableRows().map((r) => r.map(q).join(",")).join("\r\n") + "\r\n";
 }
 
 /* ---- grid ---- */
@@ -195,8 +203,11 @@ function draw() {
   const rows = visibleRows(state.model, state.collapsed);
   renderGrid(rows);
   renderChart(rows);
-  $("wp-title").textContent = state.fileName.replace(/\.wsproj$/, "");
+  $("wp-title").textContent = state.fileName.replace(/\.wsproj$/, "") + (state.model.undoStack.length !== (state.saved || 0) ? " •" : ""); // • unsaved changes
   $("wp-mode").hidden = !state.readOnly;
+  $("wp-mode-text").textContent = reasonText(state.licence || "no_license");
+  $("wp-upgrade").hidden = state.licence === "unavailable" || state.licence === "unknown";
+  $("wp-retry").hidden = !$("wp-upgrade").hidden;
   for (const b of document.querySelectorAll("[data-edit]")) b.disabled = state.readOnly;
   $("wp-ribbon").querySelector('[data-cmd="undo"]').disabled ||= !state.model.undoStack.length;
   $("wp-ribbon").querySelector('[data-cmd="redo"]').disabled ||= !state.model.redoStack.length;
@@ -213,7 +224,14 @@ function showTab(name) {
 }
 $("wp-ribbon").addEventListener("click", (e) => { const b = e.target.closest("[data-cmd]"); if (b && !b.disabled) commands[b.dataset.cmd](); });
 $("wp-zoom").addEventListener("change", (e) => { state.zoom = e.target.value; render(); });
-$("wp-upgrade").addEventListener("click", () => window.WorkSuiteProject?.onUpgrade?.());
+$("wp-upgrade").addEventListener("click", () => (window.WorkSuiteProject.onUpgrade || openUpgrade)());
+$("wp-retry").addEventListener("click", () => applyLicence());
+/** Free viewing, Pro editing (#73): asks the local service at startup and on Try again. */
+async function applyLicence() {
+  const r = await checkEdit("project.edit");
+  state.licence = r.reason;
+  window.WorkSuiteProject.setReadOnly(!r.edit);
+}
 
 $("wp-grid").addEventListener("click", (e) => {
   const tog = e.target.closest("[data-toggle]");
@@ -290,22 +308,37 @@ $("wp-grid").addEventListener("scroll", () => { $("wp-chart").scrollTop = $("wp-
 $("wp-file").addEventListener("change", async (e) => {
   const f = e.target.files[0];
   if (!f) return;
-  try { load(await f.text(), f.name); } catch (err) { state.message = "Could not open " + f.name + ": " + err.message; render(); }
+  try { load(new Uint8Array(await f.arrayBuffer()), f.name); } catch (err) { state.message = "Could not open " + f.name + ": " + err.message; render(); }
   e.target.value = "";
 });
 
-function load(text, name = "Project.wsproj") {
-  state.model = new ProjectModel(parse(text));
+/** Opens a project: the bytes of a .wsproj file (or its JSON text). */
+function load(input, name = "Project.wsproj") {
+  state.model = new ProjectModel(parse(typeof input === "string" ? input : unpackDocument(input, APP)));
+  state.saved = 0;
   state.fileName = name;
   state.sel = [];
   state.collapsed.clear();
   render();
 }
 
+/* printing: the chart is scaled so the whole timeline fits the page width (A4 landscape less margins) */
+function fitForPrint() {
+  const svg = $("wp-chart").querySelector("svg");
+  const width = svg ? Number(svg.getAttribute("width")) : 0;
+  $("wp-chart").style.setProperty("--print-zoom", width ? String(Math.min(1, 1046 / width)) : "1");
+  // on paper the chart is as tall as its tasks, not the window; the next redraw restores the screen size
+  if (svg) svg.setAttribute("height", String(visibleRows(state.model, state.collapsed).length * ROW_H + 8));
+}
+window.addEventListener("beforeprint", fitForPrint);
+window.addEventListener("afterprint", () => render());
+matchMedia("print").addEventListener?.("change", (e) => e.matches && fitForPrint());
+
 /* the shell's handle (#72): load a file, read it back, free viewing without Pro (#73) */
 window.WorkSuiteProject = {
   load,
   text: () => serialize(state.model.doc),
+  bytes: () => packDocument(APP, serialize(state.model.doc)),
   setReadOnly(on) { state.readOnly = !!on; state.editing = null; render(); },
   onUpgrade: null,
 };
@@ -332,5 +365,6 @@ if (new URLSearchParams(location.search).has("sample")) {
   state.fileName = "Office move.wsproj";
 }
 if (new URLSearchParams(location.search).has("readonly")) state.readOnly = true;
+else applyLicence();
 showTab("task");
 render();

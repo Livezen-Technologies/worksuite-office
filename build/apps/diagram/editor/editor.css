@@ -25,6 +25,7 @@ body { font: 13px/1.35 Inter, system-ui, -apple-system, "Segoe UI", sans-serif; 
 .wd-tab.is-on { color: var(--brand); box-shadow: inset 0 -2px var(--brand); font-weight: 600; }
 .wd-title { margin-inline-start: auto; color: var(--ink3); }
 .wd-mode { margin-inline-start: 12px; color: var(--ink2); font-size: 12px; }
+.wd-mode button + button { margin-inline-start: 8px; }
 .wd-mode button { border: 0; background: none; color: var(--brand); font: inherit; cursor: pointer; padding: 0; text-decoration: underline; }
 .wd-ribbon { display: flex; gap: 4px; padding: 6px 10px; background: var(--card); border-bottom: 1px solid var(--line); flex-wrap: wrap; min-height: 58px; }
 .wd-group { display: none; align-items: flex-start; gap: 2px; padding: 0 10px 14px; border-inline-end: 1px solid var(--line); position: relative; }
@@ -83,3 +84,14 @@ body { font: 13px/1.35 Inter, system-ui, -apple-system, "Segoe UI", sans-serif; 
 .marquee { fill: rgba(37, 99, 235, .08); stroke: var(--brand); stroke-dasharray: 3 2; }
 .ghost { fill: none; stroke: var(--brand); stroke-dasharray: 4 3; }
 .arrow-head { fill: var(--conn, #475569); }
+
+/* print and "Save as PDF": the current page alone, at its size */
+@media print {
+  @page { margin: 10mm; }
+  .wd-tabs, .wd-ribbon, .wd-lib, .wd-props, .wd-pages, .wd-status { display: none !important; }
+  html, body, .wd-app, .wd-main, .wd-canvas-wrap, .wd-canvas { height: auto; overflow: visible; background: #fff; }
+  .wd-canvas svg.page { margin: 0 auto; box-shadow: none; background: #fff; max-width: 100%; height: auto; }
+  .wd-canvas svg.page .bg { fill: #fff; }
+  .sel-box, .handle, .cpoint, .guide, .marquee, .ghost { display: none; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}

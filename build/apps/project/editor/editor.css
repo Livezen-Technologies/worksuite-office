@@ -29,6 +29,7 @@ body { font: 13px/1.35 Inter, system-ui, -apple-system, "Segoe UI", sans-serif; 
 .wp-tab.is-on { color: var(--brand); box-shadow: inset 0 -2px var(--brand); font-weight: 600; }
 .wp-title { margin-inline-start: auto; color: var(--ink3); }
 .wp-mode { margin-inline-start: 12px; color: var(--ink2); font-size: 12px; }
+.wp-mode button + button { margin-inline-start: 8px; }
 .wp-mode button { border: 0; background: none; color: var(--brand); font: inherit; cursor: pointer; padding: 0; text-decoration: underline; }
 
 .wp-ribbon { display: flex; gap: 4px; padding: 6px 10px; background: var(--card); border-bottom: 1px solid var(--line); flex-wrap: wrap; min-height: 58px; }
@@ -77,3 +78,18 @@ table.wp-table { border-collapse: collapse; width: 100%; table-layout: fixed; }
 
 .wp-status { height: 26px; display: flex; align-items: center; gap: 18px; padding: 0 12px; background: var(--card); border-top: 1px solid var(--line); color: var(--ink3); font-size: 11.5px; }
 .wp-status .err { color: var(--today); }
+
+/* print and "Save as PDF": the task table full width, then the whole chart scaled to the page width */
+@media print {
+  @page { size: A4 landscape; margin: 10mm; }
+  .wp-tabs, .wp-ribbon, .wp-status, .wp-split { display: none !important; }
+  html, body, .wp-app { height: auto; background: #fff; }
+  .wp-main { display: block; height: auto; }
+  .wp-grid { width: 100%; max-width: none; overflow: visible; }
+  .wp-table th { position: static; }
+  .wp-chart { overflow: visible; zoom: var(--print-zoom, 1); break-before: page; break-inside: avoid; }
+  .wp-scale { position: relative; }
+  .wp-table tr.is-sel td { background: none; }
+  .wp-sel-bar, .wp-hit, .wp-grip { display: none; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
