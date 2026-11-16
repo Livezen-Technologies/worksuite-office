@@ -77,3 +77,18 @@ table.wp-table { border-collapse: collapse; width: 100%; table-layout: fixed; }
 
 .wp-status { height: 26px; display: flex; align-items: center; gap: 18px; padding: 0 12px; background: var(--card); border-top: 1px solid var(--line); color: var(--ink3); font-size: 11.5px; }
 .wp-status .err { color: var(--today); }
+
+/* print and "Save as PDF": the task table full width, then the whole chart scaled to the page width */
+@media print {
+  @page { size: A4 landscape; margin: 10mm; }
+  .wp-tabs, .wp-ribbon, .wp-status, .wp-split { display: none !important; }
+  html, body, .wp-app { height: auto; background: #fff; }
+  .wp-main { display: block; height: auto; }
+  .wp-grid { width: 100%; max-width: none; overflow: visible; }
+  .wp-table th { position: static; }
+  .wp-chart { overflow: visible; zoom: var(--print-zoom, 1); break-before: page; break-inside: avoid; }
+  .wp-scale { position: relative; }
+  .wp-table tr.is-sel td { background: none; }
+  .wp-sel-bar, .wp-hit, .wp-grip { display: none; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}

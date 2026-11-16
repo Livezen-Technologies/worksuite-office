@@ -10,7 +10,8 @@
  * The page stands alone until the native shell hosts it (#72); window.WorkSuiteDiagram lets the shell load a
  * file, read it back and switch read-only mode (free viewing, #73).
  */
-import { DiagramModel, newDiagram, parse, serialize, connectionPoints, pointOn } from "../core/diagram.js";
+import { DiagramModel, newDiagram, parse, serialize, connectionPoints, pointOn, APP } from "../core/diagram.js";
+import { packDocument, unpackDocument } from "../../common/zip.js";
 import { shapePath, LIBRARIES, libraryShape, snap, alignGuides, route, midpoint, resizeBox } from "./geometry.js";
 
 const $ = (id) => document.getElementById(id);
@@ -54,7 +55,9 @@ function run(fn) {
 const commands = {
   new: () => { state.model = new DiagramModel(newDiagram("Untitled diagram")); state.pageId = state.model.doc.pages[0].id; state.sel = []; state.fileName = "Untitled diagram.wsdiagram"; render(); },
   open: () => $("wd-file").click(),
-  save: () => download(state.fileName, serialize(state.model.doc), "application/json"),
+  save: () => { download(state.fileName, packDocument(APP, serialize(state.model.doc)), "application/zip"); state.saved = state.model.undoStack.length; render(); },
+  exportPng: () => exportPng(),
+  print: () => window.print(),
   exportSvg: () => download(state.fileName.replace(/\.wsdiagram$/, "") + ` - ${page().name}.svg`, pageSvg(false), "image/svg+xml"),
   remove: () => run(() => { if (state.sel.length) state.model.remove(state.sel, state.pageId); state.sel = []; }),
   duplicate: () => run(() => {
@@ -88,6 +91,21 @@ function arrange(fn, min = 2) {
     if (ids.length < min) throw new Error(`Select ${min} or more shapes`);
     state.model.edit((d) => fn(d.pages.find((p) => p.id === state.pageId).items.filter((i) => ids.includes(i.id))));
   });
+}
+/** The page as a PNG at twice its size (sharp on high-density screens and in print). */
+function exportPng() {
+  const p = page(), scale = 2;
+  const img = new Image();
+  img.onload = () => {
+    const c = document.createElement("canvas");
+    c.width = p.width * scale; c.height = p.height * scale;
+    const ctx = c.getContext("2d");
+    ctx.drawImage(img, 0, 0, c.width, c.height);
+    URL.revokeObjectURL(img.src);
+    c.toBlob((blob) => blob.arrayBuffer().then((buf) => download(state.fileName.replace(/\.wsdiagram$/, "") + ` - ${p.name}.png`, new Uint8Array(buf), "image/png")), "image/png");
+  };
+  img.onerror = () => { state.message = "The page could not be drawn as a picture"; render(); };
+  img.src = URL.createObjectURL(new Blob([pageSvg(false)], { type: "image/svg+xml" }));
 }
 function download(name, text, type) {
   const a = document.createElement("a");
@@ -210,7 +228,7 @@ function render() {
     renderLib();
     renderProps();
     renderPages();
-    $("wd-title").textContent = state.fileName.replace(/\.wsdiagram$/, "");
+    $("wd-title").textContent = state.fileName.replace(/\.wsdiagram$/, "") + (state.model.undoStack.length !== (state.saved || 0) ? " •" : ""); // • unsaved changes
     $("wd-mode").hidden = !state.readOnly;
     document.querySelectorAll("[data-edit]").forEach((b) => (b.disabled = state.readOnly));
     document.querySelectorAll("[data-tool]").forEach((b) => b.classList.toggle("is-on", b.dataset.tool === state.tool));
@@ -407,12 +425,14 @@ $("wd-props").addEventListener("click", (e) => {
 $("wd-file").addEventListener("change", async (e) => {
   const f = e.target.files[0];
   if (!f) return;
-  try { load(await f.text(), f.name); } catch (err) { state.message = "Could not open " + f.name + ": " + err.message; render(); }
+  try { load(new Uint8Array(await f.arrayBuffer()), f.name); } catch (err) { state.message = "Could not open " + f.name + ": " + err.message; render(); }
   e.target.value = "";
 });
 
-function load(text, name = "Diagram.wsdiagram") {
-  state.model = new DiagramModel(parse(text));
+/** Opens a diagram: the bytes of a .wsdiagram file (or its JSON text). */
+function load(input, name = "Diagram.wsdiagram") {
+  state.model = new DiagramModel(parse(typeof input === "string" ? input : unpackDocument(input, APP)));
+  state.saved = 0;
   state.pageId = state.model.doc.pages[0].id;
   state.fileName = name;
   state.sel = [];
@@ -423,6 +443,7 @@ function load(text, name = "Diagram.wsdiagram") {
 window.WorkSuiteDiagram = {
   load,
   text: () => serialize(state.model.doc),
+  bytes: () => packDocument(APP, serialize(state.model.doc)),
   svg: () => pageSvg(false),
   setReadOnly(on) { state.readOnly = !!on; state.tool = "select"; render(); },
   onUpgrade: null,
