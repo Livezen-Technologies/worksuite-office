@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WorkSuite Project</title>
+<link rel="stylesheet" href="editor.css">
+</head>
+<body>
+<div class="wp-app">
+  <nav class="wp-tabs" role="tablist">
+    <button class="wp-tab" data-tab="file">File</button>
+    <button class="wp-tab is-on" data-tab="task">Task</button>
+    <button class="wp-tab" data-tab="view">View</button>
+    <span class="wp-title" id="wp-title"></span>
+    <span class="wp-mode" id="wp-mode" hidden>Read-only · <button type="button" id="wp-upgrade">Upgrade to Pro to edit</button></span>
+  </nav>
+  <div class="wp-ribbon" id="wp-ribbon">
+    <div class="wp-group" data-tab="file">
+      <button data-cmd="new">New</button><button data-cmd="open">Open…</button><button data-cmd="save">Save</button><button data-cmd="exportCsv">Export CSV</button>
+      <span class="wp-glabel">File</span>
+    </div>
+    <div class="wp-group" data-tab="task">
+      <button data-cmd="addTask" data-edit>New task</button><button data-cmd="addMilestone" data-edit>Milestone</button><button data-cmd="remove" data-edit>Delete</button>
+      <span class="wp-glabel">Insert</span>
+    </div>
+    <div class="wp-group" data-tab="task">
+      <button data-cmd="outdent" data-edit>Outdent</button><button data-cmd="indent" data-edit>Indent</button><button data-cmd="link" data-edit>Link</button><button data-cmd="unlink" data-edit>Unlink</button>
+      <span class="wp-glabel">Structure</span>
+    </div>
+    <div class="wp-group" data-tab="task">
+      <button data-cmd="p0" data-edit>0%</button><button data-cmd="p50" data-edit>50%</button><button data-cmd="p100" data-edit>100%</button>
+      <span class="wp-glabel">Progress</span>
+    </div>
+    <div class="wp-group" data-tab="task">
+      <button data-cmd="undo" data-edit>Undo</button><button data-cmd="redo" data-edit>Redo</button>
+      <span class="wp-glabel">History</span>
+    </div>
+    <div class="wp-group" data-tab="view">
+      <label>Zoom <select id="wp-zoom"><option value="day">Days</option><option value="week" selected>Weeks</option><option value="month">Months</option><option value="quarter">Quarters</option></select></label>
+      <button data-cmd="today">Go to today</button>
+      <span class="wp-glabel">Timescale</span>
+    </div>
+  </div>
+  <main class="wp-main">
+    <section class="wp-grid" id="wp-grid" tabindex="0" aria-label="Tasks"></section>
+    <div class="wp-split" aria-hidden="true"></div>
+    <section class="wp-chart" id="wp-chart" aria-label="Gantt chart"></section>
+  </main>
+  <footer class="wp-status" id="wp-status"></footer>
+  <input type="file" id="wp-file" accept=".wsproj,.json" hidden>
+</div>
+<script type="module" src="editor.js"></script>
+</body>
+</html>
