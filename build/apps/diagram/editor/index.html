@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WorkSuite Diagram</title>
+<link rel="stylesheet" href="editor.css">
+</head>
+<body>
+<div class="wd-app">
+  <nav class="wd-tabs">
+    <button class="wd-tab" data-tab="file">File</button>
+    <button class="wd-tab is-on" data-tab="home">Home</button>
+    <button class="wd-tab" data-tab="arrange">Arrange</button>
+    <button class="wd-tab" data-tab="view">View</button>
+    <span class="wd-title" id="wd-title"></span>
+    <span class="wd-mode" id="wd-mode" hidden>Read-only · <button type="button" id="wd-upgrade">Upgrade to Pro to edit</button></span>
+  </nav>
+  <div class="wd-ribbon" id="wd-ribbon">
+    <div class="wd-group" data-tab="file"><button data-cmd="new">New</button><button data-cmd="open">Open…</button><button data-cmd="save">Save</button><button data-cmd="exportSvg">Export SVG</button><span class="wd-glabel">File</span></div>
+    <div class="wd-group" data-tab="home">
+      <button data-tool="select" class="is-on">Pointer</button><button data-tool="connect" data-edit>Connector</button>
+      <select id="wd-route" data-edit title="Connector style"><option value="elbow">Elbow</option><option value="straight">Straight</option><option value="curved">Curved</option></select>
+      <span class="wd-glabel">Tools</span>
+    </div>
+    <div class="wd-group" data-tab="home"><button data-cmd="remove" data-edit>Delete</button><button data-cmd="duplicate" data-edit>Duplicate</button><span class="wd-glabel">Edit</span></div>
+    <div class="wd-group" data-tab="home"><button data-cmd="undo" data-edit>Undo</button><button data-cmd="redo" data-edit>Redo</button><span class="wd-glabel">History</span></div>
+    <div class="wd-group" data-tab="arrange">
+      <button data-cmd="alignLeft" data-edit>Align left</button><button data-cmd="alignCenter" data-edit>Centre</button><button data-cmd="alignTop" data-edit>Align top</button><button data-cmd="distributeH" data-edit>Distribute</button>
+      <span class="wd-glabel">Align</span>
+    </div>
+    <div class="wd-group" data-tab="arrange"><button data-cmd="group" data-edit>Group</button><button data-cmd="ungroup" data-edit>Ungroup</button><button data-cmd="front" data-edit>Front</button><button data-cmd="back" data-edit>Back</button><span class="wd-glabel">Arrange</span></div>
+    <div class="wd-group" data-tab="view">
+      <label><input type="checkbox" id="wd-grid" checked> Grid and snap</label>
+      <button data-cmd="zoomOut">−</button><span id="wd-zoomlabel">100%</span><button data-cmd="zoomIn">+</button><button data-cmd="zoomFit">Fit page</button>
+      <span class="wd-glabel">View</span>
+    </div>
+  </div>
+  <main class="wd-main">
+    <aside class="wd-lib" id="wd-lib" aria-label="Shapes"></aside>
+    <section class="wd-canvas-wrap">
+      <div class="wd-canvas" id="wd-canvas" tabindex="0" aria-label="Diagram page"></div>
+      <div class="wd-pages" id="wd-pages"></div>
+    </section>
+    <aside class="wd-props" id="wd-props" aria-label="Properties"></aside>
+  </main>
+  <footer class="wd-status" id="wd-status"></footer>
+  <input type="file" id="wd-file" accept=".wsdiagram,.json" hidden>
+</div>
+<script type="module" src="editor.js"></script>
+</body>
+</html>
