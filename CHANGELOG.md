@@ -1,5 +1,26 @@
 # Change log
 
+## 10.1.37
+
+### New features
+
+#### Licensing
+
+* WorkSuite Project and WorkSuite Diagram are licensed as decided: viewing
+  their files is free, creating and editing them is Pro. The local AI service
+  knows the two new Pro keys, project.edit and diagram.edit, ready for the
+  editors; a lapsed licence still opens every file read-only. Nothing changes
+  for users yet
+
+### Fixes
+
+#### PDF Editor
+
+* Signatures: about one in sixteen signed PDFs showed the signer's certificate
+  without its issuer, and its signature as not intact, when the signature's
+  last byte ended in a zero digit. The signature is now read to the length its
+  own header gives instead of trimming zeros
+
 ## 10.1.36
 
 ### New features

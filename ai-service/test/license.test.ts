@@ -139,15 +139,63 @@ describe("parseLicense", () => {
 });
 
 describe("default Pro feature set", () => {
-  it("ocr, pdf.sign, convert, assistant are gated out of the box; others are free", () => {
+  it("ocr, pdf.sign, convert, assistant, project.edit, diagram.edit are gated out of the box; others are free", () => {
     const { pub } = keypair();
     const { s, dir } = store({ pub }); // no extra pro list: use the built-in PRO_FEATURES
     try {
-      for (const f of ["ocr", "pdf.sign", "convert", "assistant"]) {
+      for (const f of ["ocr", "pdf.sign", "convert", "assistant", "project.edit", "diagram.edit"]) {
         expect(s.entitled(f)).toBe(false);
         expect(() => s.require(f)).toThrow(/Pro/);
       }
       for (const f of ["view", "stamp", "merge", "form-fill"]) expect(s.entitled(f)).toBe(true);
+    } finally { rmSync(dir, { recursive: true, force: true }); }
+  });
+});
+
+describe("WorkSuite Project and Diagram: viewing free, creating and editing Pro", () => {
+  const VIEW = ["project.view", "diagram.view"];
+  const EDIT = ["project.edit", "diagram.edit"];
+
+  it("without a license: view is free, edit needs Pro (built-in PRO_FEATURES)", () => {
+    const { pub } = keypair();
+    const { s, dir } = store({ pub });
+    try {
+      for (const f of VIEW) expect(s.entitled(f)).toBe(true);
+      for (const f of EDIT) {
+        expect(s.entitled(f)).toBe(false);
+        expect(() => s.require(f)).toThrow(/Pro/);
+      }
+    } finally { rmSync(dir, { recursive: true, force: true }); }
+  });
+
+  it("a Pro license unlocks editing; a license granting only Project leaves Diagram editing Pro", async () => {
+    const { seed, pub } = keypair();
+    const all = store({ pub });
+    const one = store({ pub });
+    try {
+      await all.s.activate(license(seed));
+      for (const f of EDIT) expect(all.s.entitled(f)).toBe(true);
+      await one.s.activate(license(seed, { features: ["project.edit"] }));
+      expect(one.s.entitled("project.edit")).toBe(true);
+      expect(one.s.entitled("diagram.edit")).toBe(false);
+      expect(one.s.entitled("diagram.view")).toBe(true);
+    } finally {
+      rmSync(all.dir, { recursive: true, force: true });
+      rmSync(one.dir, { recursive: true, force: true });
+    }
+  });
+
+  it("a lapsed license: files still open read-only (view free), editing is Pro again", async () => {
+    const { seed, pub } = keypair();
+    let t = Date.parse("2026-06-01T00:00:00Z");
+    const { s, dir } = store({ pub, now: () => t });
+    try {
+      await s.activate(license(seed, { expiresAt: "2026-07-01T00:00:00Z" }));
+      expect(s.entitled("project.edit")).toBe(true);
+      t = Date.parse("2026-08-01T00:00:00Z");
+      expect(s.status().active).toBe(false);
+      for (const f of VIEW) expect(s.entitled(f)).toBe(true);
+      for (const f of EDIT) expect(() => s.require(f)).toThrow(/Pro/);
     } finally { rmSync(dir, { recursive: true, force: true }); }
   });
 });
