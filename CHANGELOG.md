@@ -1,5 +1,25 @@
 # Change log
 
+## 10.1.39
+
+### New features
+
+#### WorkSuite Project
+
+* Scheduling: the Schedule tab schedules the plan from its links on a
+  working calendar (Standard, or Sri Lanka with its fixed-date public
+  holidays), honours start no earlier than, must start on and finish no later
+  than, and shows the critical path in red
+* Baselines: save the plan as it stands, then see it as grey bars under the
+  tasks and how many working days each task is late or early
+
+### Fixes
+
+#### WorkSuite Project and WorkSuite Diagram
+
+* Double-clicking a cell or a shape now edits it; before, nothing happened
+  and typing went into the task name
+
 ## 10.1.38
 
 ### New features
