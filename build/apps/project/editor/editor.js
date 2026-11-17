@@ -13,6 +13,7 @@ import { ProjectModel, newProject, parse, serialize, finishOf, APP } from "../co
 import { fromProjectXml, toProjectXml, isMpp, MPP_HELP } from "../core/projectxml.js";
 import { schedule, applySchedule, criticalPath, STANDARD, SRI_LANKA } from "../core/schedule.js";
 import { overallocations, weeklyLoad } from "../core/resources.js";
+import { behindSchedule } from "../core/progress.js";
 import { checkEdit, reasonText, openUpgrade } from "../../common/licence.js";
 import { packDocument, unpackDocument, xlsx } from "../../common/zip.js";
 import { ROW_H, visibleRows, timescale, headers, bars, linkPath, dragStart, dragDuration, parseDuration } from "./gantt.js";
@@ -40,6 +41,7 @@ const state = {
   workload: false, // the workload view in place of the Gantt chart (#86)
   note: "",
   model: new ProjectModel(newProject("Untitled project", mondayOf(new Date()))),
+  behind: [], // tasks behind at the status date: [{ id, name, expected, progress, behind, late }]
   over: [], // over-allocations: [{ name, from, to, days, tasks }]
   sel: [], // selected task ids, in the order they were picked
   collapsed: new Set(),
@@ -184,6 +186,7 @@ function renderChart(rows) {
   const bs = bars(rows, sc);
   const byId = new Map(bs.map((b) => [b.id, b]));
   const over = new Set(state.over.flatMap((o) => o.tasks));
+  const behind = new Map(state.behind.map((x) => [x.id, x]));
   const h = Math.max(rows.length * ROW_H + ROW_H * 3, $("wp-chart").clientHeight - 46);
   const selSet = new Set(state.sel);
   let critical = new Set();
@@ -209,6 +212,8 @@ function renderChart(rows) {
       const base = state.showBaseline && state.model.baseline("Baseline")?.tasks[b.id];
       if (base) svg += `<rect class="wp-base" x="${sc.x(base.start)}" y="${b.y + 23}" width="${Math.max(2, sc.x(base.finish) - sc.x(base.start) + sc.dayW)}" height="4" rx="2"/>`;
       const crit = critical.has(b.id) ? " is-crit" : "";
+      const late = behind.get(b.id);
+      if (late) svg += `<rect class="wp-behind" x="${b.x - 4}" y="${b.y + 4}" width="${b.w + 8}" height="22" rx="6"><title>${late.late ? "Late" : "Behind"}: ${late.progress}% done, ${late.expected}% expected by the status date</title></rect>`;
       if (over.has(b.id)) svg += `<rect class="wp-over" x="${b.x - 2}" y="${b.y + 6}" width="${b.w + 4}" height="18" rx="5"><title>Someone on this task has another task at the same time</title></rect>`;
       svg += `<rect class="wp-bar${crit}" x="${b.x}" y="${b.y + 8}" width="${b.w}" height="14" rx="4"/>`;
       if (b.progress) svg += `<rect class="wp-bar-done${crit}" x="${b.x}" y="${b.y + 8}" width="${(b.w * b.progress) / 100}" height="14" rx="4"/>`;
@@ -216,6 +221,10 @@ function renderChart(rows) {
       svg += `<rect class="wp-hit" data-drag="move" data-id="${b.id}" x="${b.x}" y="${b.y + 4}" width="${Math.max(0, b.w - 6)}" height="22"/><rect class="wp-grip" data-drag="size" data-id="${b.id}" x="${b.x + b.w - 6}" y="${b.y + 4}" width="10" height="22"/>`;
     }
     if (selSet.has(b.id)) svg += `<rect class="wp-sel-bar" x="${b.x - 3}" y="${b.y + 4}" width="${b.w + 6}" height="22" rx="5"/>`;
+  }
+  if (state.model.doc.statusDate) {
+    const sx = sc.x(state.model.doc.statusDate) + sc.dayW; // the end of the status date
+    if (sx >= 0 && sx <= sc.width) svg += `<line class="wp-statusline" x1="${sx}" x2="${sx}" y1="0" y2="${h}"><title>Status date</title></line>`;
   }
   const today = new Date().toISOString().slice(0, 10), tx = sc.x(today) + sc.dayW / 2;
   if (tx >= 0 && tx <= sc.width) svg += `<line class="wp-today" x1="${tx}" x2="${tx}" y1="0" y2="${h}"/>`;
@@ -239,6 +248,14 @@ function renderWorkload() {
     }).join("")}</tr>`;
   }
   $("wp-chart").innerHTML = h + "</tbody></table>";
+}
+
+function behindText() {
+  const sd = state.model.doc.statusDate;
+  if (!sd) return "";
+  if (!state.behind.length) return `<span>Status ${fmt(sd)}: on track</span>`;
+  const late = state.behind.filter((x) => x.late).length;
+  return `<span class="warn" title="${esc(state.behind.map((x) => `${x.name}: ${x.progress}% of ${x.expected}%`).join("\n"))}">Status ${fmt(sd)}: ${state.behind.length} behind${late ? `, ${late} late` : ""}</span>`;
 }
 
 function overText() {
@@ -270,6 +287,8 @@ function draw() {
   const rows = visibleRows(state.model, state.collapsed);
   renderGrid(rows);
   try { state.over = overallocations(state.model.doc, calendar().isWork); } catch { state.over = []; }
+  try { state.behind = behindSchedule(state.model.doc, state.model.doc.statusDate, calendar().isWork); } catch { state.behind = []; }
+  $("wp-status-date").value = state.model.doc.statusDate || "";
   if (state.workload) renderWorkload(); else renderChart(rows);
   $("wp-title").textContent = state.fileName.replace(/\.wsproj$/, "") + (state.model.undoStack.length !== (state.saved || 0) ? " •" : ""); // • unsaved changes
   $("wp-mode").hidden = !state.readOnly;
@@ -281,7 +300,7 @@ function draw() {
   $("wp-ribbon").querySelector('[data-cmd="redo"]').disabled ||= !state.model.redoStack.length;
   const all = state.model.tasks.map((t) => state.model.view(t.id));
   const finish = all.length ? all.reduce((m, v) => (v.finish > m ? v.finish : m), all[0].finish) : null;
-  $("wp-status").innerHTML = `<span>${state.model.tasks.length} task${state.model.tasks.length === 1 ? "" : "s"}</span>${finish ? `<span>Finish: ${fmt(finish)}</span>` : ""}<span>${state.model.doc.links.length} link${state.model.doc.links.length === 1 ? "" : "s"}</span>${overText()}${state.message ? `<span class="err" role="alert">${esc(state.message)}</span>` : state.note ? `<span>${esc(state.note)}</span>` : slipText()}`;
+  $("wp-status").innerHTML = `<span>${state.model.tasks.length} task${state.model.tasks.length === 1 ? "" : "s"}</span>${finish ? `<span>Finish: ${fmt(finish)}</span>` : ""}<span>${state.model.doc.links.length} link${state.model.doc.links.length === 1 ? "" : "s"}</span>${behindText()}${overText()}${state.message ? `<span class="err" role="alert">${esc(state.message)}</span>` : state.note ? `<span>${esc(state.note)}</span>` : slipText()}`;
 }
 
 /* ---- events ---- */
@@ -294,6 +313,7 @@ $("wp-ribbon").addEventListener("click", (e) => { const b = e.target.closest("[d
 $("wp-zoom").addEventListener("change", (e) => { state.zoom = e.target.value; render(); });
 $("wp-cal").addEventListener("change", (e) => { state.cal = e.target.value; render(); });
 $("wp-critical").addEventListener("change", (e) => { state.showCritical = e.target.checked; render(); });
+$("wp-status-date").addEventListener("change", (e) => run(() => state.model.setStatusDate(e.target.value || null)));
 $("wp-workload").addEventListener("change", (e) => { state.workload = e.target.checked; render(); });
 $("wp-baseline").addEventListener("change", (e) => { state.showBaseline = e.target.checked; render(); });
 $("wp-upgrade").addEventListener("click", () => (window.WorkSuiteProject.onUpgrade || openUpgrade)());
@@ -452,6 +472,7 @@ if (new URLSearchParams(location.search).has("sample")) {
   const it = m.addTask({ name: "IT check and go-live", start: "2026-03-12", duration: 2, owner: "Ravi" }, day);
   const open = m.addMilestone({ name: "Open for business", start: "2026-03-13" }, it);
   [[site, lease], [lease, signed], [net, sec], [sec, insp], [insp, pack], [pack, day], [day, it], [it, open]].forEach(([a, b]) => m.link(a, b));
+  m.setStatusDate("2026-02-18");
   state.model = new ProjectModel(m.doc);
   state.fileName = "Office move.wsproj";
 }

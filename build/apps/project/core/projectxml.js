@@ -84,6 +84,7 @@ export function fromProjectXml(text) {
   const name = val(top, "Name") || val(top, "Title") || "Imported project";
   const start = (val(top, "StartDate") || "").slice(0, 10) || new Date().toISOString().slice(0, 10);
   const doc = newProject(name, start);
+  if (/^\d{4}-\d{2}-\d{2}/.test(val(top, "StatusDate"))) doc.statusDate = val(top, "StatusDate").slice(0, 10);
   const tasksEl = kid(top, "Tasks");
   const taskEls = tasksEl ? kids(tasksEl, "Task") : [];
   const byUid = new Map();
@@ -121,6 +122,8 @@ export function fromProjectXml(text) {
     const owner = owners.get(uid);
     if (owner) task.owner = owner.join(", ");
     if (val(t, "Notes")) task.notes = val(t, "Notes");
+    if (val(t, "ActualStart")) task.actualStart = val(t, "ActualStart").slice(0, 10);
+    if (val(t, "ActualFinish") && task.actualStart) task.actualFinish = val(t, "ActualFinish").slice(0, 10);
     const con = CON_IN[val(t, "ConstraintType")];
     if (con && val(t, "ConstraintDate")) task.constraint = { type: con, date: val(t, "ConstraintDate").slice(0, 10) };
     byUid.set(uid, task);
@@ -164,6 +167,7 @@ export function toProjectXml(doc, isWork = null) {
       `<OutlineLevel>${t.level + 1}</OutlineLevel><Start>${v.start}T08:00:00</Start><Finish>${v.finish}T17:00:00</Finish>` +
       `<Duration>${daysDuration(v.duration)}</Duration><DurationFormat>7</DurationFormat>` +
       `<Milestone>${v.milestone ? 1 : 0}</Milestone><Summary>${v.summary ? 1 : 0}</Summary><PercentComplete>${v.progress}</PercentComplete>` +
+      (t.actualStart ? `<ActualStart>${t.actualStart}T08:00:00</ActualStart>` : "") + (t.actualFinish ? `<ActualFinish>${t.actualFinish}T17:00:00</ActualFinish>` : "") +
       `${con}${el("Notes", t.notes)}${links}</Task>`;
   }).join("\n    ");
   const resXml = resources.map((r) => `<Resource><UID>${rid.get(r)}</UID><ID>${rid.get(r)}</ID>${el("Name", r)}<Type>1</Type></Resource>`).join("\n    ");
@@ -175,7 +179,7 @@ export function toProjectXml(doc, isWork = null) {
   ${el("Name", doc.name)}
   ${el("Title", doc.name)}
   <ScheduleFromStart>1</ScheduleFromStart>
-  <StartDate>${doc.start}T08:00:00</StartDate>
+  <StartDate>${doc.start}T08:00:00</StartDate>${doc.statusDate ? `\n  <StatusDate>${doc.statusDate}T17:00:00</StatusDate>` : ""}
   <MinutesPerDay>${HOURS_PER_DAY * 60}</MinutesPerDay>
   <MinutesPerWeek>${HOURS_PER_DAY * 60 * 5}</MinutesPerWeek>
   <DaysPerMonth>20</DaysPerMonth>

@@ -1,5 +1,19 @@
 # Change log
 
+## 10.1.45
+
+### New features
+
+#### Project
+
+* Status date: Schedule › Status date marks the day progress was reported on,
+  as a dashed line in the Gantt chart. Tasks short of the progress expected by
+  then get an amber outline, and the status bar counts how many are behind and
+  late.
+* Actual dates: setting progress records when a task really started and, at
+  100%, when it finished. Actual dates and the status date are saved in Project
+  XML and read back from it.
+
 ## 10.1.44
 
 ### New features
