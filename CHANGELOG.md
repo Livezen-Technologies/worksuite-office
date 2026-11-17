@@ -1,5 +1,17 @@
 # Change log
 
+## 10.1.44
+
+### New features
+
+#### Project
+
+* Workload: View › Workload shows each person's task-days per week, from the
+  names in the Owner column (separate several with commas). A week where
+  someone has two tasks on the same day is marked red.
+* Over-allocation warnings: the Gantt chart outlines the tasks that clash for
+  someone, and the status bar names who is over-allocated.
+
 ## 10.1.43
 
 ### Fixes
