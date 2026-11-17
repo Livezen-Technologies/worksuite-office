@@ -65,3 +65,11 @@ test("Upgrade opens the same page as the PDF Editor's upsell", () => {
   assert.deepEqual(win.opened, [[UPGRADE_URL, "_blank"]]);
   assert.equal(UPGRADE_URL, "https://worksuitecloud.com/pro");
 });
+
+test("inside an editor plugin: the shell answers in the editor frame (the plugin's parent)", async () => {
+  const editor = fakeWindow({ answer: { ok: true, port: 41235, token: "t2" }, license: { plan: "pro", active: true, features: ["*"], proFeatures: PRO } });
+  const plugin = { XMLHttpRequest: editor.XMLHttpRequest, open: () => {} }; // a plugin frame: no shell of its own
+  assert.deepEqual(await checkEdit("diagram.edit", plugin, editor), { edit: true, reason: "pro" });
+  assert.equal(editor.request.url, "http://127.0.0.1:41235/v1/license");
+  assert.equal(editor.on_native_message, null);
+});

@@ -95,3 +95,6 @@ body { font: 13px/1.35 Inter, system-ui, -apple-system, "Segoe UI", sans-serif; 
   .sel-box, .handle, .cpoint, .guide, .marquee, .ghost { display: none; }
   * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
+
+/* inside the WorkSuite Diagram plugin: the document saves the diagram, so no File tab or title */
+.is-embedded .wd-tab[data-tab="file"], .is-embedded .wd-title { display: none; }
