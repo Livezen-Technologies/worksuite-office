@@ -3,9 +3,19 @@
  * shape outlines, the shape libraries, grid snapping, alignment guides, connector routes and resizing.
  */
 
-/** An SVG path for a shape type in its own box (0,0)-(w,h). Unknown types draw as a rectangle. */
-export function shapePath(type, w, h) {
+/** A stored outline (M, L, Z in the shape's 0..1 box, from a Visio drawing) scaled to w×h. */
+export function scalePath(d, w, h) {
   const r = (n) => Math.round(n * 100) / 100;
+  return String(d).replace(/([ML])\s*(-?[\d.]+)\s+(-?[\d.]+)/g, (_, c, x, y) => `${c}${r(Number(x) * w)} ${r(Number(y) * h)}`);
+}
+
+/**
+ * An SVG path for a shape type in its own box (0,0)-(w,h). Unknown types draw as a rectangle; "path" shapes
+ * (outlines read from Visio) draw their own outline, `path`, scaled to the box.
+ */
+export function shapePath(type, w, h, path = null) {
+  const r = (n) => Math.round(n * 100) / 100;
+  if (type === "path" && path) return scalePath(path, w, h);
   switch (type) {
     case "ellipse": return `M${r(w / 2)} 0 A${r(w / 2)} ${r(h / 2)} 0 1 1 ${r(w / 2)} ${r(h)} A${r(w / 2)} ${r(h / 2)} 0 1 1 ${r(w / 2)} 0 Z`;
     case "diamond": return `M${r(w / 2)} 0 L${r(w)} ${r(h / 2)} L${r(w / 2)} ${r(h)} L0 ${r(h / 2)} Z`;

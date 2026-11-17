@@ -4,7 +4,8 @@
  *
  * zip() writes stored (uncompressed) entries with a fixed timestamp, so the same content always gives the same
  * bytes. unzip() reads stored entries, ours and other tools' "store" archives; a compressed entry is refused
- * with a clear message rather than misread.
+ * with a clear message rather than misread. unzipAsync() also reads deflated entries (Visio's .vsdx, Office
+ * files), through the platform's DecompressionStream.
  *
  * A .wsproj / .wsdiagram file is a zip whose first entry is "mimetype" (stored, as ODF does), then
  * "document.json" (the canonical JSON of the document) and "meta.json" ({ app, v, savedBy }).
@@ -76,6 +77,36 @@ export function unzip(input) {
     const start = local + 30 + v.getUint16(local + 26, true) + v.getUint16(local + 28, true);
     const data = b.subarray(start, start + size);
     if (crc32(data) !== crc) throw new Error(`${name} is damaged`);
+    out[name] = data;
+    p += 46 + nameLen + extraLen + commentLen;
+  }
+  return out;
+}
+
+/** Like unzip(), and also inflates deflated entries (method 8), checking every CRC. */
+export async function unzipAsync(input) {
+  const b = bytesOf(input), v = new DataView(b.buffer, b.byteOffset, b.byteLength);
+  let eocd = -1;
+  for (let i = b.length - 22; i >= Math.max(0, b.length - 22 - 65535); i--) if (v.getUint32(i, true) === 0x06054b50) { eocd = i; break; }
+  if (eocd < 0) throw new Error("not a zip file");
+  const count = v.getUint16(eocd + 10, true);
+  let p = v.getUint32(eocd + 16, true);
+  const out = {};
+  for (let n = 0; n < count; n++) {
+    if (v.getUint32(p, true) !== 0x02014b50) throw new Error("damaged zip file");
+    const method = v.getUint16(p + 10, true), crc = v.getUint32(p + 16, true), csize = v.getUint32(p + 20, true), size = v.getUint32(p + 24, true);
+    const nameLen = v.getUint16(p + 28, true), extraLen = v.getUint16(p + 30, true), commentLen = v.getUint16(p + 32, true);
+    const local = v.getUint32(p + 42, true), name = dec.decode(b.subarray(p + 46, p + 46 + nameLen));
+    const start = local + 30 + v.getUint16(local + 26, true) + v.getUint16(local + 28, true);
+    const raw = b.subarray(start, start + csize);
+    let data;
+    if (method === 0) data = raw;
+    else if (method === 8) {
+      if (typeof DecompressionStream !== "function") throw new Error("this system cannot read compressed files");
+      const stream = new Blob([raw]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
+      data = new Uint8Array(await new Response(stream).arrayBuffer());
+    } else throw new Error(`${name} uses a compression this version cannot read`);
+    if (data.length !== size || crc32(data) !== crc) throw new Error(`${name} is damaged`);
     out[name] = data;
     p += 46 + nameLen + extraLen + commentLen;
   }

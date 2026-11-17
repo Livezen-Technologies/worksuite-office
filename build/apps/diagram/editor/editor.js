@@ -13,6 +13,7 @@
 import { DiagramModel, newDiagram, parse, serialize, connectionPoints, pointOn, APP } from "../core/diagram.js";
 import { checkEdit, reasonText, openUpgrade } from "../../common/licence.js";
 import { packDocument, unpackDocument } from "../../common/zip.js";
+import { fromVsdx, toVsdx } from "../core/vsdx.js";
 import { shapePath, LIBRARIES, libraryShape, snap, alignGuides, route, midpoint, resizeBox } from "./geometry.js";
 
 const $ = (id) => document.getElementById(id);
@@ -58,6 +59,15 @@ const commands = {
   open: () => $("wd-file").click(),
   save: () => { download(state.fileName, packDocument(APP, serialize(state.model.doc)), "application/zip"); state.saved = state.model.undoStack.length; render(); },
   exportPng: () => exportPng(),
+  exportVsdx: () => run(() => {
+    const routeOf = (c, pg) => {
+      const e = state.model.endpoints(c.id, pg.id);
+      return route(c.route, e.from, e.to, sideOf(c.from), sideOf(c.to));
+    };
+    // the colours each shape is drawn with: its own, else its type's default, as on the canvas
+    const styleOf = (sh) => ({ fill: FILLS[sh.type] || "#dbeafe", line: LINES[sh.type] || "#2563eb" });
+    download(state.fileName.replace(/\.wsdiagram$/, "") + ".vsdx", toVsdx(state.model.doc, (sh) => shapePath(sh.type, sh.w, sh.h, sh.path), routeOf, styleOf), "application/vnd.ms-visio.drawing");
+  }),
   print: () => window.print(),
   exportSvg: () => download(state.fileName.replace(/\.wsdiagram$/, "") + ` - ${page().name}.svg`, pageSvg(false), "image/svg+xml"),
   remove: () => run(() => { if (state.sel.length) state.model.remove(state.sel, state.pageId); state.sel = []; }),
@@ -131,7 +141,7 @@ function shapeSvg(s) {
   const fill = s.style?.fill || FILLS[s.type] || "#dbeafe", line = s.style?.line || LINES[s.type] || "#2563eb";
   const lw = s.style?.lineWidth ?? 1.5;
   const tf = `translate(${s.x} ${s.y})${s.rotate ? ` rotate(${s.rotate} ${s.w / 2} ${s.h / 2})` : ""}`;
-  return `<g data-id="${s.id}" transform="${tf}"><path class="shape-body" d="${shapePath(s.type, s.w, s.h)}" fill="${fill}" stroke="${line}" stroke-width="${lw}"/>` +
+  return `<g data-id="${s.id}" transform="${tf}"><path class="shape-body" d="${shapePath(s.type, s.w, s.h, s.path)}" fill="${fill}" stroke="${line}" stroke-width="${lw}"/>` +
     `<text class="shape-text" text-anchor="middle" style="font-size:${s.style?.fontSize || 13}px">${textLines(s.text, 0, s.w / 2, s.h / 2, s.style?.fontSize || 13)}</text></g>`;
 }
 function connectorSvg(c, interactive) {
@@ -443,9 +453,25 @@ $("wd-props").addEventListener("click", (e) => {
 $("wd-file").addEventListener("change", async (e) => {
   const f = e.target.files[0];
   if (!f) return;
-  try { load(new Uint8Array(await f.arrayBuffer()), f.name); } catch (err) { state.message = "Could not open " + f.name + ": " + err.message; render(); }
+  try {
+    const bytes = new Uint8Array(await f.arrayBuffer());
+    if (/\.vsdx$/i.test(f.name)) await openVsdx(bytes, f.name);
+    else load(bytes, f.name);
+  } catch (err) { state.message = "Could not open " + f.name + ": " + err.message; render(); }
   e.target.value = "";
 });
+
+/** Opens a Visio drawing (#85) as a new WorkSuite diagram, listing what could not come across. */
+async function openVsdx(bytes, name) {
+  const { doc, problems } = await fromVsdx(bytes);
+  state.model = new DiagramModel(doc);
+  state.pageId = state.model.doc.pages[0].id;
+  state.fileName = name.replace(/\.vsdx$/i, "") + ".wsdiagram";
+  state.saved = -1; // not saved as .wsdiagram yet
+  state.sel = [];
+  state.message = problems.length ? `Opened ${name}: ${problems.join("; ")}` : "";
+  render();
+}
 
 /** Opens a diagram: the bytes of a .wsdiagram file (or its JSON text). */
 function load(input, name = "Diagram.wsdiagram") {
@@ -460,6 +486,7 @@ function load(input, name = "Diagram.wsdiagram") {
 /* the shell's handle (#72): load a file, read it back, free viewing without Pro (#73) */
 window.WorkSuiteDiagram = {
   load,
+  openVsdx,
   text: () => serialize(state.model.doc),
   bytes: () => packDocument(APP, serialize(state.model.doc)),
   svg: () => pageSvg(false),

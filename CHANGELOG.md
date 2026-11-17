@@ -1,5 +1,17 @@
 # Change log
 
+## 10.1.41
+
+### New features
+
+#### WorkSuite Diagram
+
+* Visio drawings: open .vsdx files to edit them, and export diagrams as
+  .vsdx. Pages, shapes with their outlines (including shapes defined in
+  masters), text, colours, line widths and rotation, and connectors glued to
+  their shapes come across; what a WorkSuite diagram cannot hold yet
+  (pictures, shape data, background pages) is listed when the file opens
+
 ## 10.1.40
 
 ### New features
