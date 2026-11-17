@@ -156,6 +156,7 @@ API version 1, base `http://127.0.0.1:{port}/v1`, JSON over HTTP plus one WebSoc
 - `POST /v1/text/check` `{text, lang, kinds:["spelling","grammar","punctuation"]}` → `{lang, issues:[{start, end, kind, message, replacements:[string], confidence}]}`
 - `POST /v1/text/transform` `{text, lang, op:"improve|rewrite|simplify|formal|professional|expand|shorten|summarize|explain|tone", tone?, targetLength?, context?}` → `{result, edits:[{start, end, replacement, reason}], model, allowCloud:false}` (edits are a diff of `text` → `result`; `summarize` and `explain` return `result` only)
 - `POST /v1/text/detect-language` `{text}` → `{spans:[{start, end, lang, confidence}]}`
+- `POST /v1/apps/draft` `{kind:"plan|org|flow", prompt, lang?:"en|si|ta"}` → `{kind, text, model}`: a WorkSuite Project outline (`plan`) or a WorkSuite Diagram table (`org`, `flow`) from a description, written by the assistant model and cleaned (fences, chatter and markdown removed; tables tab-separated with their header); needs `project.edit` or `diagram.edit`, capability `apps.draft`
 
 ### Sinhala engine
 

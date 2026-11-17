@@ -69,3 +69,26 @@ Fit-out
   assert.equal(m.task("t6").start, "2026-02-11"); // after 4 + 3 working days from Mon 2 Feb; the milestone takes none
   assert.throws(() => outlineToDoc("   \n"), /one task per line/);
 });
+
+function shellWindow(status, body) {
+  const win = { on_native_message: null };
+  win.AscDesktopEditor = { execCommand(cmd, param) { const { req } = JSON.parse(param); setTimeout(() => win.on_native_message("ws-ai:endpoint", JSON.stringify({ req, ok: true, port: 41234, token: "tok" })), 1); } };
+  win.XMLHttpRequest = class {
+    open(method, url) { this.method = method; this.url = url; this.headers = {}; }
+    setRequestHeader(k, v) { this.headers[k] = v; }
+    send(b) { win.request = this; this.body = JSON.parse(b); setTimeout(() => { this.status = status; this.responseText = JSON.stringify(body); this.onload(); }, 1); }
+  };
+  return win;
+}
+
+test("AI drafts: asks worksuite-ai, and says plainly when it cannot", async () => {
+  const { aiDraft } = await import("../apps/common/aidraft.js");
+  const ok = shellWindow(200, { kind: "plan", text: "Planning\n  Site 3d\n", model: "m" });
+  assert.equal(await aiDraft("plan", "an office move", ok), "Planning\n  Site 3d\n");
+  assert.equal(ok.request.method, "POST");
+  assert.equal(ok.request.url, "http://127.0.0.1:41234/v1/apps/draft");
+  assert.equal(ok.request.headers.Authorization, "Bearer tok");
+  assert.deepEqual(ok.request.body, { kind: "plan", prompt: "an office move" });
+  await assert.rejects(aiDraft("org", "x", shellWindow(409, { error: { code: "model_not_installed", message: "m" } })), /install the assistant model/);
+  await assert.rejects(aiDraft("flow", "x", {}), /desktop app/);
+});

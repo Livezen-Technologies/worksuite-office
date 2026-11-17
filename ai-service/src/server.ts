@@ -1,4 +1,6 @@
 // worksuite-ai: the HTTP + WebSocket server of API v1 (docs/local-ai/spec.md, "Local service API contracts").
+import { cleanDraft, draftMessages, DRAFT_KINDS } from "./apps/draft";
+import { llamaChat } from "./engines/clients";
 import { createServer, IncomingMessage, Server, ServerResponse } from "node:http";
 import { randomBytes } from "node:crypto";
 import { closeSync, createReadStream, existsSync, mkdirSync, openSync, readSync, rmSync, statSync, writeFileSync } from "node:fs";
@@ -269,7 +271,7 @@ export class Service {
     const voicesNow = p.tts ? voices(this.models) : [];
     if (voicesNow.length) caps.push("tts");
     if (voicesNow.some((v) => v.lang === "si")) caps.push("tts.si");
-    if (p.assistant && this.models.tryResolve("assistant")) caps.push("assistant");
+    if (p.assistant && this.models.tryResolve("assistant")) caps.push("assistant", "apps.draft");
     caps.push("sinhala", "pdf");
     return caps;
   }
@@ -598,6 +600,21 @@ export class Service {
         .map((m) => ({ id: m.manifest.id, object: "model", created: Math.floor(new Date(m.installedAt).getTime() / 1000), owned_by: "worksuite-local", name: m.manifest.name || m.manifest.id })),
     }));
     r.post("/v1/openai/chat/completions", (c) => { this.license.require("assistant"); return this.chat(c); });
+    // WorkSuite Project and Diagram drafts (#88): an outline or a table the editors turn into a plan or a diagram
+    r.post("/v1/apps/draft", async (c) => {
+      const b = await c.body();
+      const kind = oneOf(b.kind, "kind", DRAFT_KINDS);
+      this.license.require(kind === "plan" ? "project.edit" : "diagram.edit");
+      this.feature("assistant");
+      const prompt = text(b.prompt, "prompt");
+      if (!prompt.trim()) throw new ApiError("bad_request", '"prompt" is empty');
+      const lang = b.lang === undefined ? undefined : oneOf(b.lang, "lang", ["en", "si", "ta"] as const);
+      const langName = lang ? ({ en: "English", si: "Sinhala", ta: "Tamil" } as const)[lang] : undefined;
+      return this.runtime.withModel("assistant", null, Priority.Interactive, async (l, m) => {
+        const reply = await llamaChat(l.baseUrl, draftMessages(kind, prompt, langName), { temperature: 0.4, max_tokens: 1500, signal: c.signal });
+        return { kind, text: cleanDraft(kind, reply), model: m.manifest.id };
+      }, c.signal);
+    });
 
     // policy, privacy, diagnostics
     r.get("/v1/policy", async (c) => { if (c.query.get("refresh") === "1") await this.reloadPolicy(); return this.policy; });

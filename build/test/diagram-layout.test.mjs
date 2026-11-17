@@ -55,3 +55,12 @@ test("the layout stays on the page, and the page grows when it must", () => {
   assert.equal(L.page.width, page().width);
   assert.ok(ids.length);
 });
+
+test("a line that skips a layer goes round the side instead of through the shapes between", () => {
+  const { ids, page } = chart([[0, 1], [1, 2], [0, 2]], 3); // 0 → 1 → 2, and 0 → 2 directly
+  const { connectors } = autoLayout(page(), { direction: "right" });
+  const skip = connectors.find((c) => c.from === "top");
+  assert.ok(skip, "the long line is re-glued to the top");
+  assert.equal(connectors.filter((c) => c.from === "right").length, 2);
+  assert.ok(ids.length === 3);
+});

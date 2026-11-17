@@ -12,6 +12,9 @@ function answer(messages) {
     return JSON.stringify({ edits: i < 0 ? [] : [{ start: i + 3, end: i + 7, original: "dont", replacement: "don't", kind: "grammar", message: "apostrophe" },
       { start: 0, end: 2, original: "zz", replacement: "x", kind: "grammar", message: "not in text" }] });
   }
+  if (/project plan outlines/.test(sys)) return "Here is your plan:\n```\nPlanning\n  - Choose site 3d @Nimal\n  **Sign lease** 2d\n  Lease signed milestone\nMove\n  Moving day 1w\n```";
+  if (/organisation charts/.test(sys)) return "| Name | Role | Reports to |\n|---|---|---|\n| Director | Director | |\n| Finance | Finance lead | Director |";
+  if (/flowcharts as tables/.test(sys)) return "Start, Approved?, \nApproved?, Done, Yes\nSome prose without columns";
   if (/^Translate/.test(sys)) return "translated: " + user;
   if (/continue the user's text/.test(sys)) return " and more";
   if (/Identify the language/.test(sys)) return '{"lang":"de","confidence":0.8}';

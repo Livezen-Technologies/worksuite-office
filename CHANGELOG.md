@@ -1,5 +1,30 @@
 # Change log
 
+## 10.1.50
+
+### New features
+
+#### Project and Diagram
+
+* Draft with AI: describe a project, a process or a team, and the local AI
+  writes a first draft (a plan outline, or a table for a flowchart or org
+  chart). The draft opens in the outline or table window to check and change
+  before it becomes a plan or a diagram. It runs on this computer; nothing is
+  sent anywhere.
+
+#### Local AI service
+
+* POST /v1/apps/draft writes WorkSuite Project outlines and WorkSuite Diagram
+  tables from a description, cleaned of markdown and chatter; capability
+  apps.draft.
+
+### Fixes
+
+#### Diagram
+
+* Auto-layout: a line that skips a step now goes round the side instead of
+  through the shapes in between, with room on the page for its label.
+
 ## 10.1.49
 
 ### New features

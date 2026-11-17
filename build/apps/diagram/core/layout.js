@@ -4,12 +4,13 @@
  * The graph is the page's shapes and the connectors glued between them. A forest (no shape with two parents)
  * is laid out as a tree: each parent centred over its children. Anything else is laid out in layers: each shape
  * one layer below its furthest predecessor, the shapes in a layer ordered to cross fewer lines (barycentre
- * sweeps), loops broken where they close; a loop's closing line goes round the side. Shapes without lines go in
+ * sweeps), loops broken where they close; a loop's closing line, and a line that skips a layer, go round the side. Shapes without lines go in
  * the first layer. The result stays on the page, 20 points in from its edges; the page grows if it must.
  */
 
 export const GAP = { along: 40, across: 60 }; // between shapes in a layer, and between layers
 export const MARGIN = 20;
+const ROUND_ROOM = 30; // extra room on the side lines go round
 
 /**
  * New positions for the shapes: Map id → { x, y }, plus the connector ends to re-glue
@@ -114,16 +115,20 @@ export function autoLayout(page, options = {}) {
 
   const [fromSide, toSide, aside] = dir === "down" ? ["bottom", "top", "left"] : ["right", "left", "top"];
   const connectors = conns.map((c) => {
-    const back = depth.get(c.to.shape) <= depth.get(c.from.shape); // a loop's closing line, or within a layer
-    return back ? { id: c.id, from: aside, to: aside, route: "elbow" } : { id: c.id, from: fromSide, to: toSide };
+    const span = depth.get(c.to.shape) - depth.get(c.from.shape);
+    // a loop's closing line, a line within a layer, or one that skips a layer (it would cross the shapes between): round the side
+    return span !== 1 ? { id: c.id, from: aside, to: aside, route: "elbow" } : { id: c.id, from: fromSide, to: toSide };
   });
 
   // keep it on the page: in from the edges, and the page grows when the layout is bigger than it
   const box = [...positions].map(([id, p]) => ({ ...p, w: byId.get(id).w, h: byId.get(id).h }));
   const minX = Math.min(...box.map((b) => b.x)), minY = Math.min(...box.map((b) => b.y));
   const w = Math.max(...box.map((b) => b.x + b.w)) - minX, h = Math.max(...box.map((b) => b.y + b.h)) - minY;
-  const page2 = { width: Math.max(page.width, Math.ceil(w + 2 * MARGIN)), height: Math.max(page.height, Math.ceil(h + 2 * MARGIN)) };
-  const sx = clamp(minX, MARGIN, page2.width - MARGIN - w) - minX, sy = clamp(minY, MARGIN, page2.height - MARGIN - h) - minY;
+  // lines that go round the side need room there for the detour and its label
+  const detour = connectors.some((c) => c.route) ? ROUND_ROOM : 0;
+  const mx = MARGIN + (aside === "left" ? detour : 0), my = MARGIN + (aside === "top" ? detour : 0);
+  const page2 = { width: Math.max(page.width, Math.ceil(w + mx + MARGIN)), height: Math.max(page.height, Math.ceil(h + my + MARGIN)) };
+  const sx = clamp(minX, mx, page2.width - MARGIN - w) - minX, sy = clamp(minY, my, page2.height - MARGIN - h) - minY;
   for (const p of positions.values()) { p.x = round(p.x + sx); p.y = round(p.y + sy); }
   return { positions, connectors, page: page2 };
 }
