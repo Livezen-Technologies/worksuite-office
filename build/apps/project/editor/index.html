@@ -11,55 +11,87 @@
   <nav class="wp-tabs" role="tablist">
     <button class="wp-tab" data-tab="file">File</button>
     <button class="wp-tab is-on" data-tab="task">Task</button>
-    <button class="wp-tab" data-tab="schedule">Schedule</button>
+    <button class="wp-tab" data-tab="resource">Resource</button>
+    <button class="wp-tab" data-tab="project">Project</button>
     <button class="wp-tab" data-tab="view">View</button>
     <span class="wp-title" id="wp-title"></span>
     <span class="wp-mode" id="wp-mode" role="status" hidden><span id="wp-mode-text">Read-only</span> · <button type="button" id="wp-upgrade">Upgrade to Pro</button><button type="button" id="wp-retry" hidden>Try again</button></span>
   </nav>
   <div class="wp-ribbon" id="wp-ribbon">
-    <div class="wp-group" data-tab="file">
-      <button data-cmd="new">New</button><button data-cmd="open">Open…</button><button data-cmd="fromOutline" data-edit>From outline…</button><button data-cmd="aiPlan" data-edit>Draft with AI…</button><button data-cmd="save">Save</button><button data-cmd="exportXml">Export Project XML</button><button data-cmd="exportXlsx">Export XLSX</button><button data-cmd="exportCsv">Export CSV</button><button data-cmd="print">Print / PDF</button>
-      <span class="wp-glabel">File</span>
+    <div class="wp-group rb-group" data-tab="file">
+      <button class="big" data-icon="new" data-cmd="new">New</button><button class="big" data-icon="open" data-cmd="open">Open</button><button class="big" data-icon="save" data-cmd="save">Save</button>
+      <span class="rb-glabel">File</span>
     </div>
-    <div class="wp-group" data-tab="task">
-      <button data-cmd="addTask" data-edit>New task</button><button data-cmd="addMilestone" data-edit>Milestone</button><button data-cmd="remove" data-edit>Delete</button>
-      <span class="wp-glabel">Insert</span>
+    <div class="wp-group rb-group" data-tab="file">
+      <button class="big" data-icon="outline" data-cmd="fromOutline" data-edit>From outline</button><button class="big" data-icon="ai" data-cmd="aiPlan" data-edit>Draft with AI</button>
+      <span class="rb-glabel">Start a plan</span>
     </div>
-    <div class="wp-group" data-tab="task">
-      <button data-cmd="outdent" data-edit>Outdent</button><button data-cmd="indent" data-edit>Indent</button><button data-cmd="link" data-edit>Link</button><button data-cmd="unlink" data-edit>Unlink</button>
-      <span class="wp-glabel">Structure</span>
+    <div class="wp-group rb-group" data-tab="file">
+      <div class="rb-stack"><button data-icon="export" data-cmd="exportXml">Project XML</button><button data-icon="table" data-cmd="exportXlsx">Excel (XLSX)</button><button data-icon="export" data-cmd="exportCsv">CSV</button></div>
+      <button class="big" data-icon="print" data-cmd="print">Print / PDF</button>
+      <span class="rb-glabel">Export and print</span>
     </div>
-    <div class="wp-group" data-tab="task">
-      <button data-cmd="p0" data-edit>0%</button><button data-cmd="p50" data-edit>50%</button><button data-cmd="p100" data-edit>100%</button>
-      <span class="wp-glabel">Progress</span>
+    <div class="wp-group rb-group" data-tab="task">
+      <button class="big" data-icon="gantt" data-cmd="viewGantt">Gantt Chart</button>
+      <span class="rb-glabel">View</span>
     </div>
-    <div class="wp-group" data-tab="task">
-      <button data-cmd="undo" data-edit>Undo</button><button data-cmd="redo" data-edit>Redo</button>
-      <span class="wp-glabel">History</span>
+    <div class="wp-group rb-group" data-tab="task">
+      <div class="rb-stack"><button data-icon="undo" data-cmd="undo" data-edit>Undo</button><button data-icon="redo" data-cmd="redo" data-edit>Redo</button></div>
+      <span class="rb-glabel">History</span>
     </div>
-    <div class="wp-group" data-tab="schedule">
-      <label>Calendar <select id="wp-cal"><option value="standard">Standard (Mon–Fri)</option><option value="lk">Sri Lanka (Mon–Fri, public holidays)</option></select></label>
-      <button data-cmd="autoSchedule" data-edit>Schedule now</button>
-      <label><input type="checkbox" id="wp-critical"> Critical path</label>
-      <span class="wp-glabel">Scheduling</span>
+    <div class="wp-group rb-group" data-tab="task">
+      <div class="rb-stack"><button data-icon="p0" data-cmd="p0" data-edit>0% complete</button><button data-icon="p50" data-cmd="p50" data-edit>50% complete</button><button data-icon="p100" data-cmd="p100" data-edit>100% complete</button>
+      <button data-icon="outdent" data-cmd="outdent" data-edit>Outdent</button><button data-icon="indent" data-cmd="indent" data-edit>Indent</button></div>
+      <div class="rb-stack"><button data-icon="link" data-cmd="link" data-edit>Link tasks</button><button data-icon="unlink" data-cmd="unlink" data-edit>Unlink tasks</button></div>
+      <span class="rb-glabel">Schedule</span>
     </div>
-    <div class="wp-group" data-tab="schedule">
-      <button data-cmd="saveBaseline" data-edit>Save baseline</button>
-      <label><input type="checkbox" id="wp-baseline"> Show baseline</label>
-      <span class="wp-glabel">Baseline</span>
+    <div class="wp-group rb-group" data-tab="task">
+      <button class="big" data-icon="schedule" data-cmd="autoSchedule" data-edit>Auto Schedule</button>
+      <span class="rb-glabel">Tasks</span>
     </div>
-    <div class="wp-group" data-tab="schedule">
-      <label>Status date <input type="date" id="wp-status-date" data-edit></label>
-      <span class="wp-glabel">Progress</span>
+    <div class="wp-group rb-group" data-tab="task">
+      <button class="big" data-icon="task" data-cmd="addTask" data-edit>Task</button><button class="big" data-icon="milestone" data-cmd="addMilestone" data-edit>Milestone</button>
+      <div class="rb-stack"><button data-icon="remove" data-cmd="remove" data-edit>Delete</button></div>
+      <span class="rb-glabel">Insert</span>
     </div>
-    <div class="wp-group" data-tab="view">
-      <label>Zoom <select id="wp-zoom"><option value="day">Days</option><option value="week" selected>Weeks</option><option value="month">Months</option><option value="quarter">Quarters</option></select></label>
-      <button data-cmd="today">Go to today</button>
-      <span class="wp-glabel">Timescale</span>
+    <div class="wp-group rb-group" data-tab="task">
+      <button class="big" data-icon="today" data-cmd="today">Scroll to Today</button>
+      <span class="rb-glabel">Editing</span>
     </div>
-    <div class="wp-group" data-tab="view">
-      <label><input type="checkbox" id="wp-workload"> Workload</label>
-      <span class="wp-glabel">Resources</span>
+    <div class="wp-group rb-group" data-tab="resource">
+      <button class="big" data-icon="workload" data-cmd="viewWorkload">Workload</button><button class="big" data-icon="gantt" data-cmd="viewGantt">Gantt Chart</button>
+      <span class="rb-glabel">View</span>
+    </div>
+    <div class="wp-group rb-group" data-tab="resource">
+      <div class="rb-stack"><span class="rb-field" id="wp-team-hint">Assign people in the Owner column</span><span class="rb-field">“Priya 50%” is half time</span></div>
+      <span class="rb-glabel">Assignments</span>
+    </div>
+    <div class="wp-group rb-group" data-tab="project">
+      <div class="rb-stack"><label class="rb-field">Calendar <select id="wp-cal"><option value="standard">Standard (Mon–Fri)</option><option value="lk">Sri Lanka (public holidays)</option></select></label></div>
+      <span class="rb-glabel">Properties</span>
+    </div>
+    <div class="wp-group rb-group" data-tab="project">
+      <button class="big" data-icon="schedule" data-cmd="autoSchedule" data-edit>Schedule Now</button>
+      <div class="rb-stack"><label class="rb-field"><input type="checkbox" id="wp-critical"> Critical path</label></div>
+      <span class="rb-glabel">Schedule</span>
+    </div>
+    <div class="wp-group rb-group" data-tab="project">
+      <button class="big" data-icon="baseline" data-cmd="saveBaseline" data-edit>Set Baseline</button>
+      <div class="rb-stack"><label class="rb-field"><input type="checkbox" id="wp-baseline"> Show baseline</label></div>
+      <span class="rb-glabel">Baseline</span>
+    </div>
+    <div class="wp-group rb-group" data-tab="project">
+      <div class="rb-stack"><label class="rb-field">Status date <input type="date" id="wp-status-date" data-edit></label></div>
+      <span class="rb-glabel">Status</span>
+    </div>
+    <div class="wp-group rb-group" data-tab="view">
+      <button class="big" data-icon="gantt" data-cmd="viewGantt">Gantt Chart</button><button class="big" data-icon="workload" data-cmd="viewWorkload">Workload</button>
+      <span class="rb-glabel">Views</span>
+    </div>
+    <div class="wp-group rb-group" data-tab="view">
+      <div class="rb-stack"><label class="rb-field">Timescale <select id="wp-zoom"><option value="day">Days</option><option value="week" selected>Weeks</option><option value="month">Months</option><option value="quarter">Quarters</option></select></label></div>
+      <button class="big" data-icon="today" data-cmd="today">Today</button>
+      <span class="rb-glabel">Zoom</span>
     </div>
   </div>
   <main class="wp-main">

@@ -27,16 +27,7 @@ body { font: 13px/1.35 Inter, system-ui, -apple-system, "Segoe UI", sans-serif; 
 .wd-mode { margin-inline-start: 12px; color: var(--ink2); font-size: 12px; }
 .wd-mode button + button { margin-inline-start: 8px; }
 .wd-mode button { border: 0; background: none; color: var(--brand); font: inherit; cursor: pointer; padding: 0; text-decoration: underline; }
-.wd-ribbon { display: flex; gap: 4px; padding: 6px 10px; background: var(--card); border-bottom: 1px solid var(--line); flex-wrap: wrap; min-height: 58px; }
-.wd-group { display: none; align-items: flex-start; gap: 2px; padding: 0 10px 14px; border-inline-end: 1px solid var(--line); position: relative; }
-.wd-group.is-on { display: flex; }
-.wd-group button, .wd-group select { font: inherit; color: var(--ink); background: none; border: 1px solid transparent; border-radius: 6px; padding: 5px 9px; cursor: pointer; }
-.wd-group button:hover:not(:disabled) { background: var(--hover); border-color: var(--line); }
-.wd-group button.is-on { background: var(--brand-soft); color: var(--brand); }
-.wd-group button:disabled, .wd-group select:disabled { color: var(--ink3); cursor: default; opacity: .6; }
-.wd-group select { border-color: var(--line); background: var(--card); }
-.wd-group label, #wd-zoomlabel { color: var(--ink2); display: flex; align-items: center; gap: 6px; padding: 5px 4px; }
-.wd-glabel { position: absolute; bottom: 0; left: 0; right: 0; text-align: center; font-size: 10.5px; color: var(--ink3); }
+.wd-ribbon { display: flex; gap: 0; padding: 4px 6px 2px; background: var(--card); border-bottom: 1px solid var(--line); flex-wrap: wrap; min-height: 92px; }
 
 .wd-main { flex: 1; display: flex; min-height: 0; }
 .wd-lib { width: 220px; flex: none; background: var(--card); border-inline-end: 1px solid var(--line); overflow: auto; padding: 8px 10px; }

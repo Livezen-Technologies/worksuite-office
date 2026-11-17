@@ -13,6 +13,7 @@
 import { autoLayout, applyLayout } from "../core/layout.js";
 import { parseTable, readTable, addTable } from "../core/fromtable.js";
 import { askText } from "../../common/dialog.js";
+import { decorateRibbon, ribbonStyles } from "../../common/ribbon.js";
 import { aiDraft } from "../../common/aidraft.js";
 import { DiagramModel, newDiagram, parse, serialize, connectionPoints, pointOn, APP } from "../core/diagram.js";
 import { checkEdit, reasonText, openUpgrade } from "../../common/licence.js";
@@ -596,5 +597,7 @@ const embedded = new URLSearchParams(location.search).has("embedded"); // inside
 if (embedded) document.documentElement.classList.add("is-embedded");
 if (new URLSearchParams(location.search).has("readonly")) state.readOnly = true;
 else if (!embedded) applyLicence(); // embedded: the plugin checks the licence and calls setReadOnly
+ribbonStyles();
+decorateRibbon($("wd-ribbon"));
 showTab("home");
 render();
