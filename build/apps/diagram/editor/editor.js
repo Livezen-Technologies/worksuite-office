@@ -13,6 +13,7 @@
 import { autoLayout, applyLayout } from "../core/layout.js";
 import { parseTable, readTable, addTable } from "../core/fromtable.js";
 import { askText } from "../../common/dialog.js";
+import { aiDraft } from "../../common/aidraft.js";
 import { DiagramModel, newDiagram, parse, serialize, connectionPoints, pointOn, APP } from "../core/diagram.js";
 import { checkEdit, reasonText, openUpgrade } from "../../common/licence.js";
 import { packDocument, unpackDocument } from "../../common/zip.js";
@@ -62,6 +63,7 @@ const commands = {
   new: () => { state.model = new DiagramModel(newDiagram("Untitled diagram")); state.pageId = state.model.doc.pages[0].id; state.sel = []; state.fileName = "Untitled diagram.wsdiagram"; render(); },
   open: () => $("wd-file").click(),
   fromTable: () => fromTable(),
+  aiDiagram: () => aiDiagram(),
   save: () => { download(state.fileName, packDocument(APP, serialize(state.model.doc)), "application/zip"); state.saved = state.model.undoStack.length; render(); },
   exportPng: () => exportPng(),
   exportVsdx: () => run(() => {
@@ -103,9 +105,10 @@ const commands = {
   zoomFit: () => { const c = $("wd-canvas"); state.zoom = Math.max(0.25, Math.min(4, (c.clientWidth - 56) / page().width, (c.clientHeight - 56) / page().height)); render(); },
 };
 /** A diagram from a pasted table (#88), on a page of its own: one undo step. */
-async function fromTable() {
+async function fromTable(value = "") {
   if (state.readOnly) return;
   const got = await askText({
+    value,
     title: "Diagram from a table",
     hint: "Paste rows from a spreadsheet, or type them with commas.\nOrg chart: Name, Role, Reports to.   Flowchart: From, To, Label.",
     placeholder: "Name\tRole\tReports to\nAnura\tDirector\t\nBimali\tFinance\tAnura",
@@ -122,6 +125,18 @@ async function fromTable() {
     });
     state.pageId = pageId; state.sel = [];
   });
+}
+/** A diagram drafted by the local AI (#88), shown as a table to check before it is drawn. */
+async function aiDiagram() {
+  if (state.readOnly) return;
+  const ask = await askText({ title: "Draft a diagram with AI", hint: "Describe the process or the team. The draft opens as a table you can change before the diagram is drawn.", placeholder: "How a customer refund is approved: support checks the order, a manager approves refunds over 10,000 rupees, finance pays.", checkbox: "It is an org chart (leave unticked for a flowchart)", checked: false, ok: "Draft", rows: 5 });
+  if (!ask) return;
+  state.message = "Drafting the diagram with the local AI…"; render();
+  try {
+    const text = await aiDraft(ask.checked ? "org" : "flow", ask.text);
+    state.message = ""; render();
+    await fromTable(text);
+  } catch (e) { state.message = e.message; render(); }
 }
 const TABLE_SAMPLE = `Name	Role	Reports to
 Anura Perera	Managing Director	

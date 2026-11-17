@@ -16,6 +16,7 @@ import { overallocations, weeklyLoad } from "../core/resources.js";
 import { behindSchedule } from "../core/progress.js";
 import { outlineToDoc } from "../core/outline.js";
 import { askText } from "../../common/dialog.js";
+import { aiDraft } from "../../common/aidraft.js";
 import { checkEdit, reasonText, openUpgrade } from "../../common/licence.js";
 import { packDocument, unpackDocument, xlsx } from "../../common/zip.js";
 import { ROW_H, visibleRows, timescale, headers, bars, linkPath, dragStart, dragDuration, parseDuration } from "./gantt.js";
@@ -74,6 +75,7 @@ const commands = {
   new: () => { if (confirmDiscard()) { state.model = new ProjectModel(newProject("Untitled project", mondayOf(new Date()))); state.sel = []; state.fileName = "Untitled project.wsproj"; render(); } },
   open: () => $("wp-file").click(),
   fromOutline: () => fromOutline(),
+  aiPlan: () => aiPlan(),
   save: () => { download(state.fileName, packDocument(APP, serialize(state.model.doc)), "application/zip"); state.saved = state.model.undoStack.length; render(); },
   exportCsv: () => download(state.fileName.replace(/\.wsproj$/, "") + ".csv", toCsv(), "text/csv"),
   exportXml: () => download(state.fileName.replace(/\.wsproj$/, "") + ".xml", toProjectXml(state.model.doc, calendar().isWork), "application/xml"),
@@ -106,9 +108,10 @@ const commands = {
 };
 
 /** A new plan from an outline (#88): one task per line, indented under its summary. */
-async function fromOutline() {
+async function fromOutline(value = "") {
   if (state.readOnly || !confirmDiscard()) return;
   const got = await askText({
+    value,
     title: "New plan from an outline",
     hint: "One task per line. Indent a line to put it under the one above.\nAt the end of a line: a duration (5d, 2w), \"milestone\", and people (@Nimal, @Priya 50%).",
     placeholder: "Planning\n  Choose site 4d @Nimal\n  Sign lease 3d\n  Lease signed milestone",
@@ -124,6 +127,18 @@ async function fromOutline() {
     state.sel = []; state.saved = -1; state.fileName = "New plan.wsproj";
     state.note = `Created ${doc.tasks.length} tasks from the outline`;
   });
+}
+/** A plan drafted by the local AI from a description (#88), shown as an outline to check before it is made. */
+async function aiPlan() {
+  if (state.readOnly) return;
+  const ask = await askText({ title: "Draft a plan with AI", hint: "Describe the project: what it is, how long it may take, and who is involved. The draft opens as an outline you can change before the plan is made.", placeholder: "Plan a 3-month office move for 40 people. Nimal handles the site, Ayesha the furniture, Ravi the network.", ok: "Draft", rows: 5 });
+  if (!ask) return;
+  state.note = "Drafting the plan with the local AI…"; state.message = ""; render();
+  try {
+    const text = await aiDraft("plan", ask.text);
+    state.note = ""; render();
+    await fromOutline(text);
+  } catch (e) { state.note = ""; state.message = e.message; render(); }
 }
 const OUTLINE_SAMPLE = `Planning
   Choose new site 4d @Nimal

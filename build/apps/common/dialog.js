@@ -5,23 +5,23 @@
 
 /**
  * Asks for text. options: { title, hint, placeholder, sample (a "Try an example" fill), checkbox (label, or
- * null), checked, ok }. Resolves { text, checked }, or null when cancelled.
+ * null), checked, ok, value (text to start with), rows }. Resolves { text, checked }, or null when cancelled.
  */
-export function askText({ title, hint = "", placeholder = "", sample = "", checkbox = null, checked = true, ok = "Create" } = {}, doc = document) {
+export function askText({ title, hint = "", placeholder = "", sample = "", checkbox = null, checked = true, ok = "Create", value = "", rows = 12 } = {}, doc = document) {
   if (!doc.getElementById("ws-ask-css")) { const st = doc.createElement("style"); st.id = "ws-ask-css"; st.textContent = DIALOG_CSS; doc.head.append(st); }
   return new Promise((resolve) => {
     const d = doc.createElement("dialog");
     d.className = "ws-ask";
     d.innerHTML = `<form method="dialog">
       <h2></h2><p class="hint"></p>
-      <textarea rows="12" spellcheck="false"></textarea>
+      <textarea rows="12"></textarea>
       ${checkbox ? '<label class="check"><input type="checkbox"> <span></span></label>' : ""}
       <div class="row">${sample ? '<button type="button" class="link" data-sample>Try an example</button>' : ""}<span class="err" role="alert"></span>
         <button value="cancel" formnovalidate>Cancel</button><button value="ok" class="primary"></button></div></form>`;
     d.querySelector("h2").textContent = title;
     d.querySelector(".hint").textContent = hint;
     const ta = d.querySelector("textarea");
-    ta.placeholder = placeholder;
+    ta.placeholder = placeholder; ta.value = value; ta.rows = rows;
     d.querySelector(".primary").textContent = ok;
     const box = d.querySelector(".check input");
     if (box) { box.checked = checked; d.querySelector(".check span").textContent = checkbox; }
