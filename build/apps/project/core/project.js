@@ -15,6 +15,8 @@
 export const APP = "worksuite.project";
 export const SCHEMA_VERSION = 1;
 export const LINK_TYPES = ["FS", "SS", "FF", "SF"];
+/** Baselines kept per project (as many as professional planning tools keep). */
+export const MAX_BASELINES = 11;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const DAY = 86400000;
 
@@ -65,6 +67,18 @@ export function validate(doc) {
     if (!LINK_TYPES.includes(l.type)) errs.push(`${at}: type must be one of ${LINK_TYPES.join(", ")}`);
     if (!Number.isInteger(l.lag)) errs.push(`${at}: lag must be whole days`);
   });
+  if (doc.baselines !== undefined) {
+    if (!Array.isArray(doc.baselines) || doc.baselines.length > MAX_BASELINES) errs.push(`baselines must be a list of at most ${MAX_BASELINES}`);
+    else doc.baselines.forEach((b, i) => {
+      const at = `baseline ${i + 1}`;
+      if (typeof b.name !== "string" || !b.name) errs.push(`${at}: no name`);
+      if (!DATE.test(b.saved || "")) errs.push(`${at}: saved must be a date`);
+      if (!b.tasks || typeof b.tasks !== "object") { errs.push(`${at}: no tasks`); return; }
+      for (const [id, v] of Object.entries(b.tasks)) {
+        if (!DATE.test(v.start || "") || !DATE.test(v.finish || "") || !Number.isInteger(v.duration)) errs.push(`${at}: task ${id} is incomplete`);
+      }
+    });
+  }
   if (!errs.length && hasCycle(doc.links)) errs.push("the links form a loop");
   if (errs.length) throw new Error(errs.join("; "));
   return doc;
@@ -181,6 +195,43 @@ export class ProjectModel {
     });
   }
   unlink(from, to) { return this.edit((d) => { d.links = d.links.filter((l) => !(l.from === from && l.to === to)); }); }
+
+  /**
+   * Saves the plan as it stands as a baseline (#83): every task's start, finish and duration, to compare actual
+   * against plan later. Up to MAX_BASELINES; a name already used is replaced. `saved` is the day it was saved.
+   */
+  saveBaseline(name = "Baseline", saved = new Date().toISOString().slice(0, 10)) {
+    return this.edit((d) => {
+      const tasks = {};
+      for (const t of d.tasks) { const v = this.viewIn(d, t.id); tasks[t.id] = { start: v.start, finish: v.finish, duration: v.duration }; }
+      const list = (d.baselines || []).filter((b) => b.name !== name);
+      if (list.length >= MAX_BASELINES) throw new Error(`a project keeps at most ${MAX_BASELINES} baselines; clear one first`);
+      d.baselines = [...list, { name, saved, tasks }];
+    });
+  }
+  clearBaseline(name) { return this.edit((d) => { d.baselines = (d.baselines || []).filter((b) => b.name !== name); if (!d.baselines.length) delete d.baselines; }); }
+  baseline(name) { return (this.doc.baselines || []).find((b) => b.name === name) || null; }
+
+  /**
+   * Plan against actual for a task: the baseline's dates and the slip in days (positive: later than planned).
+   * With a working calendar the slip counts working days. Null when the task was added after the baseline.
+   */
+  variance(id, name) {
+    const b = this.baseline(name), base = b && b.tasks[id];
+    if (!base) return null;
+    const v = this.view(id);
+    const slip = (a, c) => {
+      if (!this.isWork) return toDay(c) - toDay(a);
+      const [lo, hi, sign] = toDay(a) <= toDay(c) ? [toDay(a), toDay(c), 1] : [toDay(c), toDay(a), -1];
+      let n = 0;
+      for (let d = lo + 1; d <= hi; d++) if (this.isWork(d)) n++;
+      return sign * n;
+    };
+    return { start: base.start, finish: base.finish, duration: base.duration, startSlip: slip(base.start, v.start), finishSlip: slip(base.finish, v.finish) };
+  }
+
+  /** view() on another copy of the document (for saving a baseline inside an edit) */
+  viewIn(doc, id) { const keep = this.doc; this.doc = doc; try { return this.view(id); } finally { this.doc = keep; } }
 
   /** What the grid and chart show for a task: summaries roll up their subtasks' dates and progress. */
   view(id) {

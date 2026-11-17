@@ -263,10 +263,20 @@ function toPage(e) {
   const p = pt.matrixTransform(svg.getScreenCTM().inverse());
   return { x: p.x, y: p.y };
 }
+// a double-click edits a shape's text. Each press redraws the page and captures the pointer, so the browser
+// sends neither "dblclick" nor a second "click": two presses within 400 ms at the same spot count as one.
+let lastPress = null;
 $("wd-canvas").addEventListener("pointerdown", (e) => {
   if (!e.target.closest("svg.page") || e.button !== 0) return;
   $("wd-canvas").focus();
   const at = toPage(e);
+  const now = e.timeStamp, again = lastPress && now - lastPress.t < 400 && Math.hypot(e.clientX - lastPress.x, e.clientY - lastPress.y) < 6;
+  lastPress = again ? null : { t: now, x: e.clientX, y: e.clientY };
+  if (again && state.tool === "select" && !state.readOnly) {
+    const hit = state.model.hitTest(at.x, at.y, state.pageId);
+    // preventDefault: the press would otherwise focus the canvas after we focus the text box, closing it at once
+    if (hit) { e.preventDefault(); state.drag = null; editText(hit); return; }
+  }
   const handle = e.target.closest("[data-handle]");
   const connHit = e.target.closest(".conn-hit");
   const hit = state.model.hitTest(at.x, at.y, state.pageId);
@@ -340,11 +350,6 @@ $("wd-canvas").addEventListener("pointerup", (e) => {
     else render();
   }
 });
-$("wd-canvas").addEventListener("dblclick", (e) => {
-  if (state.readOnly || !e.target.closest("svg.page")) return;
-  const at = toPage(e), hit = state.model.hitTest(at.x, at.y, state.pageId);
-  if (hit) editText(hit);
-});
 function editText(id) {
   const s = byId(id);
   if (!s || s.kind !== "shape") return;
@@ -356,10 +361,12 @@ function editText(id) {
   $("wd-canvas").appendChild(ta);
   ta.focus();
   ta.select();
+  setTimeout(() => { if (ta.isConnected && document.activeElement !== ta) { ta.focus(); ta.select(); } }, 0);
   let done = false;
   const finish = (keep) => { if (done) return; done = true; const v = ta.value; ta.remove(); if (keep && v !== (s.text || "")) run(() => state.model.set(id, { text: v }, state.pageId)); else render(); $("wd-canvas").focus(); };
   ta.addEventListener("keydown", (ev) => { if (ev.key === "Enter" && !ev.shiftKey) { ev.preventDefault(); finish(true); } else if (ev.key === "Escape") finish(false); ev.stopPropagation(); });
-  ta.addEventListener("blur", () => finish(true));
+  const opened = performance.now();
+  ta.addEventListener("blur", () => { if (performance.now() - opened < 150) { setTimeout(() => ta.isConnected && ta.focus(), 0); return; } finish(true); });
 }
 
 /* ---- keyboard ---- */

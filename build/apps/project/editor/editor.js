@@ -33,6 +33,7 @@ const COLS = [
 const calendar = () => (state.cal === "lk" ? SRI_LANKA : STANDARD);
 const state = {
   cal: "standard",
+  showBaseline: false,
   showCritical: false,
   note: "",
   model: new ProjectModel(newProject("Untitled project", mondayOf(new Date()))),
@@ -84,6 +85,12 @@ const commands = {
     const r = applySchedule(state.model, calendar());
     state.message = r.problems.join("; ");
     if (!state.message) state.note = `Scheduled on the ${state.cal === "lk" ? "Sri Lanka" : "standard"} calendar: finishes ${fmt(r.finish)}`;
+  }),
+  saveBaseline: () => run(() => {
+    state.model.saveBaseline("Baseline");
+    state.showBaseline = true;
+    $("wp-baseline").checked = true;
+    state.note = "Baseline saved: the grey bars show the plan as it is now";
   }),
   today: () => { const sc = timescale(visibleRows(state.model, state.collapsed), state.zoom, state.model.doc.start); $("wp-chart").scrollLeft = Math.max(0, sc.x(new Date().toISOString().slice(0, 10)) - 120); },
 };
@@ -193,6 +200,8 @@ function renderChart(rows) {
     } else if (b.kind === "summary") {
       svg += `<path class="wp-sum" d="M${b.x} ${b.y + 10} h${b.w} v8 l-5 5 l-5 -5 H${b.x + 10} l-5 5 l-5 -5 Z"/>`;
     } else {
+      const base = state.showBaseline && state.model.baseline("Baseline")?.tasks[b.id];
+      if (base) svg += `<rect class="wp-base" x="${sc.x(base.start)}" y="${b.y + 23}" width="${Math.max(2, sc.x(base.finish) - sc.x(base.start) + sc.dayW)}" height="4" rx="2"/>`;
       const crit = critical.has(b.id) ? " is-crit" : "";
       svg += `<rect class="wp-bar${crit}" x="${b.x}" y="${b.y + 8}" width="${b.w}" height="14" rx="4"/>`;
       if (b.progress) svg += `<rect class="wp-bar-done${crit}" x="${b.x}" y="${b.y + 8}" width="${(b.w * b.progress) / 100}" height="14" rx="4"/>`;
@@ -205,6 +214,16 @@ function renderChart(rows) {
   if (tx >= 0 && tx <= sc.width) svg += `<line class="wp-today" x1="${tx}" x2="${tx}" y1="0" y2="${h}"/>`;
   $("wp-chart").innerHTML = svg + "</svg>";
   state.scale = sc;
+}
+
+/** The selected task's slip against the baseline, for the status bar. */
+function slipText() {
+  if (!state.showBaseline || !first() || !state.model.baseline("Baseline")) return "";
+  const v = state.model.variance(first(), "Baseline");
+  if (!v) return `<span>${esc(state.model.task(first()).name)}: not in the baseline</span>`;
+  const days = Math.abs(v.finishSlip), unit = state.model.isWork ? "working day" : "day";
+  const when = v.finishSlip === 0 ? "on plan" : `${days} ${unit}${days === 1 ? "" : "s"} ${v.finishSlip > 0 ? "late" : "early"}`;
+  return `<span>${esc(state.model.task(first()).name)}: ${when} against the baseline</span>`;
 }
 
 /* ---- render ---- */
@@ -230,7 +249,7 @@ function draw() {
   $("wp-ribbon").querySelector('[data-cmd="redo"]').disabled ||= !state.model.redoStack.length;
   const all = state.model.tasks.map((t) => state.model.view(t.id));
   const finish = all.length ? all.reduce((m, v) => (v.finish > m ? v.finish : m), all[0].finish) : null;
-  $("wp-status").innerHTML = `<span>${state.model.tasks.length} task${state.model.tasks.length === 1 ? "" : "s"}</span>${finish ? `<span>Finish: ${fmt(finish)}</span>` : ""}<span>${state.model.doc.links.length} link${state.model.doc.links.length === 1 ? "" : "s"}</span>${state.message ? `<span class="err" role="alert">${esc(state.message)}</span>` : state.note ? `<span>${esc(state.note)}</span>` : ""}`;
+  $("wp-status").innerHTML = `<span>${state.model.tasks.length} task${state.model.tasks.length === 1 ? "" : "s"}</span>${finish ? `<span>Finish: ${fmt(finish)}</span>` : ""}<span>${state.model.doc.links.length} link${state.model.doc.links.length === 1 ? "" : "s"}</span>${state.message ? `<span class="err" role="alert">${esc(state.message)}</span>` : state.note ? `<span>${esc(state.note)}</span>` : slipText()}`;
 }
 
 /* ---- events ---- */
@@ -243,6 +262,7 @@ $("wp-ribbon").addEventListener("click", (e) => { const b = e.target.closest("[d
 $("wp-zoom").addEventListener("change", (e) => { state.zoom = e.target.value; render(); });
 $("wp-cal").addEventListener("change", (e) => { state.cal = e.target.value; render(); });
 $("wp-critical").addEventListener("change", (e) => { state.showCritical = e.target.checked; render(); });
+$("wp-baseline").addEventListener("change", (e) => { state.showBaseline = e.target.checked; render(); });
 $("wp-upgrade").addEventListener("click", () => (window.WorkSuiteProject.onUpgrade || openUpgrade)());
 $("wp-retry").addEventListener("click", () => applyLicence());
 /** Free viewing, Pro editing (#73): asks the local service at startup and on Try again. */
@@ -258,18 +278,21 @@ $("wp-grid").addEventListener("click", (e) => {
   const tr = e.target.closest("tr[data-id]");
   if (!tr || e.target.closest("input")) return;
   const id = tr.dataset.id;
+  // a double-click edits the cell: the first click redraws the table, so the browser may never send "dblclick";
+  // the second click itself says it is the second (detail 2) and lands on the redrawn cell
+  if (e.detail === 2 && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
+    const td = e.target.closest("td");
+    if (td) { state.sel = [id]; startEdit(id, COLS[td.cellIndex].key); }
+    return;
+  }
   if (e.ctrlKey || e.metaKey) state.sel = state.sel.includes(id) ? state.sel.filter((x) => x !== id) : [...state.sel, id];
   else if (e.shiftKey && state.sel.length) {
     const rows = visibleRows(state.model, state.collapsed).map((r) => r.id), a = rows.indexOf(state.sel[0]), b = rows.indexOf(id);
     state.sel = rows.slice(Math.min(a, b), Math.max(a, b) + 1);
   } else state.sel = [id];
+  state.note = ""; // a new selection: the status bar shows its baseline slip, not the last command's note
   render();
   $("wp-grid").focus();
-});
-$("wp-grid").addEventListener("dblclick", (e) => {
-  const td = e.target.closest("td"), tr = e.target.closest("tr[data-id]");
-  if (!td || !tr) return;
-  startEdit(tr.dataset.id, COLS[td.cellIndex].key);
 });
 $("wp-grid").addEventListener("keydown", (e) => {
   const input = e.target.closest("[data-edit-input]");
