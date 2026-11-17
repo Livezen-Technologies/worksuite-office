@@ -104,10 +104,11 @@ export function route(kind, a, b, sideA = "right", sideB = "left", gap = 16) {
   const pts = [[a.x, a.y], p1];
   const horizontalA = ax !== 0;
   if (horizontalA) {
-    const mx = by !== 0 ? p2[0] : (p1[0] + p2[0]) / 2;
+    // both ends on the same side: go round, out past the further of the two
+    const mx = by !== 0 ? p2[0] : ax === bx ? (ax < 0 ? Math.min(p1[0], p2[0]) : Math.max(p1[0], p2[0])) : (p1[0] + p2[0]) / 2;
     pts.push([mx, p1[1]], [mx, p2[1]]);
   } else {
-    const my = bx !== 0 ? p2[1] : (p1[1] + p2[1]) / 2;
+    const my = bx !== 0 ? p2[1] : ay === by && ay !== 0 ? (ay < 0 ? Math.min(p1[1], p2[1]) : Math.max(p1[1], p2[1])) : (p1[1] + p2[1]) / 2;
     pts.push([p1[0], my], [p2[0], my]);
   }
   pts.push(p2, [b.x, b.y]);
