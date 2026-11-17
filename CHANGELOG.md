@@ -1,5 +1,22 @@
 # Change log
 
+## 10.1.49
+
+### New features
+
+#### Project
+
+* File › From outline… makes a plan from text: one task per line, indented
+  under its summary, with an optional duration, "milestone" and people at the
+  end of a line. Tasks follow one another and the plan is scheduled on the
+  working calendar.
+
+#### Diagram
+
+* File › From table… makes a diagram from rows pasted from a spreadsheet: an
+  org chart from name, role and manager, or a flowchart from step, next step
+  and label. It goes on a page of its own, laid out automatically.
+
 ## 10.1.48
 
 ### New features
