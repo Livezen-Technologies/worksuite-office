@@ -63,6 +63,10 @@ table.wp-table { border-collapse: collapse; width: 100%; table-layout: fixed; }
 .wp-scale div { position: absolute; font-size: 11px; color: var(--ink3); white-space: nowrap; border-inline-start: 1px solid var(--line); padding: 3px 5px; height: 23px; }
 .wp-scale .b { top: 23px; text-align: center; padding: 4px 0; font-size: 10px; }
 .wp-chart svg { display: block; }
+.wp-behind { fill: none; stroke: #d97706; stroke-width: 1.5; }
+.wp-statusline { stroke: #d97706; stroke-width: 1.5; stroke-dasharray: 5 3; }
+.wp-status .warn { color: #b45309; }
+.wp-group input[type="date"] { font: inherit; color: var(--ink); background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 3px 6px; }
 .wp-over { fill: none; stroke: var(--today); stroke-width: 1.5; stroke-dasharray: 3 2; }
 .wp-load { border-collapse: collapse; margin: 12px; font-size: 12px; }
 .wp-load th, .wp-load td { border: 1px solid var(--line); padding: 5px 9px; text-align: center; white-space: nowrap; }

@@ -7,7 +7,8 @@
  * The document (schema version 1), saved as canonical JSON inside the .wsproj zip:
  *   { app: "worksuite.project", v: 1, name, start, tasks: [Task], links: [Link], calendars: [], resources: [] }
  *   Task: { id, name, level (0 = top), start ("YYYY-MM-DD"), duration (days, 0 = milestone), progress (0-100),
- *           owner?, notes? }      tasks are in outline order; a task is a summary when the next task is deeper
+ *           owner?, notes?, actualStart?, actualFinish? }   actual dates: when work really began and ended (#86)
+ *   statusDate?: the date progress was last reported on (#86)      tasks are in outline order; a task is a summary when the next task is deeper
  *   Link: { from, to, type: "FS" | "SS" | "FF" | "SF", lag (days) }
  * Stage 2 counts calendar days; working calendars and automatic scheduling come in stage 3 (#83).
  */
@@ -59,6 +60,8 @@ export function validate(doc) {
     if (!DATE.test(t.start || "")) errs.push(`${at}: start must be a date`);
     if (!Number.isInteger(t.duration) || t.duration < 0) errs.push(`${at}: duration must be whole days`);
     if (!(t.progress >= 0 && t.progress <= 100)) errs.push(`${at}: progress must be 0-100`);
+    for (const k of ["actualStart", "actualFinish"]) if (t[k] !== undefined && !DATE.test(t[k])) errs.push(`${at}: ${k} must be a date`);
+    if (t.actualStart && t.actualFinish && t.actualFinish < t.actualStart) errs.push(`${at}: actual finish is before actual start`);
   });
   (doc.links || []).forEach((l, i) => {
     const at = `link ${i + 1}`;
@@ -67,6 +70,7 @@ export function validate(doc) {
     if (!LINK_TYPES.includes(l.type)) errs.push(`${at}: type must be one of ${LINK_TYPES.join(", ")}`);
     if (!Number.isInteger(l.lag)) errs.push(`${at}: lag must be whole days`);
   });
+  if (doc.statusDate !== undefined && !DATE.test(doc.statusDate)) errs.push("status date must be a date");
   if (doc.baselines !== undefined) {
     if (!Array.isArray(doc.baselines) || doc.baselines.length > MAX_BASELINES) errs.push(`baselines must be a list of at most ${MAX_BASELINES}`);
     else doc.baselines.forEach((b, i) => {
@@ -169,7 +173,20 @@ export class ProjectModel {
     });
   }
 
-  set(id, fields) { return this.edit((d) => Object.assign(d.tasks.find((t) => t.id === id), fields)); }
+  set(id, fields) {
+    return this.edit((d) => {
+      const t = Object.assign(d.tasks.find((x) => x.id === id), fields);
+      // progress keeps the actual dates (#86): work began on the planned start, and 100% ends it on the planned finish
+      if (fields.progress !== undefined && !("actualStart" in fields) && !("actualFinish" in fields)) {
+        if (t.progress > 0 && !t.actualStart) t.actualStart = t.start;
+        if (t.progress === 0) { delete t.actualStart; delete t.actualFinish; }
+        if (t.progress === 100) t.actualFinish = t.actualFinish || finishOf(t, this.isWork);
+        else delete t.actualFinish;
+      }
+    });
+  }
+  /** The status date progress is measured against; null clears it. */
+  setStatusDate(iso) { return this.edit((d) => { if (iso) d.statusDate = iso; else delete d.statusDate; }); }
 
   /** Indent: the task (and its subtasks) goes one level deeper, under the task above. */
   indent(id) {
