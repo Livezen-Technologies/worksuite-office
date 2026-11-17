@@ -66,6 +66,7 @@ table.wp-table { border-collapse: collapse; width: 100%; table-layout: fixed; }
 .wp-bar { fill: var(--bar); }
 .wp-bar-done { fill: var(--bar-done); }
 .wp-bar.is-crit { fill: #fca5a5; }
+.wp-base { fill: var(--ink3); opacity: .55; }
 .wp-bar-done.is-crit { fill: #dc2626; }
 .wp-sum { fill: var(--sum); }
 .wp-ms { fill: var(--ms); }
