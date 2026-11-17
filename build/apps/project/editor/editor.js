@@ -10,6 +10,7 @@
  * window.WorkSuiteProject lets the shell load a file, read it back and switch read-only mode (free viewing, #73).
  */
 import { ProjectModel, newProject, parse, serialize, finishOf, APP } from "../core/project.js";
+import { fromProjectXml, toProjectXml } from "../core/projectxml.js";
 import { schedule, applySchedule, criticalPath, STANDARD, SRI_LANKA } from "../core/schedule.js";
 import { checkEdit, reasonText, openUpgrade } from "../../common/licence.js";
 import { packDocument, unpackDocument, xlsx } from "../../common/zip.js";
@@ -67,6 +68,7 @@ const commands = {
   open: () => $("wp-file").click(),
   save: () => { download(state.fileName, packDocument(APP, serialize(state.model.doc)), "application/zip"); state.saved = state.model.undoStack.length; render(); },
   exportCsv: () => download(state.fileName.replace(/\.wsproj$/, "") + ".csv", toCsv(), "text/csv"),
+  exportXml: () => download(state.fileName.replace(/\.wsproj$/, "") + ".xml", toProjectXml(state.model.doc, calendar().isWork), "application/xml"),
   exportXlsx: () => download(state.fileName.replace(/\.wsproj$/, "") + ".xlsx", xlsx(tableRows(), state.model.doc.name), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
   print: () => { fitForPrint(); window.print(); },
   addTask: () => run(() => { const id = state.model.addTask({ start: startForNew() }, first() || null); state.sel = [id]; startEdit(id, "name"); }),
@@ -356,6 +358,21 @@ $("wp-file").addEventListener("change", async (e) => {
 
 /** Opens a project: the bytes of a .wsproj file (or its JSON text). */
 function load(input, name = "Project.wsproj") {
+  const bytes = typeof input === "string" ? new TextEncoder().encode(input) : input;
+  let i = 0;
+  while (i < bytes.length && (bytes[i] <= 0x20 || bytes[i] === 0xef || bytes[i] === 0xbb || bytes[i] === 0xbf)) i++; // spaces, a BOM
+  if (bytes[i] === 0x3c) { // "<": Project XML (#84), opened as a new WorkSuite project
+    const { doc, problems } = fromProjectXml(new TextDecoder().decode(bytes));
+    state.model = new ProjectModel(doc);
+    state.saved = -1; // not saved as .wsproj yet
+    state.fileName = name.replace(/\.xml$/i, "") + ".wsproj";
+    state.sel = [];
+    state.collapsed.clear();
+    state.note = problems.length ? "" : `Opened ${name} (Project XML)`;
+    state.message = problems.join("; ");
+    render();
+    return;
+  }
   state.model = new ProjectModel(parse(typeof input === "string" ? input : unpackDocument(input, APP)));
   state.saved = 0;
   state.fileName = name;
