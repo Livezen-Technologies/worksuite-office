@@ -1,5 +1,17 @@
 # Change log
 
+## 10.1.40
+
+### New features
+
+#### WorkSuite Project
+
+* Project XML: open plans saved as Project XML by Microsoft Project and
+  other planning tools, and export WorkSuite plans as Project XML. Tasks and
+  their outline, durations, dates, progress, milestones, notes, constraints,
+  links of every type with lag, and the people assigned travel both ways;
+  anything a file had that could not be read is listed when it opens
+
 ## 10.1.39
 
 ### New features
