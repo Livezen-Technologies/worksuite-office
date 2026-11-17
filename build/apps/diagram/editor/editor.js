@@ -11,6 +11,8 @@
  * file, read it back and switch read-only mode (free viewing, #73).
  */
 import { autoLayout, applyLayout } from "../core/layout.js";
+import { parseTable, readTable, addTable } from "../core/fromtable.js";
+import { askText } from "../../common/dialog.js";
 import { DiagramModel, newDiagram, parse, serialize, connectionPoints, pointOn, APP } from "../core/diagram.js";
 import { checkEdit, reasonText, openUpgrade } from "../../common/licence.js";
 import { packDocument, unpackDocument } from "../../common/zip.js";
@@ -59,6 +61,7 @@ function run(fn) {
 const commands = {
   new: () => { state.model = new DiagramModel(newDiagram("Untitled diagram")); state.pageId = state.model.doc.pages[0].id; state.sel = []; state.fileName = "Untitled diagram.wsdiagram"; render(); },
   open: () => $("wd-file").click(),
+  fromTable: () => fromTable(),
   save: () => { download(state.fileName, packDocument(APP, serialize(state.model.doc)), "application/zip"); state.saved = state.model.undoStack.length; render(); },
   exportPng: () => exportPng(),
   exportVsdx: () => run(() => {
@@ -99,6 +102,36 @@ const commands = {
   zoomOut: () => { state.zoom = Math.max(0.25, state.zoom / 1.25); render(); },
   zoomFit: () => { const c = $("wd-canvas"); state.zoom = Math.max(0.25, Math.min(4, (c.clientWidth - 56) / page().width, (c.clientHeight - 56) / page().height)); render(); },
 };
+/** A diagram from a pasted table (#88), on a page of its own: one undo step. */
+async function fromTable() {
+  if (state.readOnly) return;
+  const got = await askText({
+    title: "Diagram from a table",
+    hint: "Paste rows from a spreadsheet, or type them with commas.\nOrg chart: Name, Role, Reports to.   Flowchart: From, To, Label.",
+    placeholder: "Name\tRole\tReports to\nAnura\tDirector\t\nBimali\tFinance\tAnura",
+    sample: TABLE_SAMPLE, ok: "Create diagram",
+  });
+  if (!got) return;
+  run(() => {
+    const table = readTable(parseTable(got.text));
+    const m = state.model, pageId = m.id("p"), layerId = m.id("l");
+    m.edit((d) => { // the page and its diagram: one step
+      const page = { id: pageId, name: table.kind === "org" ? "Org chart" : "Flowchart", width: 842, height: 595, layers: [{ id: layerId, name: "Layer 1", visible: true, locked: false }], items: [] };
+      d.pages.push(page);
+      addTable(page, table, (p) => m.id(p));
+    });
+    state.pageId = pageId; state.sel = [];
+  });
+}
+const TABLE_SAMPLE = `Name	Role	Reports to
+Anura Perera	Managing Director	
+Bimali Silva	Finance	Anura Perera
+Chaminda Fernando	Operations	Anura Perera
+Dilini Jayasuriya	Sales	Anura Perera
+Eranga Wickrama	Accounts	Bimali Silva
+Fathima Rizvi	Logistics	Chaminda Fernando
+Gayan Bandara	Warehouse	Chaminda Fernando`;
+
 /** Auto-layout (#87): the selected shapes, or the whole page when fewer than two are selected; one undo step. */
 function layout(direction) {
   run(() => {

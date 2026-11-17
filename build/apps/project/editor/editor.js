@@ -14,6 +14,8 @@ import { fromProjectXml, toProjectXml, isMpp, MPP_HELP } from "../core/projectxm
 import { schedule, applySchedule, criticalPath, STANDARD, SRI_LANKA } from "../core/schedule.js";
 import { overallocations, weeklyLoad } from "../core/resources.js";
 import { behindSchedule } from "../core/progress.js";
+import { outlineToDoc } from "../core/outline.js";
+import { askText } from "../../common/dialog.js";
 import { checkEdit, reasonText, openUpgrade } from "../../common/licence.js";
 import { packDocument, unpackDocument, xlsx } from "../../common/zip.js";
 import { ROW_H, visibleRows, timescale, headers, bars, linkPath, dragStart, dragDuration, parseDuration } from "./gantt.js";
@@ -71,6 +73,7 @@ const first = () => selected()[0];
 const commands = {
   new: () => { if (confirmDiscard()) { state.model = new ProjectModel(newProject("Untitled project", mondayOf(new Date()))); state.sel = []; state.fileName = "Untitled project.wsproj"; render(); } },
   open: () => $("wp-file").click(),
+  fromOutline: () => fromOutline(),
   save: () => { download(state.fileName, packDocument(APP, serialize(state.model.doc)), "application/zip"); state.saved = state.model.undoStack.length; render(); },
   exportCsv: () => download(state.fileName.replace(/\.wsproj$/, "") + ".csv", toCsv(), "text/csv"),
   exportXml: () => download(state.fileName.replace(/\.wsproj$/, "") + ".xml", toProjectXml(state.model.doc, calendar().isWork), "application/xml"),
@@ -101,6 +104,39 @@ const commands = {
   }),
   today: () => { const sc = timescale(visibleRows(state.model, state.collapsed), state.zoom, state.model.doc.start); $("wp-chart").scrollLeft = Math.max(0, sc.x(new Date().toISOString().slice(0, 10)) - 120); },
 };
+
+/** A new plan from an outline (#88): one task per line, indented under its summary. */
+async function fromOutline() {
+  if (state.readOnly || !confirmDiscard()) return;
+  const got = await askText({
+    title: "New plan from an outline",
+    hint: "One task per line. Indent a line to put it under the one above.\nAt the end of a line: a duration (5d, 2w), \"milestone\", and people (@Nimal, @Priya 50%).",
+    placeholder: "Planning\n  Choose site 4d @Nimal\n  Sign lease 3d\n  Lease signed milestone",
+    sample: OUTLINE_SAMPLE, checkbox: "Each task follows the one before it", ok: "Create plan",
+  });
+  if (!got) return;
+  run(() => {
+    const doc = outlineToDoc(got.text, { name: "New plan", start: mondayOf(new Date()), linkInOrder: got.checked });
+    state.model = new ProjectModel(doc);
+    state.model.isWork = calendar().isWork;
+    if (doc.links.length) applySchedule(state.model, calendar());
+    state.model.undoStack = []; state.model.redoStack = [];
+    state.sel = []; state.saved = -1; state.fileName = "New plan.wsproj";
+    state.note = `Created ${doc.tasks.length} tasks from the outline`;
+  });
+}
+const OUTLINE_SAMPLE = `Planning
+  Choose new site 4d @Nimal
+  Sign lease 3d @Ayesha
+  Lease signed milestone
+Fit-out
+  Network and power 6d @Ravi
+  Furniture 8d @Ayesha
+  Inspection 2d @Nimal
+Move
+  Pack and label 3d @Team
+  Moving day 2d @Movers
+  Open for business milestone`;
 
 function startForNew() {
   const t = first() && state.model.task(first());
