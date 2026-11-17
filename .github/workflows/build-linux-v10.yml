@@ -24,8 +24,8 @@ env:
   OO_TAG: v10.0.0.176
   BUILD_TOOLS_REF: release/v9.4.0
   BUILD_TOOLS_SHA: cf4cac0846d03e2e00a6fec5d1ecd4e9463086d5
-  DESKTOP_APPS_REF: 888596f91b2caeb37c9fb0cce16a4968a7fcf86c
-  PRODUCT_VERSION: 10.1.37
+  DESKTOP_APPS_REF: 1ade864bf81afdcfea3e33263a2eaf4c2f068f06
+  PRODUCT_VERSION: 10.1.38
   # depot_tools (V8) stays at the pinned commit: its self-update collides with build_tools' bootstrap edits
   DEPOT_TOOLS_UPDATE: '0'
 
@@ -129,6 +129,8 @@ jobs:
       - name: Local AI service (worksuite-ai) next to the app
         run: bash worksuite-office/build/v10/ai-service.sh "$GITHUB_WORKSPACE/worksuite-office" "$GITHUB_WORKSPACE/oo/build_tools/out/linux_64/onlyoffice/desktopeditors"
 
+      - name: WorkSuite Project and Diagram (web apps) in the app
+        run: bash worksuite-office/build/v10/apps.sh "$GITHUB_WORKSPACE/worksuite-office" "$GITHUB_WORKSPACE/oo/build_tools/out/linux_64/onlyoffice/desktopeditors"
       - name: Sinhala voice typing (whisper-server and the Sinhala speech model) next to the app
         run: bash worksuite-office/build/v10/speech.sh "$GITHUB_WORKSPACE/worksuite-office" "$GITHUB_WORKSPACE/oo/build_tools/out/linux_64/onlyoffice/desktopeditors"
 

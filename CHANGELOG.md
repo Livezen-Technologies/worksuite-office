@@ -1,5 +1,37 @@
 # Change log
 
+## 10.1.38
+
+### New features
+
+#### WorkSuite Project
+
+* The Project tile on Home opens WorkSuite Project in a tab: a task list with
+  outline levels, durations, dates, progress and owners beside a Gantt chart
+  with summary bars, milestones, links of every type and today's line. Edit
+  in the cells or drag the bars; Insert, Delete, Tab and Shift+Tab, undo and
+  redo work as in a spreadsheet. Saves .wsproj files, exports XLSX and CSV,
+  prints and saves as PDF
+
+#### WorkSuite Diagram
+
+* The Diagram tile on Home opens WorkSuite Diagram in a tab: flowchart,
+  basic, org chart and network shapes; connectors that stay attached and
+  follow their shapes; grid snapping and alignment guides; text, colours,
+  layers, pages, grouping and alignment. Saves .wsdiagram files, exports PNG
+  and SVG, prints and saves as PDF
+
+#### Licensing
+
+* Anyone can open, read, print and export projects and diagrams; creating
+  and editing them is part of WorkSuite Office Pro. Without Pro a file opens
+  read-only and says why
+
+#### Start page
+
+* Home's PDF editor card is back, so the quick actions fill two rows; the
+  Local files and Connected cloud storage sections match the theme
+
 ## 10.1.37
 
 ### New features
