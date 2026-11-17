@@ -10,6 +10,7 @@
  * window.WorkSuiteProject lets the shell load a file, read it back and switch read-only mode (free viewing, #73).
  */
 import { ProjectModel, newProject, parse, serialize, finishOf, APP } from "../core/project.js";
+import { schedule, applySchedule, criticalPath, STANDARD, SRI_LANKA } from "../core/schedule.js";
 import { checkEdit, reasonText, openUpgrade } from "../../common/licence.js";
 import { packDocument, unpackDocument, xlsx } from "../../common/zip.js";
 import { ROW_H, visibleRows, timescale, headers, bars, linkPath, dragStart, dragDuration, parseDuration } from "./gantt.js";
@@ -29,7 +30,11 @@ const COLS = [
   { key: "owner", label: "Owner", w: 90, edit: true },
 ];
 
+const calendar = () => (state.cal === "lk" ? SRI_LANKA : STANDARD);
 const state = {
+  cal: "standard",
+  showCritical: false,
+  note: "",
   model: new ProjectModel(newProject("Untitled project", mondayOf(new Date()))),
   sel: [], // selected task ids, in the order they were picked
   collapsed: new Set(),
@@ -49,7 +54,8 @@ function mondayOf(d) {
 /* ---- commands ---- */
 function run(fn) {
   if (state.readOnly) return;
-  try { fn(); state.message = ""; } catch (e) { state.message = e.message; }
+  state.note = "";
+  try { state.message = ""; fn(); } catch (e) { state.message = e.message; }
   render();
 }
 const selected = () => state.sel.filter((id) => state.model.tasks.some((t) => t.id === id));
@@ -74,12 +80,17 @@ const commands = {
   p100: () => run(() => selected().forEach((id) => state.model.set(id, { progress: 100 }))),
   undo: () => run(() => state.model.undo()),
   redo: () => run(() => state.model.redo()),
+  autoSchedule: () => run(() => {
+    const r = applySchedule(state.model, calendar());
+    state.message = r.problems.join("; ");
+    if (!state.message) state.note = `Scheduled on the ${state.cal === "lk" ? "Sri Lanka" : "standard"} calendar: finishes ${fmt(r.finish)}`;
+  }),
   today: () => { const sc = timescale(visibleRows(state.model, state.collapsed), state.zoom, state.model.doc.start); $("wp-chart").scrollLeft = Math.max(0, sc.x(new Date().toISOString().slice(0, 10)) - 120); },
 };
 
 function startForNew() {
   const t = first() && state.model.task(first());
-  return t ? finishOf(t) : state.model.doc.start;
+  return t ? finishOf(t, calendar().isWork) : state.model.doc.start;
 }
 function confirmDiscard() { return state.model.undoStack.length === 0 || window.confirm("Discard the changes to this project?"); }
 
@@ -162,6 +173,10 @@ function renderChart(rows) {
   const byId = new Map(bs.map((b) => [b.id, b]));
   const h = Math.max(rows.length * ROW_H + ROW_H * 3, $("wp-chart").clientHeight - 46);
   const selSet = new Set(state.sel);
+  let critical = new Set();
+  if (state.showCritical && state.model.tasks.length) {
+    try { critical = new Set(criticalPath(schedule(state.model.doc, calendar()))); } catch (e) { state.message = e.message; }
+  }
   let svg = `<div class="wp-scale" style="width:${sc.width}px">${hd.top.map((c) => `<div style="left:${c.x}px">${c.label}</div>`).join("")}${hd.bottom.map((c) => `<div class="b" style="left:${c.x}px;width:${c.w}px">${c.label}</div>`).join("")}</div>`;
   svg += `<svg width="${sc.width}" height="${h}" xmlns="${NS}"><defs><marker id="wp-arrow" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6z" fill="currentColor" class="wp-arrow"/></marker></defs>`;
   for (const w of hd.weekends) svg += `<rect class="wp-weekend" x="${w.x}" y="0" width="${w.w}" height="${h}"/>`;
@@ -178,8 +193,9 @@ function renderChart(rows) {
     } else if (b.kind === "summary") {
       svg += `<path class="wp-sum" d="M${b.x} ${b.y + 10} h${b.w} v8 l-5 5 l-5 -5 H${b.x + 10} l-5 5 l-5 -5 Z"/>`;
     } else {
-      svg += `<rect class="wp-bar" x="${b.x}" y="${b.y + 8}" width="${b.w}" height="14" rx="4"/>`;
-      if (b.progress) svg += `<rect class="wp-bar-done" x="${b.x}" y="${b.y + 8}" width="${(b.w * b.progress) / 100}" height="14" rx="4"/>`;
+      const crit = critical.has(b.id) ? " is-crit" : "";
+      svg += `<rect class="wp-bar${crit}" x="${b.x}" y="${b.y + 8}" width="${b.w}" height="14" rx="4"/>`;
+      if (b.progress) svg += `<rect class="wp-bar-done${crit}" x="${b.x}" y="${b.y + 8}" width="${(b.w * b.progress) / 100}" height="14" rx="4"/>`;
       if (r.owner) svg += `<text class="wp-label" x="${b.x + b.w + 6}" y="${b.y + 19}">${esc(r.owner)}</text>`;
       svg += `<rect class="wp-hit" data-drag="move" data-id="${b.id}" x="${b.x}" y="${b.y + 4}" width="${Math.max(0, b.w - 6)}" height="22"/><rect class="wp-grip" data-drag="size" data-id="${b.id}" x="${b.x + b.w - 6}" y="${b.y + 4}" width="10" height="22"/>`;
     }
@@ -200,6 +216,7 @@ function render() {
   try { draw(); } finally { rendering = false; }
 }
 function draw() {
+  state.model.isWork = calendar().isWork; // the grid, the chart and the scheduler count the same working days
   const rows = visibleRows(state.model, state.collapsed);
   renderGrid(rows);
   renderChart(rows);
@@ -213,7 +230,7 @@ function draw() {
   $("wp-ribbon").querySelector('[data-cmd="redo"]').disabled ||= !state.model.redoStack.length;
   const all = state.model.tasks.map((t) => state.model.view(t.id));
   const finish = all.length ? all.reduce((m, v) => (v.finish > m ? v.finish : m), all[0].finish) : null;
-  $("wp-status").innerHTML = `<span>${state.model.tasks.length} task${state.model.tasks.length === 1 ? "" : "s"}</span>${finish ? `<span>Finish: ${fmt(finish)}</span>` : ""}<span>${state.model.doc.links.length} link${state.model.doc.links.length === 1 ? "" : "s"}</span>${state.message ? `<span class="err" role="alert">${esc(state.message)}</span>` : ""}`;
+  $("wp-status").innerHTML = `<span>${state.model.tasks.length} task${state.model.tasks.length === 1 ? "" : "s"}</span>${finish ? `<span>Finish: ${fmt(finish)}</span>` : ""}<span>${state.model.doc.links.length} link${state.model.doc.links.length === 1 ? "" : "s"}</span>${state.message ? `<span class="err" role="alert">${esc(state.message)}</span>` : state.note ? `<span>${esc(state.note)}</span>` : ""}`;
 }
 
 /* ---- events ---- */
@@ -224,6 +241,8 @@ function showTab(name) {
 }
 $("wp-ribbon").addEventListener("click", (e) => { const b = e.target.closest("[data-cmd]"); if (b && !b.disabled) commands[b.dataset.cmd](); });
 $("wp-zoom").addEventListener("change", (e) => { state.zoom = e.target.value; render(); });
+$("wp-cal").addEventListener("change", (e) => { state.cal = e.target.value; render(); });
+$("wp-critical").addEventListener("change", (e) => { state.showCritical = e.target.checked; render(); });
 $("wp-upgrade").addEventListener("click", () => (window.WorkSuiteProject.onUpgrade || openUpgrade)());
 $("wp-retry").addEventListener("click", () => applyLicence());
 /** Free viewing, Pro editing (#73): asks the local service at startup and on Try again. */

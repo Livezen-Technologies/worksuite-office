@@ -65,6 +65,8 @@ table.wp-table { border-collapse: collapse; width: 100%; table-layout: fixed; }
 .wp-chart svg { display: block; }
 .wp-bar { fill: var(--bar); }
 .wp-bar-done { fill: var(--bar-done); }
+.wp-bar.is-crit { fill: #fca5a5; }
+.wp-bar-done.is-crit { fill: #dc2626; }
 .wp-sum { fill: var(--sum); }
 .wp-ms { fill: var(--ms); }
 .wp-link { fill: none; stroke: var(--ink3); stroke-width: 1.2; }
