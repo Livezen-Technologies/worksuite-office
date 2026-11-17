@@ -1,14 +1,25 @@
 /*
  * WorkSuite Project: resources, workload and over-allocation (#86, roadmap stage 4). Pure ES module, no DOM.
  *
- * A task's people are its `owner` text, names separated by commas ("Nimal, Priya"); each works the task full
- * time. A person's workload on a day is how many of their tasks run that day (summaries and milestones do not
- * count); more than one is over-allocated.
+ * A task's people are its `owner` text, names separated by commas ("Nimal, Priya 50%"); a name alone works the
+ * task full time, a percentage after it part time. A person's workload on a day is the sum of their tasks'
+ * shares that day (summaries and milestones do not count); more than 100% is over-allocated.
  */
 import { toDay, fromDay, finishOf } from "./project.js";
 
+/** A task's assignments: [{ name, units }], units 1 = full time, from "Nimal, Priya 50%". */
+export function assignmentsOf(t) {
+  if (!t.owner) return [];
+  return t.owner.split(",").map((s) => s.trim()).filter(Boolean).map((s) => {
+    const m = /^(.*?)\s*(\d+(?:\.\d+)?)\s*%$/.exec(s);
+    return m && m[1] ? { name: m[1], units: Math.max(0, Number(m[2])) / 100 } : { name: s, units: 1 };
+  });
+}
+/** Owner text for assignments: the inverse of assignmentsOf. */
+export const ownerText = (list) => list.map((a) => (a.units === 1 ? a.name : `${a.name} ${Math.round(a.units * 100)}%`)).join(", ");
 /** The names in a task's owner text. */
-export const ownersOf = (t) => (t.owner ? t.owner.split(",").map((s) => s.trim()).filter(Boolean) : []);
+export const ownersOf = (t) => assignmentsOf(t).map((a) => a.name);
+const EPS = 1e-9;
 
 /** Every person named on a task, sorted, with their task count. */
 export function resourceList(doc) {
@@ -20,59 +31,62 @@ export function resourceList(doc) {
 const isSummaryAt = (tasks, i) => i + 1 < tasks.length && tasks[i + 1].level > tasks[i].level;
 
 /**
- * Workload: Map name → Map day number → [task ids], counting working days only (isWork(day), or every day).
+ * Workload: Map name → Map day number → [{ id, units }], counting working days only (isWork(day), or every day).
  */
 export function workload(doc, isWork = null) {
   const out = new Map();
   doc.tasks.forEach((t, i) => {
     if (t.duration <= 0 || isSummaryAt(doc.tasks, i)) return;
-    const people = ownersOf(t);
+    const people = assignmentsOf(t).filter((a) => a.units > 0);
     if (!people.length) return;
     const s = toDay(t.start), f = toDay(finishOf(t, isWork));
     for (let d = s; d <= f; d++) {
       if (isWork && !isWork(d)) continue;
-      for (const r of people) {
-        if (!out.has(r)) out.set(r, new Map());
-        const days = out.get(r);
+      for (const a of people) {
+        if (!out.has(a.name)) out.set(a.name, new Map());
+        const days = out.get(a.name);
         if (!days.has(d)) days.set(d, []);
-        days.get(d).push(t.id);
+        days.get(d).push({ id: t.id, units: a.units });
       }
     }
   });
   return out;
 }
 
+const load = (list) => list.reduce((s, x) => s + x.units, 0);
+
 /**
- * Over-allocations: one entry per person and run of consecutive over-allocated days,
- * { name, from, to (ISO dates), days, tasks: [ids] }, sorted by date then name.
+ * Over-allocations: one entry per person and run of consecutive days above 100%,
+ * { name, from, to (ISO dates), days, peak (units), tasks: [ids] }, sorted by date then name.
  */
 export function overallocations(doc, isWork = null) {
   const out = [];
   for (const [name, days] of workload(doc, isWork)) {
-    const over = [...days].filter(([, ids]) => ids.length > 1).sort((a, b) => a[0] - b[0]);
+    const over = [...days].filter(([, list]) => load(list) > 1 + EPS).sort((a, b) => a[0] - b[0]);
     let run = null;
-    for (const [d, ids] of over) {
+    for (const [d, list] of over) {
       // consecutive: no working day between this and the run's last day
       let gap = false;
       if (run) for (let x = run.last + 1; x < d; x++) if (!isWork || isWork(x)) { gap = true; break; }
-      if (!run || gap) { if (run) out.push(close(run)); run = { name, first: d, last: d, days: 0, tasks: new Set() }; }
-      run.last = d; run.days++; ids.forEach((id) => run.tasks.add(id));
+      if (!run || gap) { if (run) out.push(close(run)); run = { name, first: d, last: d, days: 0, peak: 0, tasks: new Set() }; }
+      run.last = d; run.days++; run.peak = Math.max(run.peak, load(list)); list.forEach((x) => run.tasks.add(x.id));
     }
     if (run) out.push(close(run));
   }
   return out.sort((a, b) => a.from.localeCompare(b.from) || a.name.localeCompare(b.name));
 }
-const close = (r) => ({ name: r.name, from: fromDay(r.first), to: fromDay(r.last), days: r.days, tasks: [...r.tasks] });
+const close = (r) => ({ name: r.name, from: fromDay(r.first), to: fromDay(r.last), days: r.days, peak: round(r.peak), tasks: [...r.tasks] });
+const round = (x) => Math.round(x * 100) / 100;
 
-/** Weekly totals for the workload view: [{ name, weeks: [{ start (Monday ISO), days, peak }] }]. */
+/** Weekly totals for the workload view: [{ name, weeks: [{ start (Monday ISO), days (person-days), peak (units) }] }]. */
 export function weeklyLoad(doc, isWork = null) {
   const rows = [];
   for (const [name, days] of [...workload(doc, isWork)].sort((a, b) => a[0].localeCompare(b[0]))) {
     const weeks = new Map();
-    for (const [d, ids] of days) {
+    for (const [d, list] of days) {
       const mon = d - ((new Date(d * 86400000).getUTCDay() + 6) % 7);
       const w = weeks.get(mon) || { start: fromDay(mon), days: 0, peak: 0 };
-      w.days += ids.length; w.peak = Math.max(w.peak, ids.length);
+      w.days = round(w.days + load(list)); w.peak = round(Math.max(w.peak, load(list)));
       weeks.set(mon, w);
     }
     rows.push({ name, weeks: [...weeks].sort((a, b) => a[0] - b[0]).map(([, w]) => w) });

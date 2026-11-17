@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { ownersOf, resourceList, workload, overallocations, weeklyLoad } from "../apps/project/core/resources.js";
+import { assignmentsOf, ownerText, ownersOf, resourceList, workload, overallocations, weeklyLoad } from "../apps/project/core/resources.js";
 import { newProject } from "../apps/project/core/project.js";
 import { STANDARD } from "../apps/project/core/schedule.js";
 
@@ -32,15 +32,31 @@ test("workload skips summaries and milestones and counts working days", () => {
 
 test("over-allocations are runs of days with more than one task", () => {
   const o = overallocations(doc(), STANDARD.isWork);
-  assert.deepEqual(o, [{ name: "Nimal", from: "2026-01-07", to: "2026-01-07", days: 1, tasks: ["a", "b"] }]);
+  assert.deepEqual(o, [{ name: "Nimal", from: "2026-01-07", to: "2026-01-07", days: 1, peak: 2, tasks: ["a", "b"] }]);
   const d = doc(); d.tasks[2].duration = 4; // B Wed-Mon now overlaps C on Fri and Mon, across the weekend
   const o2 = overallocations(d, STANDARD.isWork);
   assert.equal(o2.length, 2);
-  assert.deepEqual(o2[1], { name: "Nimal", from: "2026-01-09", to: "2026-01-12", days: 2, tasks: ["b", "c"] });
+  assert.deepEqual(o2[1], { name: "Nimal", from: "2026-01-09", to: "2026-01-12", days: 2, peak: 2, tasks: ["b", "c"] });
 });
 
 test("weekly load sums task-days per week with the peak day", () => {
   const rows = weeklyLoad(doc(), STANDARD.isWork);
   assert.equal(rows[0].name, "Nimal");
   assert.deepEqual(rows[0].weeks, [{ start: "2026-01-05", days: 6, peak: 2 }, { start: "2026-01-12", days: 1, peak: 1 }]);
+});
+
+test("a percentage after a name is a part-time assignment", () => {
+  assert.deepEqual(assignmentsOf({ owner: "Nimal, Priya 50%, Ravi 12.5 %" }), [
+    { name: "Nimal", units: 1 }, { name: "Priya", units: 0.5 }, { name: "Ravi", units: 0.125 }]);
+  assert.deepEqual(assignmentsOf({ owner: "Team 2026" }), [{ name: "Team 2026", units: 1 }]); // no % sign: part of the name
+  assert.equal(ownerText([{ name: "Nimal", units: 1 }, { name: "Priya", units: 0.5 }]), "Nimal, Priya 50%");
+});
+
+test("two half-time tasks fit in a day; more than 100% is over-allocated", () => {
+  const d = doc();
+  d.tasks[1].owner = "Nimal 50%, Priya"; d.tasks[2].owner = "Nimal 50%";
+  assert.deepEqual(overallocations(d, STANDARD.isWork), []);
+  assert.deepEqual(weeklyLoad(d, STANDARD.isWork)[0].weeks[0], { start: "2026-01-05", days: 3.5, peak: 1 });
+  d.tasks[2].owner = "Nimal 60%";
+  assert.equal(overallocations(d, STANDARD.isWork)[0].peak, 1.1);
 });

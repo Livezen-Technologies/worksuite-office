@@ -1,5 +1,16 @@
 # Change log
 
+## 10.1.46
+
+### New features
+
+#### Project
+
+* Part-time assignments: a percentage after a name in the Owner column, like
+  "Priya 50%", puts that person on the task part time. The workload view adds
+  up the shares, and someone is over-allocated only above 100% on a day.
+  Assignment units are saved in Project XML and read back from it.
+
 ## 10.1.45
 
 ### New features

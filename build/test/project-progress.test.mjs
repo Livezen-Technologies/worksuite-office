@@ -55,3 +55,11 @@ test("actual dates and the status date go through Project XML", () => {
   assert.equal(doc.tasks[0].actualStart, "2026-01-05");
   assert.equal(doc.tasks[0].actualFinish, "2026-01-06");
 });
+
+test("part-time assignments go through Project XML as Units", () => {
+  const d = newProject("P", "2026-01-05");
+  d.tasks = [{ id: "a", name: "A", level: 0, start: "2026-01-05", duration: 2, progress: 0, owner: "Nimal, Priya 50%" }];
+  const xml = toProjectXml(d);
+  assert.match(xml, /<Units>0.5<\/Units>/);
+  assert.equal(fromProjectXml(xml).doc.tasks[0].owner, "Nimal, Priya 50%");
+});

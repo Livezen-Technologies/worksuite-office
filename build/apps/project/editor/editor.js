@@ -235,7 +235,7 @@ function renderChart(rows) {
 /** The workload view: each person's task-days per week; a red cell has a day with two tasks or more. */
 function renderWorkload() {
   const rows = weeklyLoad(state.model.doc, calendar().isWork);
-  if (!rows.length) { $("wp-chart").innerHTML = `<p class="wp-empty">No one is assigned yet. Type names in the Owner column, separated by commas.</p>`; return; }
+  if (!rows.length) { $("wp-chart").innerHTML = `<p class="wp-empty">No one is assigned yet. Type names in the Owner column, separated by commas; add a percentage for part time, like “Priya 50%”.</p>`; return; }
   const weeks = [...new Set(rows.flatMap((r) => r.weeks.map((w) => w.start)))].sort();
   const short = (iso) => new Date(iso + "T00:00:00Z").toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
   let h = `<table class="wp-load"><thead><tr><th>Person</th>${weeks.map((w) => `<th>${short(w)}</th>`).join("")}</tr></thead><tbody>`;
@@ -244,7 +244,7 @@ function renderWorkload() {
     const hasOver = r.weeks.some((w) => w.peak > 1);
     h += `<tr><th>${esc(r.name)}${hasOver ? ' <span class="wp-warn" title="Over-allocated">!</span>' : ""}</th>${weeks.map((w) => {
       const c = by.get(w);
-      return c ? `<td class="${c.peak > 1 ? "is-over" : ""}" title="${c.days} task-day${c.days === 1 ? "" : "s"}${c.peak > 1 ? `, up to ${c.peak} tasks on one day` : ""}">${c.days}d</td>` : "<td></td>";
+      return c ? `<td class="${c.peak > 1 ? "is-over" : ""}" title="${c.days} person-day${c.days === 1 ? "" : "s"}${c.peak > 1 ? `, up to ${Math.round(c.peak * 100)}% on one day` : ""}">${c.days}d</td>` : "<td></td>";
     }).join("")}</tr>`;
   }
   $("wp-chart").innerHTML = h + "</tbody></table>";
@@ -463,7 +463,7 @@ if (new URLSearchParams(location.search).has("sample")) {
   const signed = m.addMilestone({ name: "Lease signed", start: "2026-02-11" }, lease);
   const fit = m.addTask({ name: "Fit-out", start: "2026-02-12", duration: 15 }, plan);
   const net = m.addTask({ name: "Network and power", level: 1, start: "2026-02-12", duration: 6, progress: 30, owner: "Ravi" }, fit);
-  const furn = m.addTask({ name: "Furniture", start: "2026-02-12", duration: 8, progress: 10, owner: "Ayesha, Ravi" }, net);
+  const furn = m.addTask({ name: "Furniture", start: "2026-02-12", duration: 8, progress: 10, owner: "Ayesha, Ravi 50%" }, net);
   const sec = m.addTask({ name: "Security and access", start: "2026-02-20", duration: 5, owner: "Ravi" }, furn);
   const insp = m.addTask({ name: "Inspection", start: "2026-02-27", duration: 4, owner: "Nimal" }, sec);
   const mv = m.addTask({ name: "Move", start: "2026-03-05", duration: 7 }, fit);
