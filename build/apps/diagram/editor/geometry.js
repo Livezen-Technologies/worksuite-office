@@ -31,8 +31,39 @@ export function shapePath(type, w, h, path = null) {
     case "person": return `M${r(w / 2)} 0 A${r(w * 0.2)} ${r(h * 0.2)} 0 1 1 ${r(w / 2 - 0.01)} 0 Z M0 ${r(h)} Q0 ${r(h * 0.45)} ${r(w / 2)} ${r(h * 0.45)} Q${r(w)} ${r(h * 0.45)} ${r(w)} ${r(h)} Z`;
     case "server": return `M0 0 H${r(w)} V${r(h)} H0 Z M0 ${r(h / 3)} H${r(w)} M0 ${r((2 * h) / 3)} H${r(w)}`;
     case "cloud": return `M${r(w * 0.25)} ${r(h)} A${r(w * 0.25)} ${r(h * 0.3)} 0 0 1 ${r(w * 0.2)} ${r(h * 0.42)} A${r(w * 0.28)} ${r(h * 0.32)} 0 0 1 ${r(w * 0.72)} ${r(h * 0.3)} A${r(w * 0.22)} ${r(h * 0.35)} 0 0 1 ${r(w * 0.78)} ${r(h)} Z`;
+    /* floor plan (#87) */
+    case "room": return box(w, h);
+    case "wall": return box(w, h);
+    case "door": return `M0 ${r(h)} V0 A${r(w)} ${r(h)} 0 0 1 ${r(w)} ${r(h)} Z`; // the leaf, hinged bottom left, and its swing
+    case "window": return `${box(w, h)} M0 ${r(h / 2)} H${r(w)}`;
+    case "stairs": { let d = box(w, h); for (let i = 1; i < 6; i++) d += ` M${r((w * i) / 6)} 0 V${r(h)}`; return d; }
+    case "table": return oval(w / 2, h / 2, w / 2, h / 2);
+    case "desk": return `${box(w, h * 0.7)} M${r(w * 0.35)} ${r(h * 0.78)} H${r(w * 0.65)} V${r(h)} H${r(w * 0.35)} Z`;
+    case "sofa": return `M0 0 H${r(w)} V${r(h)} H0 Z M${r(w * 0.12)} ${r(h * 0.3)} H${r(w * 0.88)} V${r(h)} M${r(w * 0.12)} ${r(h * 0.3)} V${r(h)}`;
+    /* UML */
+    case "class": return `${box(w, h)} M0 ${r(h * 0.28)} H${r(w)} M0 ${r(h * 0.64)} H${r(w)}`;
+    case "actor": { const hr = Math.min(w, h) * 0.14; return `${oval(w / 2, hr, hr, hr)} M${r(w / 2)} ${r(2 * hr)} V${r(h * 0.62)} M${r(w * 0.15)} ${r(h * 0.36)} H${r(w * 0.85)} M${r(w * 0.15)} ${r(h)} L${r(w / 2)} ${r(h * 0.62)} L${r(w * 0.85)} ${r(h)}`; }
+    case "usecase": return oval(w / 2, h / 2, w / 2, h / 2);
+    case "component": { const t = Math.min(h * 0.16, 10); return `M${r(t)} 0 H${r(w)} V${r(h)} H${r(t)} Z M0 ${r(h * 0.22)} H${r(2 * t)} V${r(h * 0.22 + t)} H0 Z M0 ${r(h * 0.56)} H${r(2 * t)} V${r(h * 0.56 + t)} H0 Z`; }
+    case "note": { const k = Math.min(w, h) * 0.2; return `M0 0 H${r(w - k)} L${r(w)} ${r(k)} V${r(h)} H0 Z M${r(w - k)} 0 V${r(k)} H${r(w)}`; }
+    case "package": { const th = Math.min(h * 0.2, 14); return `M0 0 H${r(w * 0.4)} V${r(th)} H${r(w)} V${r(h)} H0 Z M0 ${r(th)} H${r(w * 0.4)}`; }
+    /* BPMN */
+    case "event": return oval(w / 2, h / 2, w / 2, h / 2);
+    case "endevent": return `${oval(w / 2, h / 2, w / 2, h / 2)} ${oval(w / 2, h / 2, w * 0.4, h * 0.4)}`;
+    case "task": { const k = Math.min(12, w / 4, h / 4); return `M${r(k)} 0 H${r(w - k)} Q${r(w)} 0 ${r(w)} ${r(k)} V${r(h - k)} Q${r(w)} ${r(h)} ${r(w - k)} ${r(h)} H${r(k)} Q0 ${r(h)} 0 ${r(h - k)} V${r(k)} Q0 0 ${r(k)} 0 Z`; }
+    case "gateway": return `M${r(w / 2)} 0 L${r(w)} ${r(h / 2)} L${r(w / 2)} ${r(h)} L0 ${r(h / 2)} Z M${r(w * 0.35)} ${r(h * 0.35)} L${r(w * 0.65)} ${r(h * 0.65)} M${r(w * 0.65)} ${r(h * 0.35)} L${r(w * 0.35)} ${r(h * 0.65)}`;
+    case "pool": return `${box(w, h)} M${r(Math.min(30, w * 0.1))} 0 V${r(h)}`;
+    /* cloud architecture: our own simple icons */
+    case "vm": return `M0 0 H${r(w)} V${r(h * 0.72)} H0 Z M${r(w * 0.4)} ${r(h * 0.72)} V${r(h * 0.88)} M${r(w * 0.6)} ${r(h * 0.72)} V${r(h * 0.88)} M${r(w * 0.25)} ${r(h)} H${r(w * 0.75)} V${r(h * 0.88)} H${r(w * 0.25)} Z`;
+    case "container": { const k = h * 0.25; return `M${r(w / 2)} 0 L${r(w)} ${r(k)} V${r(h - k)} L${r(w / 2)} ${r(h)} L0 ${r(h - k)} V${r(k)} Z M0 ${r(k)} L${r(w / 2)} ${r(2 * k)} L${r(w)} ${r(k)} M${r(w / 2)} ${r(2 * k)} V${r(h)}`; }
+    case "queue": { let d = box(w, h); for (let i = 1; i < 4; i++) d += ` M${r((w * i) / 4)} 0 V${r(h)}`; return d; }
+    case "loadbalancer": return `${oval(w / 2, h / 2, w / 2, h / 2)} M${r(w * 0.2)} ${r(h / 2)} H${r(w * 0.8)} M${r(w * 0.5)} ${r(h / 2)} L${r(w * 0.78)} ${r(h * 0.28)} M${r(w * 0.5)} ${r(h / 2)} L${r(w * 0.78)} ${r(h * 0.72)}`;
+    case "function": return `${box(w, h)} M${r(w * 0.3)} ${r(h * 0.22)} H${r(w * 0.42)} L${r(w * 0.7)} ${r(h * 0.8)} M${r(w * 0.52)} ${r(h * 0.45)} L${r(w * 0.3)} ${r(h * 0.8)}`;
+    case "bucket": { const e = Math.min(h * 0.14, 10); return `M0 ${r(e)} L${r(w * 0.12)} ${r(h)} H${r(w * 0.88)} L${r(w)} ${r(e)} ${oval(w / 2, e, w / 2, e)}`; }
     default: return `M0 0 H${r(w)} V${r(h)} H0 Z`;
   }
+  function box(bw, bh) { return `M0 0 H${r(bw)} V${r(bh)} H0 Z`; }
+  function oval(cx, cy, rx, ry) { return `M${r(cx)} ${r(cy - ry)} A${r(rx)} ${r(ry)} 0 1 1 ${r(cx)} ${r(cy + ry)} A${r(rx)} ${r(ry)} 0 1 1 ${r(cx)} ${r(cy - ry)} Z`; }
 }
 
 /** The shape libraries (#81): every shape WorkSuite's own, with a default size and text. */
@@ -63,7 +94,42 @@ export const LIBRARIES = [
     { type: "cloud", name: "Cloud", w: 140, h: 90, text: "Internet" },
     { type: "database", name: "Storage", w: 90, h: 80, text: "Storage" },
   ] },
+  { id: "floor", name: "Floor plan", shapes: [
+    { type: "room", name: "Room", w: 200, h: 150, text: "Room" },
+    { type: "wall", name: "Wall", w: 200, h: 8, text: "" },
+    { type: "door", name: "Door", w: 40, h: 40, text: "" },
+    { type: "window", name: "Window", w: 60, h: 8, text: "" },
+    { type: "stairs", name: "Stairs", w: 90, h: 40, text: "" },
+    { type: "table", name: "Round table", w: 60, h: 60, text: "" },
+    { type: "desk", name: "Desk and chair", w: 70, h: 50, text: "" },
+    { type: "sofa", name: "Sofa", w: 90, h: 40, text: "" },
+  ] },
+  { id: "uml", name: "UML", shapes: [
+    { type: "class", name: "Class", w: 160, h: 110, text: "ClassName" },
+    { type: "actor", name: "Actor", w: 50, h: 80, text: "" },
+    { type: "usecase", name: "Use case", w: 150, h: 60, text: "Use case" },
+    { type: "component", name: "Component", w: 150, h: 70, text: "Component" },
+    { type: "note", name: "Note", w: 130, h: 70, text: "Note" },
+    { type: "package", name: "Package", w: 160, h: 100, text: "Package" },
+  ] },
+  { id: "bpmn", name: "BPMN", shapes: [
+    { type: "event", name: "Start event", w: 40, h: 40, text: "" },
+    { type: "endevent", name: "End event", w: 40, h: 40, text: "" },
+    { type: "task", name: "Task", w: 140, h: 70, text: "Task" },
+    { type: "gateway", name: "Gateway", w: 56, h: 56, text: "" },
+    { type: "pool", name: "Pool / lane", w: 500, h: 140, text: "" },
+  ] },
+  { id: "cloud", name: "Cloud architecture", shapes: [
+    { type: "vm", name: "Virtual machine", w: 70, h: 70, text: "VM" },
+    { type: "container", name: "Container", w: 64, h: 70, text: "" },
+    { type: "function", name: "Function", w: 60, h: 60, text: "" },
+    { type: "queue", name: "Queue", w: 100, h: 40, text: "" },
+    { type: "loadbalancer", name: "Load balancer", w: 60, h: 60, text: "" },
+    { type: "bucket", name: "Object storage", w: 64, h: 64, text: "" },
+  ] },
 ];
+/** The libraries open in the panel at first; the rest open with a click. */
+export const OPEN_LIBRARIES = ["flowchart", "basic", "org", "network"];
 export const libraryShape = (type) => LIBRARIES.flatMap((l) => l.shapes).find((s) => s.type === type);
 
 /** Snaps a value to the grid (no grid: unchanged). */

@@ -41,6 +41,10 @@ body { font: 13px/1.35 Inter, system-ui, -apple-system, "Segoe UI", sans-serif; 
 .wd-main { flex: 1; display: flex; min-height: 0; }
 .wd-lib { width: 220px; flex: none; background: var(--card); border-inline-end: 1px solid var(--line); overflow: auto; padding: 8px 10px; }
 .wd-lib h3 { margin: 10px 0 6px; font-size: 11.5px; color: var(--ink2); font-weight: 600; }
+.wd-lib summary { margin: 10px 0 6px; font-size: 11.5px; color: var(--ink2); font-weight: 600; cursor: pointer; list-style: none; display: flex; align-items: center; gap: 6px; }
+.wd-lib summary::-webkit-details-marker { display: none; }
+.wd-lib summary::before { content: "›"; display: inline-block; width: 8px; color: var(--ink3); transition: transform .15s; }
+.wd-lib details[open] > summary::before { transform: rotate(90deg); }
 .wd-shapes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
 .wd-shapes button { height: 44px; border: 1px solid var(--line); border-radius: 6px; background: var(--card); color: var(--ink2); cursor: grab; display: grid; place-items: center; padding: 0; }
 .wd-shapes button:hover:not(:disabled) { border-color: var(--brand); color: var(--brand); }
