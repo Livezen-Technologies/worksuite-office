@@ -15,18 +15,19 @@ import { DiagramModel, newDiagram, parse, serialize, connectionPoints, pointOn, 
 import { checkEdit, reasonText, openUpgrade } from "../../common/licence.js";
 import { packDocument, unpackDocument } from "../../common/zip.js";
 import { fromVsdx, toVsdx } from "../core/vsdx.js";
-import { shapePath, LIBRARIES, libraryShape, snap, alignGuides, route, midpoint, resizeBox } from "./geometry.js";
+import { shapePath, LIBRARIES, OPEN_LIBRARIES, libraryShape, snap, alignGuides, route, midpoint, resizeBox } from "./geometry.js";
 
 const $ = (id) => document.getElementById(id);
 const NS = "http://www.w3.org/2000/svg";
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 const GRID = 10;
-const FILLS = { rect: "#dbeafe", rounded: "#dbeafe", diamond: "#fef3c7", terminator: "#e0f2fe", data: "#ede9fe", document: "#f5f5f4", database: "#dcfce7", manual: "#ffedd5", subprocess: "#dbeafe", ellipse: "#fce7f3", triangle: "#fef9c3", hexagon: "#e0e7ff", person: "#e2e8f0", server: "#e2e8f0", cloud: "#f1f5f9" };
-const LINES = { diamond: "#d97706", terminator: "#0284c7", data: "#7c3aed", database: "#16a34a", manual: "#ea580c", ellipse: "#db2777", triangle: "#ca8a04", hexagon: "#4f46e5", person: "#475569", server: "#475569", cloud: "#64748b", document: "#78716c" };
+const FILLS = { room: "#fafaf9", wall: "#52525b", door: "#ffffff", window: "#e0f2fe", stairs: "#f5f5f4", table: "#fef3c7", desk: "#fef3c7", sofa: "#e7e5e4", class: "#fffbeb", actor: "#ffffff", usecase: "#ecfccb", component: "#e0e7ff", note: "#fef9c3", package: "#f5f5f4", event: "#dcfce7", endevent: "#fee2e2", task: "#dbeafe", gateway: "#fef3c7", pool: "#ffffff", vm: "#e0f2fe", container: "#dbeafe", function: "#ffedd5", queue: "#f3e8ff", loadbalancer: "#dcfce7", bucket: "#fee2e2", rect: "#dbeafe", rounded: "#dbeafe", diamond: "#fef3c7", terminator: "#e0f2fe", data: "#ede9fe", document: "#f5f5f4", database: "#dcfce7", manual: "#ffedd5", subprocess: "#dbeafe", ellipse: "#fce7f3", triangle: "#fef9c3", hexagon: "#e0e7ff", person: "#e2e8f0", server: "#e2e8f0", cloud: "#f1f5f9" };
+const LINES = { room: "#57534e", wall: "#27272a", door: "#57534e", window: "#0284c7", stairs: "#78716c", table: "#a16207", desk: "#a16207", sofa: "#78716c", class: "#b45309", actor: "#334155", usecase: "#4d7c0f", component: "#4f46e5", note: "#a16207", package: "#57534e", event: "#16a34a", endevent: "#dc2626", task: "#2563eb", gateway: "#d97706", pool: "#475569", vm: "#0284c7", container: "#2563eb", function: "#ea580c", queue: "#9333ea", loadbalancer: "#16a34a", bucket: "#dc2626", diamond: "#d97706", terminator: "#0284c7", data: "#7c3aed", database: "#16a34a", manual: "#ea580c", ellipse: "#db2777", triangle: "#ca8a04", hexagon: "#4f46e5", person: "#475569", server: "#475569", cloud: "#64748b", document: "#78716c" };
 
 const state = {
   model: new DiagramModel(newDiagram("Untitled diagram")),
   pageId: "p1",
+  libOpen: new Set(OPEN_LIBRARIES), // shape libraries open in the panel
   sel: [],
   tool: "select",
   zoom: 1,
@@ -209,11 +210,12 @@ function overlaySvg() {
 function renderLib() {
   let html = "";
   for (const lib of LIBRARIES) {
-    html += `<h3>${lib.name}</h3><div class="wd-shapes">`;
-    for (const s of lib.shapes) html += `<button type="button" draggable="true" data-shape="${s.type}" data-lib="${lib.id}" title="${s.name}" ${state.readOnly ? "disabled" : ""}><svg viewBox="-2 -2 34 28"><path d="${shapePath(s.type, 30, 24)}" fill="none" stroke="currentColor" stroke-width="1.5"/></svg></button>`;
-    html += "</div>";
+    html += `<details data-lib-open="${lib.id}" ${state.libOpen.has(lib.id) ? "open" : ""}><summary>${lib.name}</summary><div class="wd-shapes">`;
+    for (const s of lib.shapes) html += `<button type="button" draggable="true" data-shape="${s.type}" data-lib="${lib.id}" title="${s.name}" ${state.readOnly ? "disabled" : ""}><svg viewBox="-2 -2 34 28"><path d="${shapePath(s.type, 30, 24 * Math.min(1, Math.max(0.35, s.h / s.w * 1.25)))}" fill="none" stroke="currentColor" stroke-width="1.5"/></svg></button>`;
+    html += "</div></details>";
   }
   $("wd-lib").innerHTML = html;
+  $("wd-lib").querySelectorAll("details").forEach((d) => d.addEventListener("toggle", () => { if (d.open) state.libOpen.add(d.dataset.libOpen); else state.libOpen.delete(d.dataset.libOpen); }));
 }
 function renderProps() {
   const ss = selShapes(), conns = state.sel.map(byId).filter((i) => i?.kind === "connector");

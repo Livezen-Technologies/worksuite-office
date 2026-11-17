@@ -1,5 +1,19 @@
 # Change log
 
+## 10.1.48
+
+### New features
+
+#### Diagram
+
+* Four new shape libraries, all drawn by WorkSuite: Floor plan (room, wall,
+  door, window, stairs, table, desk, sofa), UML (class, actor, use case,
+  component, note, package), BPMN (start and end events, task, gateway, pool)
+  and Cloud architecture (virtual machine, container, function, queue, load
+  balancer, object storage). They export to VSDX like every other shape.
+* The shape panel's libraries fold open and closed; the four everyday ones
+  start open.
+
 ## 10.1.47
 
 ### New features

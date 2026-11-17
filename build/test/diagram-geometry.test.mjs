@@ -13,7 +13,7 @@ test("every library shape has an outline, a size and a unique type per library",
       assert.ok(s.w > 0 && s.h > 0, s.type);
     }
   }
-  assert.deepEqual(LIBRARIES.map((l) => l.id), ["flowchart", "basic", "org", "network"]);
+  assert.deepEqual(LIBRARIES.slice(0, 4).map((l) => l.id), ["flowchart", "basic", "org", "network"]);
   assert.equal(libraryShape("diamond").name, "Decision");
   assert.equal(shapePath("unknown", 10, 20), "M0 0 H10 V20 H0 Z");
 });
@@ -65,4 +65,21 @@ test("corner resizing keeps the opposite corner and a minimum size", () => {
   assert.deepEqual(resizeBox(box, "se", 20, 10), { x: 100, y: 100, w: 100, h: 50 });
   assert.deepEqual(resizeBox(box, "nw", 20, 10), { x: 120, y: 110, w: 60, h: 30 });
   assert.deepEqual(resizeBox(box, "nw", 500, 500), { x: 170, y: 130, w: 10, h: 10 });
+});
+
+test("the floor plan, UML, BPMN and cloud libraries: own types, closed outlines, numbers only, VSDX-ready", async () => {
+  const { pathToGeometry } = await import("../apps/diagram/core/vsdx.js");
+  const { OPEN_LIBRARIES } = await import("../apps/diagram/editor/geometry.js");
+  assert.deepEqual(LIBRARIES.map((l) => l.id), ["flowchart", "basic", "org", "network", "floor", "uml", "bpmn", "cloud"]);
+  assert.ok(OPEN_LIBRARIES.every((id) => LIBRARIES.some((l) => l.id === id)));
+  const fresh = LIBRARIES.filter((l) => ["floor", "uml", "bpmn", "cloud"].includes(l.id)).flatMap((l) => l.shapes);
+  const types = fresh.map((s) => s.type);
+  assert.equal(new Set(types).size, types.length); // no type shared within the new libraries…
+  for (const s of fresh) {
+    assert.equal(libraryShape(s.type), s); // …nor with the older ones, so a drop gets this shape's size
+    const d = shapePath(s.type, s.w, s.h);
+    if (!["room", "wall"].includes(s.type)) assert.notEqual(d, shapePath("unknown-type", s.w, s.h), s.type + " draws its own outline"); // a room and a wall are boxes
+    assert.doesNotMatch(d, /NaN|undefined|[a-z]/, s.type); // absolute commands, finite numbers
+    assert.ok(pathToGeometry(d, s.w, s.h).length >= 1, s.type);
+  }
 });
