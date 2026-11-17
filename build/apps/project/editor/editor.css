@@ -32,15 +32,7 @@ body { font: 13px/1.35 Inter, system-ui, -apple-system, "Segoe UI", sans-serif; 
 .wp-mode button + button { margin-inline-start: 8px; }
 .wp-mode button { border: 0; background: none; color: var(--brand); font: inherit; cursor: pointer; padding: 0; text-decoration: underline; }
 
-.wp-ribbon { display: flex; gap: 4px; padding: 6px 10px; background: var(--card); border-bottom: 1px solid var(--line); flex-wrap: wrap; min-height: 58px; }
-.wp-group { display: none; align-items: flex-start; gap: 2px; padding: 0 10px 14px; border-inline-end: 1px solid var(--line); position: relative; }
-.wp-group.is-on { display: flex; }
-.wp-group button, .wp-group select { font: inherit; color: var(--ink); background: none; border: 1px solid transparent; border-radius: 6px; padding: 5px 9px; cursor: pointer; }
-.wp-group button:hover:not(:disabled) { background: var(--hover); border-color: var(--line); }
-.wp-group button:disabled { color: var(--ink3); cursor: default; opacity: .6; }
-.wp-group select { border-color: var(--line); background: var(--card); }
-.wp-group label { color: var(--ink2); display: flex; align-items: center; gap: 6px; padding: 3px 4px; }
-.wp-glabel { position: absolute; bottom: 0; left: 0; right: 0; text-align: center; font-size: 10.5px; color: var(--ink3); }
+.wp-ribbon { display: flex; gap: 0; padding: 4px 6px 2px; background: var(--card); border-bottom: 1px solid var(--line); flex-wrap: wrap; min-height: 92px; }
 
 .wp-main { flex: 1; display: flex; min-height: 0; background: var(--card); }
 .wp-grid { width: 680px; max-width: 55%; flex: none; overflow: auto; outline: none; }
@@ -66,7 +58,6 @@ table.wp-table { border-collapse: collapse; width: 100%; table-layout: fixed; }
 .wp-behind { fill: none; stroke: #d97706; stroke-width: 1.5; }
 .wp-statusline { stroke: #d97706; stroke-width: 1.5; stroke-dasharray: 5 3; }
 .wp-status .warn { color: #b45309; }
-.wp-group input[type="date"] { font: inherit; color: var(--ink); background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 3px 6px; }
 .wp-over { fill: none; stroke: var(--today); stroke-width: 1.5; stroke-dasharray: 3 2; }
 .wp-load { border-collapse: collapse; margin: 12px; font-size: 12px; }
 .wp-load th, .wp-load td { border: 1px solid var(--line); padding: 5px 9px; text-align: center; white-space: nowrap; }

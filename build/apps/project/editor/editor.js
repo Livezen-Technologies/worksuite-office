@@ -16,6 +16,7 @@ import { overallocations, weeklyLoad } from "../core/resources.js";
 import { behindSchedule } from "../core/progress.js";
 import { outlineToDoc } from "../core/outline.js";
 import { askText } from "../../common/dialog.js";
+import { decorateRibbon, ribbonStyles } from "../../common/ribbon.js";
 import { aiDraft } from "../../common/aidraft.js";
 import { checkEdit, reasonText, openUpgrade } from "../../common/licence.js";
 import { packDocument, unpackDocument, xlsx } from "../../common/zip.js";
@@ -75,6 +76,8 @@ const commands = {
   new: () => { if (confirmDiscard()) { state.model = new ProjectModel(newProject("Untitled project", mondayOf(new Date()))); state.sel = []; state.fileName = "Untitled project.wsproj"; render(); } },
   open: () => $("wp-file").click(),
   fromOutline: () => fromOutline(),
+  viewGantt: () => { state.workload = false; render(); },
+  viewWorkload: () => { state.workload = true; render(); },
   aiPlan: () => aiPlan(),
   save: () => { download(state.fileName, packDocument(APP, serialize(state.model.doc)), "application/zip"); state.saved = state.model.undoStack.length; render(); },
   exportCsv: () => download(state.fileName.replace(/\.wsproj$/, "") + ".csv", toCsv(), "text/csv"),
@@ -340,6 +343,7 @@ function draw() {
   try { state.over = overallocations(state.model.doc, calendar().isWork); } catch { state.over = []; }
   try { state.behind = behindSchedule(state.model.doc, state.model.doc.statusDate, calendar().isWork); } catch { state.behind = []; }
   $("wp-status-date").value = state.model.doc.statusDate || "";
+  for (const b of document.querySelectorAll('[data-cmd="viewGantt"], [data-cmd="viewWorkload"]')) b.setAttribute("aria-pressed", String((b.dataset.cmd === "viewWorkload") === !!state.workload));
   if (state.workload) renderWorkload(); else renderChart(rows);
   $("wp-title").textContent = state.fileName.replace(/\.wsproj$/, "") + (state.model.undoStack.length !== (state.saved || 0) ? " •" : ""); // • unsaved changes
   $("wp-mode").hidden = !state.readOnly;
@@ -365,7 +369,6 @@ $("wp-zoom").addEventListener("change", (e) => { state.zoom = e.target.value; re
 $("wp-cal").addEventListener("change", (e) => { state.cal = e.target.value; render(); });
 $("wp-critical").addEventListener("change", (e) => { state.showCritical = e.target.checked; render(); });
 $("wp-status-date").addEventListener("change", (e) => run(() => state.model.setStatusDate(e.target.value || null)));
-$("wp-workload").addEventListener("change", (e) => { state.workload = e.target.checked; render(); });
 $("wp-baseline").addEventListener("change", (e) => { state.showBaseline = e.target.checked; render(); });
 $("wp-upgrade").addEventListener("click", () => (window.WorkSuiteProject.onUpgrade || openUpgrade)());
 $("wp-retry").addEventListener("click", () => applyLicence());
@@ -529,5 +532,7 @@ if (new URLSearchParams(location.search).has("sample")) {
 }
 if (new URLSearchParams(location.search).has("readonly")) state.readOnly = true;
 else applyLicence();
+ribbonStyles();
+decorateRibbon($("wp-ribbon"));
 showTab("task");
 render();

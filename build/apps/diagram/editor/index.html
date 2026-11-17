@@ -11,30 +11,70 @@
   <nav class="wd-tabs">
     <button class="wd-tab" data-tab="file">File</button>
     <button class="wd-tab is-on" data-tab="home">Home</button>
+    <button class="wd-tab" data-tab="insert">Insert</button>
     <button class="wd-tab" data-tab="arrange">Arrange</button>
     <button class="wd-tab" data-tab="view">View</button>
     <span class="wd-title" id="wd-title"></span>
     <span class="wd-mode" id="wd-mode" role="status" hidden><span id="wd-mode-text">Read-only</span> · <button type="button" id="wd-upgrade">Upgrade to Pro</button><button type="button" id="wd-retry" hidden>Try again</button></span>
   </nav>
   <div class="wd-ribbon" id="wd-ribbon">
-    <div class="wd-group" data-tab="file"><button data-cmd="new">New</button><button data-cmd="open">Open…</button><button data-cmd="fromTable" data-edit>From table…</button><button data-cmd="aiDiagram" data-edit>Draft with AI…</button><button data-cmd="save">Save</button><button data-cmd="exportVsdx">Export VSDX</button><button data-cmd="exportPng">Export PNG</button><button data-cmd="exportSvg">Export SVG</button><button data-cmd="print">Print / PDF</button><span class="wd-glabel">File</span></div>
-    <div class="wd-group" data-tab="home">
-      <button data-tool="select" class="is-on">Pointer</button><button data-tool="connect" data-edit>Connector</button>
-      <select id="wd-route" data-edit title="Connector style"><option value="elbow">Elbow</option><option value="straight">Straight</option><option value="curved">Curved</option></select>
-      <span class="wd-glabel">Tools</span>
+    <div class="wd-group rb-group" data-tab="file">
+      <button class="big" data-icon="new" data-cmd="new">New</button><button class="big" data-icon="open" data-cmd="open">Open</button><button class="big" data-icon="save" data-cmd="save">Save</button>
+      <span class="rb-glabel">File</span>
     </div>
-    <div class="wd-group" data-tab="home"><button data-cmd="remove" data-edit>Delete</button><button data-cmd="duplicate" data-edit>Duplicate</button><span class="wd-glabel">Edit</span></div>
-    <div class="wd-group" data-tab="home"><button data-cmd="undo" data-edit>Undo</button><button data-cmd="redo" data-edit>Redo</button><span class="wd-glabel">History</span></div>
-    <div class="wd-group" data-tab="arrange">
-      <button data-cmd="alignLeft" data-edit>Align left</button><button data-cmd="alignCenter" data-edit>Centre</button><button data-cmd="alignTop" data-edit>Align top</button><button data-cmd="distributeH" data-edit>Distribute</button>
-      <span class="wd-glabel">Align</span>
+    <div class="wd-group rb-group" data-tab="file">
+      <div class="rb-stack"><button data-icon="export" data-cmd="exportVsdx">Visio (VSDX)</button><button data-icon="export" data-cmd="exportPng">Picture (PNG)</button><button data-icon="export" data-cmd="exportSvg">Vector (SVG)</button></div>
+      <button class="big" data-icon="print" data-cmd="print">Print / PDF</button>
+      <span class="rb-glabel">Export and print</span>
     </div>
-    <div class="wd-group" data-tab="arrange"><button data-cmd="group" data-edit>Group</button><button data-cmd="ungroup" data-edit>Ungroup</button><button data-cmd="front" data-edit>Front</button><button data-cmd="back" data-edit>Back</button><span class="wd-glabel">Arrange</span></div>
-    <div class="wd-group" data-tab="arrange"><button data-cmd="layoutDown" data-edit title="Org charts and trees: top to bottom">Layout ↓</button><button data-cmd="layoutRight" data-edit title="Flowcharts: left to right">Layout →</button><span class="wd-glabel">Auto-layout</span></div>
-    <div class="wd-group" data-tab="view">
-      <label><input type="checkbox" id="wd-grid" checked> Grid and snap</label>
-      <button data-cmd="zoomOut">−</button><span id="wd-zoomlabel">100%</span><button data-cmd="zoomIn">+</button><button data-cmd="zoomFit">Fit page</button>
-      <span class="wd-glabel">View</span>
+    <div class="wd-group rb-group" data-tab="home">
+      <div class="rb-stack"><button data-icon="undo" data-cmd="undo" data-edit>Undo</button><button data-icon="redo" data-cmd="redo" data-edit>Redo</button></div>
+      <span class="rb-glabel">History</span>
+    </div>
+    <div class="wd-group rb-group" data-tab="home">
+      <div class="rb-stack"><button data-icon="duplicate" data-cmd="duplicate" data-edit>Duplicate</button><button data-icon="remove" data-cmd="remove" data-edit>Delete</button></div>
+      <span class="rb-glabel">Clipboard</span>
+    </div>
+    <div class="wd-group rb-group" data-tab="home">
+      <button class="big is-on" data-icon="pointer" data-tool="select">Pointer Tool</button><button class="big" data-icon="connector" data-tool="connect" data-edit>Connector</button>
+      <div class="rb-stack"><label class="rb-field">Lines <select id="wd-route" data-edit title="Connector style"><option value="elbow">Elbow</option><option value="straight">Straight</option><option value="curved">Curved</option></select></label></div>
+      <span class="rb-glabel">Tools</span>
+    </div>
+    <div class="wd-group rb-group" data-tab="home">
+      <div class="rb-stack"><button data-icon="alignleft" data-cmd="alignLeft" data-edit>Align left</button><button data-icon="aligncenter" data-cmd="alignCenter" data-edit>Align centre</button><button data-icon="aligntop" data-cmd="alignTop" data-edit>Align top</button></div>
+      <div class="rb-stack"><button data-icon="front" data-cmd="front" data-edit>Bring to front</button><button data-icon="back" data-cmd="back" data-edit>Send to back</button><button data-icon="group" data-cmd="group" data-edit>Group</button></div>
+      <span class="rb-glabel">Arrange</span>
+    </div>
+    <div class="wd-group rb-group" data-tab="insert">
+      <button class="big" data-icon="table" data-cmd="fromTable" data-edit>From Table</button><button class="big" data-icon="ai" data-cmd="aiDiagram" data-edit>Draft with AI</button>
+      <span class="rb-glabel">Diagram</span>
+    </div>
+    <div class="wd-group rb-group" data-tab="insert">
+      <button class="big" data-icon="connector" data-tool="connect" data-edit>Connector</button>
+      <span class="rb-glabel">Diagram parts</span>
+    </div>
+    <div class="wd-group rb-group" data-tab="arrange">
+      <div class="rb-stack"><button data-icon="alignleft" data-cmd="alignLeft" data-edit>Align left</button><button data-icon="aligncenter" data-cmd="alignCenter" data-edit>Align centre</button><button data-icon="aligntop" data-cmd="alignTop" data-edit>Align top</button></div>
+      <button class="big" data-icon="distribute" data-cmd="distributeH" data-edit>Distribute</button>
+      <span class="rb-glabel">Align</span>
+    </div>
+    <div class="wd-group rb-group" data-tab="arrange">
+      <button class="big" data-icon="layoutdown" data-cmd="layoutDown" data-edit title="Org charts and trees: top to bottom">Top to Bottom</button><button class="big" data-icon="layoutright" data-cmd="layoutRight" data-edit title="Flowcharts: left to right">Left to Right</button>
+      <span class="rb-glabel">Layout</span>
+    </div>
+    <div class="wd-group rb-group" data-tab="arrange">
+      <div class="rb-stack"><button data-icon="front" data-cmd="front" data-edit>Bring to front</button><button data-icon="back" data-cmd="back" data-edit>Send to back</button></div>
+      <div class="rb-stack"><button data-icon="group" data-cmd="group" data-edit>Group</button><button data-icon="ungroup" data-cmd="ungroup" data-edit>Ungroup</button></div>
+      <span class="rb-glabel">Arrange</span>
+    </div>
+    <div class="wd-group rb-group" data-tab="view">
+      <div class="rb-stack"><label class="rb-field"><input type="checkbox" id="wd-grid" checked> Grid and snap</label></div>
+      <span class="rb-glabel">Show</span>
+    </div>
+    <div class="wd-group rb-group" data-tab="view">
+      <button class="big" data-icon="fit" data-cmd="zoomFit">Fit to Window</button>
+      <div class="rb-stack"><button data-icon="zoomin" data-cmd="zoomIn">Zoom in</button><button data-icon="zoomout" data-cmd="zoomOut">Zoom out</button><span class="rb-field" id="wd-zoomlabel">100%</span></div>
+      <span class="rb-glabel">Zoom</span>
     </div>
   </div>
   <main class="wd-main">

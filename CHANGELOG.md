@@ -1,5 +1,18 @@
 # Change log
 
+## 10.1.51
+
+### New features
+
+#### Project and Diagram
+
+* A ribbon with icons, as in the other WorkSuite editors: large buttons for
+  the main commands, small ones stacked beside them, and a name under each
+  group. WorkSuite Project's tabs are now File, Task, Resource, Project and
+  View; WorkSuite Diagram's are File, Home, Insert, Arrange and View.
+* WorkSuite Project switches between the Gantt chart and the workload view
+  with buttons on the Task, Resource and View tabs.
+
 ## 10.1.50
 
 ### New features
