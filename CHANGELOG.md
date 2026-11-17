@@ -1,5 +1,16 @@
 # Change log
 
+## 10.1.43
+
+### Fixes
+
+#### Project
+
+* Opening a Microsoft Project file (.mpp) in WorkSuite Project now says how to
+  bring it across: in Microsoft Project, File › Save As, XML Format, then open
+  that file. Before, it failed with a confusing error. The format is closed, so
+  WorkSuite Project reads Project XML instead.
+
 ## 10.1.42
 
 ### New features

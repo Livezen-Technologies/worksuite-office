@@ -10,7 +10,7 @@
  * window.WorkSuiteProject lets the shell load a file, read it back and switch read-only mode (free viewing, #73).
  */
 import { ProjectModel, newProject, parse, serialize, finishOf, APP } from "../core/project.js";
-import { fromProjectXml, toProjectXml } from "../core/projectxml.js";
+import { fromProjectXml, toProjectXml, isMpp, MPP_HELP } from "../core/projectxml.js";
 import { schedule, applySchedule, criticalPath, STANDARD, SRI_LANKA } from "../core/schedule.js";
 import { checkEdit, reasonText, openUpgrade } from "../../common/licence.js";
 import { packDocument, unpackDocument, xlsx } from "../../common/zip.js";
@@ -359,6 +359,7 @@ $("wp-file").addEventListener("change", async (e) => {
 /** Opens a project: the bytes of a .wsproj file (or its JSON text). */
 function load(input, name = "Project.wsproj") {
   const bytes = typeof input === "string" ? new TextEncoder().encode(input) : input;
+  if (isMpp(bytes, name)) throw new Error(MPP_HELP); // closed format: how to save it as Project XML instead
   let i = 0;
   while (i < bytes.length && (bytes[i] <= 0x20 || bytes[i] === 0xef || bytes[i] === 0xbb || bytes[i] === 0xbf)) i++; // spaces, a BOM
   if (bytes[i] === 0x3c) { // "<": Project XML (#84), opened as a new WorkSuite project

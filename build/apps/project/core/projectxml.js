@@ -191,3 +191,18 @@ export function toProjectXml(doc, isWork = null) {
 </Project>
 `;
 }
+
+/* ---- Microsoft Project's own .mpp files ---- */
+
+/**
+ * WorkSuite Project does not read .mpp files: the format is closed and undocumented (decision in
+ * docs/project-diagram/roadmap.md). Microsoft Project saves any plan as Project XML, which opens here.
+ */
+export const MPP_HELP = "This is a Microsoft Project file (.mpp), which WorkSuite Project cannot open. In Microsoft Project, choose File › Save As, pick \"XML Format (*.xml)\", and open that file here: tasks, links, dates and people all come across.";
+
+/** True for an .mpp: by name, or by content (a Microsoft compound file, D0 CF 11 E0 A1 B1 1A E1). */
+export function isMpp(bytes, name = "") {
+  if (/\.mp[pt]$/i.test(name)) return true;
+  const sig = [0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1];
+  return !!bytes && bytes.length >= 8 && sig.every((b, i) => bytes[i] === b);
+}

@@ -17,7 +17,7 @@ their screens, icons and names are ours.
 | In the engine today | Nothing. A new editor | `visioeditor`: opens VSDX, VSD and VSDM to view and print (ONLYOFFICE 9+, in our 10.x builds) |
 | How it gets built | A new web app in the editor shell, next to the PDF Editor overlay | Stage 2: a drawing canvas in the editor shell. Stage 3: editing on the engine's VSDX model |
 | Its own file | `.wsproj`: zipped JSON (tasks, links, calendars, resources), versioned schema | `.wsdiagram`: zipped JSON (pages, shapes, connectors, styles), versioned schema |
-| Industry formats | Project XML (open spec): read and write. MPP: read-only, through a converter in worksuite-ai | VSDX: read (now), write (stage 3). VSD: read only |
+| Industry formats | Project XML (open spec): read and write. MPP: not read (closed format); opening one explains how to save it as Project XML | VSDX: read (now), write (stage 3). VSD: read only |
 | Exports | PDF, XLSX, CSV, PNG of the Gantt chart | PDF, PNG, SVG |
 
 ## Architecture
@@ -33,7 +33,6 @@ Editors (web-apps, patched in CI like the PDF Editor overlay)
   apps/projecteditor   task grid + Gantt canvas, scheduling engine in a web worker
   apps/diagrameditor   canvas, shape libraries, connector router
 worksuite-ai (local service)
-  /v1/project/convert  MPP → Project XML (read-only import)
   /v1/project/export   XLSX, CSV; PDF through the engine's converter
   AI assistant tools   "make a plan from this text", "draw this process"
 ```
@@ -48,7 +47,7 @@ Decided: **viewing is free, creating and editing is Pro**, for both apps.
 
 | | Free | Pro |
 |---|---|---|
-| WorkSuite Project | Open `.wsproj`, Project XML and MPP files; read the task list and Gantt chart; zoom, scroll, print, export to PDF | Create projects; edit tasks, links, calendars, baselines and resources; save; export to XLSX and CSV; AI plan from text |
+| WorkSuite Project | Open `.wsproj` and Project XML files; read the task list and Gantt chart; zoom, scroll, print, export to PDF | Create projects; edit tasks, links, calendars, baselines and resources; save; export to XLSX and CSV; AI plan from text |
 | WorkSuite Diagram | Open `.wsdiagram`, VSDX, VSD and VSDM files; view pages and layers; zoom, print, export to PDF and PNG | Create diagrams; edit shapes, connectors and pages; save, including VSDX; export to SVG; AI diagram from text |
 
 How it works:
@@ -107,14 +106,14 @@ the same, on all three platforms. Unit tests for the schema, the editors' models
 - Automatic scheduling from links and constraints, critical path, slack.
 - Working calendars: working days and hours, holidays (with Sri Lankan public holidays built in).
 - Baselines: save one, then compare actual against plan in the Gantt chart.
-- Open and save Project XML. Open MPP read-only: worksuite-ai converts it to Project XML.
+- Open and save Project XML. MPP is not read: decided against bundling a Java runtime for a converter; opening an .mpp explains how to save it as Project XML in Microsoft Project.
 
 **Diagram: Visio files**
 
 - Open VSDX for editing, save VSDX. Shapes WorkSuite cannot edit stay as they are when saved.
 - Insert a diagram into a document or presentation as a picture that opens in Diagram for editing.
 
-Done when: a test set of real Project XML, MPP and VSDX files opens and saves with no lost tasks,
+Done when: a test set of real Project XML and VSDX files opens and saves with no lost tasks,
 links or shapes (checked by comparing the files' models before and after).
 
 ### Stage 4: team and AI (about 6 to 8 weeks)
@@ -181,7 +180,7 @@ Every feature of both apps, with the stage that brings it. Progress is tracked i
 | Scheduling | Auto-schedule, constraints, critical path | 3 | Files | `.wsdiagram`, PDF, PNG, SVG | 2 |
 | Calendars | Working time, holidays (Sri Lanka built in) | 3 | Visio files | VSDX edit and save, VSD read | 3 |
 | Baselines | One baseline, plan against actual | 3 | Embedding | Diagrams in documents and slides | 3 |
-| Project files | Project XML read/write, MPP read | 3 | Libraries | Floor plan, UML, BPMN, cloud | 4 |
+| Project files | Project XML read/write (MPP: save as XML) | 3 | Libraries | Floor plan, UML, BPMN, cloud | 4 |
 | Resources | Assignments, workload, over-allocation | 4 | Layout | Auto-layout org charts, flowcharts | 4 |
 | Tracking | % complete, actuals, status date | 4 | AI | Diagram from text or a table | 4 |
 | AI | Plan from text | 4 | Together | Shared editing in WorkSuite Drive | 4 |
@@ -204,7 +203,7 @@ each app after stage 2 (about 2 months) and every stage shipping on its own.
 
 | Risk | What we do |
 |---|---|
-| MPP is a closed format | Read-only import through a converter; Project XML is the format we write |
+| MPP is a closed format | Decided: not read. Project XML is the exchange format both ways; an .mpp opened by mistake explains how to save it as XML |
 | VSDX editing is large | Stage 2 draws in our own format first; stage 3 edits VSDX on the engine's model, keeping what we cannot edit |
 | Native shell changes on three platforms | New document types follow the PDF Editor's path; each stage ships only when all three builds are green |
 | Scope | Each stage ships on its own, with a version, changelog and release notes |

@@ -96,3 +96,13 @@ test("odd files are read with the problems said, not refused", () => {
   assert.equal(problems.length, 3);
   assert.match(problems.join(" | "), /outline level 2.*|UID 99|was read as 1 day/);
 });
+
+test("an .mpp is recognised by name or content, and the help says how to save it as Project XML", async () => {
+  const { isMpp, MPP_HELP } = await import("../apps/project/core/projectxml.js");
+  assert.equal(isMpp(new Uint8Array([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1, 0]), "plan.bin"), true); // compound file
+  assert.equal(isMpp(new Uint8Array([0x3c]), "Plan.MPP"), true);
+  assert.equal(isMpp(new TextEncoder().encode("<?xml?>"), "plan.xml"), false);
+  assert.equal(isMpp(new Uint8Array([0x50, 0x4b, 3, 4]), "plan.wsproj"), false);
+  assert.match(MPP_HELP, /Save As/);
+  assert.match(MPP_HELP, /XML/);
+});
