@@ -43,10 +43,15 @@ export function reasonText(reason) {
   }[reason] || "Read-only";
 }
 
-/** The service's address from the desktop shell: { base, token }; rejects when it cannot be reached. */
-export function discover(win = globalThis.window, start = true, timeoutMs = 25000) {
-  const native = win && win.AscDesktopEditor;
+/**
+ * The service's address from the desktop shell: { base, token }; rejects when it cannot be reached.
+ * host: the frame whose on_native_message receives the answer. In an editor plugin (the WorkSuite Diagram
+ * plugin, #85) that is the editor frame, the plugin's parent, as for the AI plugin (ai-plugin lib/discovery.js).
+ */
+export function discover(win = globalThis.window, start = true, timeoutMs = 25000, host = win) {
+  const native = (win && win.AscDesktopEditor) || (host && host.AscDesktopEditor);
   if (!native || typeof native.execCommand !== "function") return Promise.reject(new Error("no desktop shell"));
+  win = host; // the answer arrives in the host frame
   const req = "ws-app-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 8);
   return new Promise((resolve, reject) => {
     const previous = win.on_native_message;
@@ -87,10 +92,10 @@ function getJson(win, url, token) {
  * May this person edit files of `feature` ("project.edit" or "diagram.edit")? Resolves { edit, reason }; never
  * rejects. No desktop shell: editing allowed (reason "standalone").
  */
-export async function checkEdit(feature, win = globalThis.window) {
-  if (!win || !win.AscDesktopEditor) return { edit: true, reason: "standalone" };
+export async function checkEdit(feature, win = globalThis.window, host = win) {
+  if (!win || !(win.AscDesktopEditor || (host && host.AscDesktopEditor))) return { edit: true, reason: "standalone" };
   try {
-    const { base, token } = await discover(win);
+    const { base, token } = await discover(win, true, 25000, host);
     return canEdit(await getJson(win, base + "/license", token), feature);
   } catch {
     return { edit: false, reason: "unavailable" };

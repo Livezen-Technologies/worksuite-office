@@ -1,0 +1,39 @@
+{
+  "name": "WorkSuite Diagram",
+  "nameLocale": {
+    "si": "WorkSuite රූපසටහන",
+    "ta": "WorkSuite வரைபடம்"
+  },
+  "guid": "asc.{C24643F7-B1B5-4DEB-A903-2A145E12F325}",
+  "version": "1.0.0",
+  "minVersion": "8.2.0",
+  "offered": "WorkSuite",
+  "variations": [
+    {
+      "description": "Draw a flowchart, org chart or network diagram right in the document. Double-click the diagram later to change it.",
+      "descriptionLocale": {
+        "si": "ලේඛනය තුළම ගැලීම් සටහනක්, සංවිධාන සටහනක් හෝ ජාල රූපසටහනක් අඳින්න. පසුව එය වෙනස් කිරීමට රූපසටහන මත දෙවරක් ක්ලික් කරන්න.",
+        "ta": "ஆவணத்திலேயே பாய்வுப்படம், அமைப்பு வரைபடம் அல்லது வலையமைப்பு வரைபடம் வரையுங்கள். பின்னர் மாற்ற, வரைபடத்தை இருமுறை சொடுக்குங்கள்."
+      },
+      "url": "index.html",
+      "icons": ["resources/light/icon.png", "resources/light/icon@2x.png"],
+      "icons2": [
+        { "style": "light", "100%": { "normal": "resources/light/icon.png" }, "200%": { "normal": "resources/light/icon@2x.png" } },
+        { "style": "dark", "100%": { "normal": "resources/dark/icon.png" }, "200%": { "normal": "resources/dark/icon@2x.png" } }
+      ],
+      "isViewer": false,
+      "EditorsSupport": ["word", "cell", "slide"],
+      "isVisual": true,
+      "isModal": true,
+      "isInsideMode": false,
+      "initDataType": "ole",
+      "initData": "",
+      "isUpdateOleOnResize": false,
+      "buttons": [
+        { "text": "Insert", "primary": true, "textLocale": { "si": "ඇතුළු කරන්න", "ta": "செருகு" } },
+        { "text": "Cancel", "primary": false, "textLocale": { "si": "අවලංගු කරන්න", "ta": "ரத்துசெய்" } }
+      ],
+      "size": [1180, 760]
+    }
+  ]
+}

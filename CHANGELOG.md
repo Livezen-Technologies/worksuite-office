@@ -1,5 +1,17 @@
 # Change log
 
+## 10.1.42
+
+### New features
+
+#### Diagrams in documents, spreadsheets and presentations
+
+* The WorkSuite Diagram plugin draws a diagram right in a document, a
+  spreadsheet or a presentation: Plugins › WorkSuite Diagram opens the Diagram
+  editor, and Insert puts the diagram in as a picture. Double-clicking it
+  later opens the diagram again to change it. Without Pro the diagram opens
+  read-only
+
 ## 10.1.41
 
 ### New features

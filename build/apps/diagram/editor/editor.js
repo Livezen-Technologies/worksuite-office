@@ -490,6 +490,19 @@ window.WorkSuiteDiagram = {
   text: () => serialize(state.model.doc),
   bytes: () => packDocument(APP, serialize(state.model.doc)),
   svg: () => pageSvg(false),
+  /** The current page cropped to its drawing plus `margin` points: { svg, width, height } (for a picture in a document). */
+  svgFit(margin = 16) {
+    const p = page(), boxes = [];
+    for (const it of p.items) {
+      if (!isVisible(it)) continue;
+      if (it.kind === "shape") boxes.push({ x: it.x, y: it.y, w: it.w, h: it.h });
+      else if (it.kind === "connector") { const pts = connectorPoints(it); const xs = pts.map((q) => q[0]), ys = pts.map((q) => q[1]); boxes.push({ x: Math.min(...xs), y: Math.min(...ys), w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys) }); }
+    }
+    const b = boxes.length ? bbox(boxes) : { x: 0, y: 0, w: p.width, h: p.height };
+    const x = Math.max(0, b.x - margin), y = Math.max(0, b.y - margin), w = Math.min(p.width - x, b.w + 2 * margin), h = Math.min(p.height - y, b.h + 2 * margin);
+    const svg = pageSvg(false).replace(/^<svg([^>]*) width="[^"]*" height="[^"]*" viewBox="[^"]*"/, `<svg$1 width="${w}" height="${h}" viewBox="${x} ${y} ${w} ${h}"`);
+    return { svg, width: w, height: h };
+  },
   setReadOnly(on) { state.readOnly = !!on; state.tool = "select"; render(); },
   onUpgrade: null,
 };
@@ -516,7 +529,9 @@ if (new URLSearchParams(location.search).has("sample")) {
   state.fileName = "Leave approval.wsdiagram";
   state.sel = [c];
 }
+const embedded = new URLSearchParams(location.search).has("embedded"); // inside the WorkSuite Diagram plugin (#85)
+if (embedded) document.documentElement.classList.add("is-embedded");
 if (new URLSearchParams(location.search).has("readonly")) state.readOnly = true;
-else applyLicence();
+else if (!embedded) applyLicence(); // embedded: the plugin checks the licence and calls setReadOnly
 showTab("home");
 render();

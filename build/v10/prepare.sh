@@ -85,5 +85,8 @@ bash "$repo/build/v10/sinhala.sh" "$repo"
 # WorkSuite Local AI: the editor plugin for the local AI service (voice typing, review, read aloud, suggestions)
 bash "$repo/build/v10/ai.sh" "$repo"
 
+# WorkSuite Diagram: the editor plugin that puts diagrams into documents, spreadsheets and presentations
+bash "$repo/build/v10/diagram-plugin.sh" "$repo"
+
 # The PDF Editor's text recognition (OCR): tesseract.js and the English, Sinhala and Tamil models
 bash "$repo/build/v10/ocr.sh" "$repo"
