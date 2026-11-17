@@ -8,6 +8,7 @@
  * lags use an 8-hour working day, the format's default. What does not travel yet: costs, calendars beyond the
  * default, baselines, custom fields. They come with stage 5 (#90–#94).
  */
+import { assignmentsOf, ownerText } from "./resources.js";
 import { ProjectModel, newProject, validate } from "./project.js";
 
 const NS = "http://schemas.microsoft.com/project";
@@ -100,7 +101,8 @@ export function fromProjectXml(text) {
     const who = resources.get(val(a, "ResourceUID"));
     if (!who) continue;
     const t = val(a, "TaskUID");
-    owners.set(t, [...(owners.get(t) || []), who]);
+    const units = Number(val(a, "Units") || 1);
+    owners.set(t, [...(owners.get(t) || []), { name: who, units: units > 0 ? units : 1 }]);
   }
 
   for (const t of taskEls) {
@@ -120,7 +122,7 @@ export function fromProjectXml(text) {
       progress: Math.min(100, Math.max(0, Math.round(Number(val(t, "PercentComplete") || 0)))),
     };
     const owner = owners.get(uid);
-    if (owner) task.owner = owner.join(", ");
+    if (owner) task.owner = ownerText(owner);
     if (val(t, "Notes")) task.notes = val(t, "Notes");
     if (val(t, "ActualStart")) task.actualStart = val(t, "ActualStart").slice(0, 10);
     if (val(t, "ActualFinish") && task.actualStart) task.actualFinish = val(t, "ActualFinish").slice(0, 10);
@@ -156,7 +158,7 @@ export function toProjectXml(doc, isWork = null) {
   const m = new ProjectModel(doc);
   m.isWork = isWork;
   const uid = new Map(doc.tasks.map((t, i) => [t.id, i + 1]));
-  const resources = [...new Set(doc.tasks.flatMap((t) => (t.owner ? t.owner.split(",").map((s) => s.trim()).filter(Boolean) : [])))];
+  const resources = [...new Set(doc.tasks.flatMap((t) => assignmentsOf(t).map((a) => a.name)))];
   const rid = new Map(resources.map((r, i) => [r, i + 1]));
   const tasks = doc.tasks.map((t, i) => {
     const v = m.view(t.id);
@@ -172,8 +174,8 @@ export function toProjectXml(doc, isWork = null) {
   }).join("\n    ");
   const resXml = resources.map((r) => `<Resource><UID>${rid.get(r)}</UID><ID>${rid.get(r)}</ID>${el("Name", r)}<Type>1</Type></Resource>`).join("\n    ");
   let a = 0;
-  const asgXml = doc.tasks.flatMap((t) => (t.owner ? t.owner.split(",").map((s) => s.trim()).filter(Boolean) : []).map((r) =>
-    `<Assignment><UID>${++a}</UID><TaskUID>${uid.get(t.id)}</TaskUID><ResourceUID>${rid.get(r)}</ResourceUID><Units>1</Units></Assignment>`)).join("\n    ");
+  const asgXml = doc.tasks.flatMap((t) => assignmentsOf(t).map((r) =>
+    `<Assignment><UID>${++a}</UID><TaskUID>${uid.get(t.id)}</TaskUID><ResourceUID>${rid.get(r.name)}</ResourceUID><Units>${r.units}</Units></Assignment>`)).join("\n    ");
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Project xmlns="${NS}">
   ${el("Name", doc.name)}
