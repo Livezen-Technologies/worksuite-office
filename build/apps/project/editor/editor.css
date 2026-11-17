@@ -63,6 +63,14 @@ table.wp-table { border-collapse: collapse; width: 100%; table-layout: fixed; }
 .wp-scale div { position: absolute; font-size: 11px; color: var(--ink3); white-space: nowrap; border-inline-start: 1px solid var(--line); padding: 3px 5px; height: 23px; }
 .wp-scale .b { top: 23px; text-align: center; padding: 4px 0; font-size: 10px; }
 .wp-chart svg { display: block; }
+.wp-over { fill: none; stroke: var(--today); stroke-width: 1.5; stroke-dasharray: 3 2; }
+.wp-load { border-collapse: collapse; margin: 12px; font-size: 12px; }
+.wp-load th, .wp-load td { border: 1px solid var(--line); padding: 5px 9px; text-align: center; white-space: nowrap; }
+.wp-load thead th { color: var(--ink3); font-weight: 500; }
+.wp-load tbody th { text-align: start; font-weight: 500; }
+.wp-load td.is-over { color: var(--today); font-weight: 600; background: color-mix(in srgb, var(--today) 12%, transparent); }
+.wp-warn { color: var(--today); font-weight: 700; }
+.wp-empty { margin: 24px; color: var(--ink3); }
 .wp-bar { fill: var(--bar); }
 .wp-bar-done { fill: var(--bar-done); }
 .wp-bar.is-crit { fill: #fca5a5; }

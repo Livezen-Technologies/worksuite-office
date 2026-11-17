@@ -12,6 +12,7 @@
 import { ProjectModel, newProject, parse, serialize, finishOf, APP } from "../core/project.js";
 import { fromProjectXml, toProjectXml, isMpp, MPP_HELP } from "../core/projectxml.js";
 import { schedule, applySchedule, criticalPath, STANDARD, SRI_LANKA } from "../core/schedule.js";
+import { overallocations, weeklyLoad } from "../core/resources.js";
 import { checkEdit, reasonText, openUpgrade } from "../../common/licence.js";
 import { packDocument, unpackDocument, xlsx } from "../../common/zip.js";
 import { ROW_H, visibleRows, timescale, headers, bars, linkPath, dragStart, dragDuration, parseDuration } from "./gantt.js";
@@ -36,8 +37,10 @@ const state = {
   cal: "standard",
   showBaseline: false,
   showCritical: false,
+  workload: false, // the workload view in place of the Gantt chart (#86)
   note: "",
   model: new ProjectModel(newProject("Untitled project", mondayOf(new Date()))),
+  over: [], // over-allocations: [{ name, from, to, days, tasks }]
   sel: [], // selected task ids, in the order they were picked
   collapsed: new Set(),
   zoom: "week",
@@ -180,6 +183,7 @@ function renderChart(rows) {
   const hd = headers(sc, state.zoom);
   const bs = bars(rows, sc);
   const byId = new Map(bs.map((b) => [b.id, b]));
+  const over = new Set(state.over.flatMap((o) => o.tasks));
   const h = Math.max(rows.length * ROW_H + ROW_H * 3, $("wp-chart").clientHeight - 46);
   const selSet = new Set(state.sel);
   let critical = new Set();
@@ -205,6 +209,7 @@ function renderChart(rows) {
       const base = state.showBaseline && state.model.baseline("Baseline")?.tasks[b.id];
       if (base) svg += `<rect class="wp-base" x="${sc.x(base.start)}" y="${b.y + 23}" width="${Math.max(2, sc.x(base.finish) - sc.x(base.start) + sc.dayW)}" height="4" rx="2"/>`;
       const crit = critical.has(b.id) ? " is-crit" : "";
+      if (over.has(b.id)) svg += `<rect class="wp-over" x="${b.x - 2}" y="${b.y + 6}" width="${b.w + 4}" height="18" rx="5"><title>Someone on this task has another task at the same time</title></rect>`;
       svg += `<rect class="wp-bar${crit}" x="${b.x}" y="${b.y + 8}" width="${b.w}" height="14" rx="4"/>`;
       if (b.progress) svg += `<rect class="wp-bar-done${crit}" x="${b.x}" y="${b.y + 8}" width="${(b.w * b.progress) / 100}" height="14" rx="4"/>`;
       if (r.owner) svg += `<text class="wp-label" x="${b.x + b.w + 6}" y="${b.y + 19}">${esc(r.owner)}</text>`;
@@ -216,6 +221,30 @@ function renderChart(rows) {
   if (tx >= 0 && tx <= sc.width) svg += `<line class="wp-today" x1="${tx}" x2="${tx}" y1="0" y2="${h}"/>`;
   $("wp-chart").innerHTML = svg + "</svg>";
   state.scale = sc;
+}
+
+/** The workload view: each person's task-days per week; a red cell has a day with two tasks or more. */
+function renderWorkload() {
+  const rows = weeklyLoad(state.model.doc, calendar().isWork);
+  if (!rows.length) { $("wp-chart").innerHTML = `<p class="wp-empty">No one is assigned yet. Type names in the Owner column, separated by commas.</p>`; return; }
+  const weeks = [...new Set(rows.flatMap((r) => r.weeks.map((w) => w.start)))].sort();
+  const short = (iso) => new Date(iso + "T00:00:00Z").toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
+  let h = `<table class="wp-load"><thead><tr><th>Person</th>${weeks.map((w) => `<th>${short(w)}</th>`).join("")}</tr></thead><tbody>`;
+  for (const r of rows) {
+    const by = new Map(r.weeks.map((w) => [w.start, w]));
+    const hasOver = r.weeks.some((w) => w.peak > 1);
+    h += `<tr><th>${esc(r.name)}${hasOver ? ' <span class="wp-warn" title="Over-allocated">!</span>' : ""}</th>${weeks.map((w) => {
+      const c = by.get(w);
+      return c ? `<td class="${c.peak > 1 ? "is-over" : ""}" title="${c.days} task-day${c.days === 1 ? "" : "s"}${c.peak > 1 ? `, up to ${c.peak} tasks on one day` : ""}">${c.days}d</td>` : "<td></td>";
+    }).join("")}</tr>`;
+  }
+  $("wp-chart").innerHTML = h + "</tbody></table>";
+}
+
+function overText() {
+  if (!state.over.length) return "";
+  const names = [...new Set(state.over.map((o) => o.name))];
+  return `<span class="err" title="${esc(state.over.map((o) => `${o.name}: ${fmt(o.from)}${o.to !== o.from ? " – " + fmt(o.to) : ""}`).join("\n"))}">Over-allocated: ${esc(names.join(", "))}</span>`;
 }
 
 /** The selected task's slip against the baseline, for the status bar. */
@@ -240,7 +269,8 @@ function draw() {
   state.model.isWork = calendar().isWork; // the grid, the chart and the scheduler count the same working days
   const rows = visibleRows(state.model, state.collapsed);
   renderGrid(rows);
-  renderChart(rows);
+  try { state.over = overallocations(state.model.doc, calendar().isWork); } catch { state.over = []; }
+  if (state.workload) renderWorkload(); else renderChart(rows);
   $("wp-title").textContent = state.fileName.replace(/\.wsproj$/, "") + (state.model.undoStack.length !== (state.saved || 0) ? " •" : ""); // • unsaved changes
   $("wp-mode").hidden = !state.readOnly;
   $("wp-mode-text").textContent = reasonText(state.licence || "no_license");
@@ -251,7 +281,7 @@ function draw() {
   $("wp-ribbon").querySelector('[data-cmd="redo"]').disabled ||= !state.model.redoStack.length;
   const all = state.model.tasks.map((t) => state.model.view(t.id));
   const finish = all.length ? all.reduce((m, v) => (v.finish > m ? v.finish : m), all[0].finish) : null;
-  $("wp-status").innerHTML = `<span>${state.model.tasks.length} task${state.model.tasks.length === 1 ? "" : "s"}</span>${finish ? `<span>Finish: ${fmt(finish)}</span>` : ""}<span>${state.model.doc.links.length} link${state.model.doc.links.length === 1 ? "" : "s"}</span>${state.message ? `<span class="err" role="alert">${esc(state.message)}</span>` : state.note ? `<span>${esc(state.note)}</span>` : slipText()}`;
+  $("wp-status").innerHTML = `<span>${state.model.tasks.length} task${state.model.tasks.length === 1 ? "" : "s"}</span>${finish ? `<span>Finish: ${fmt(finish)}</span>` : ""}<span>${state.model.doc.links.length} link${state.model.doc.links.length === 1 ? "" : "s"}</span>${overText()}${state.message ? `<span class="err" role="alert">${esc(state.message)}</span>` : state.note ? `<span>${esc(state.note)}</span>` : slipText()}`;
 }
 
 /* ---- events ---- */
@@ -264,6 +294,7 @@ $("wp-ribbon").addEventListener("click", (e) => { const b = e.target.closest("[d
 $("wp-zoom").addEventListener("change", (e) => { state.zoom = e.target.value; render(); });
 $("wp-cal").addEventListener("change", (e) => { state.cal = e.target.value; render(); });
 $("wp-critical").addEventListener("change", (e) => { state.showCritical = e.target.checked; render(); });
+$("wp-workload").addEventListener("change", (e) => { state.workload = e.target.checked; render(); });
 $("wp-baseline").addEventListener("change", (e) => { state.showBaseline = e.target.checked; render(); });
 $("wp-upgrade").addEventListener("click", () => (window.WorkSuiteProject.onUpgrade || openUpgrade)());
 $("wp-retry").addEventListener("click", () => applyLicence());
@@ -412,7 +443,7 @@ if (new URLSearchParams(location.search).has("sample")) {
   const signed = m.addMilestone({ name: "Lease signed", start: "2026-02-11" }, lease);
   const fit = m.addTask({ name: "Fit-out", start: "2026-02-12", duration: 15 }, plan);
   const net = m.addTask({ name: "Network and power", level: 1, start: "2026-02-12", duration: 6, progress: 30, owner: "Ravi" }, fit);
-  const furn = m.addTask({ name: "Furniture", start: "2026-02-12", duration: 8, progress: 10, owner: "Ayesha" }, net);
+  const furn = m.addTask({ name: "Furniture", start: "2026-02-12", duration: 8, progress: 10, owner: "Ayesha, Ravi" }, net);
   const sec = m.addTask({ name: "Security and access", start: "2026-02-20", duration: 5, owner: "Ravi" }, furn);
   const insp = m.addTask({ name: "Inspection", start: "2026-02-27", duration: 4, owner: "Nimal" }, sec);
   const mv = m.addTask({ name: "Move", start: "2026-03-05", duration: 7 }, fit);
