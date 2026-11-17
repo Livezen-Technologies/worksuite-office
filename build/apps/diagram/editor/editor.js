@@ -10,6 +10,7 @@
  * The page stands alone until the native shell hosts it (#72); window.WorkSuiteDiagram lets the shell load a
  * file, read it back and switch read-only mode (free viewing, #73).
  */
+import { autoLayout, applyLayout } from "../core/layout.js";
 import { DiagramModel, newDiagram, parse, serialize, connectionPoints, pointOn, APP } from "../core/diagram.js";
 import { checkEdit, reasonText, openUpgrade } from "../../common/licence.js";
 import { packDocument, unpackDocument } from "../../common/zip.js";
@@ -91,10 +92,22 @@ const commands = {
     let x = ss[0].x;
     for (const s of ss) { s.x = x; x += s.w + gap; }
   }, 3),
+  layoutDown: () => layout("down"),
+  layoutRight: () => layout("right"),
   zoomIn: () => { state.zoom = Math.min(4, state.zoom * 1.25); render(); },
   zoomOut: () => { state.zoom = Math.max(0.25, state.zoom / 1.25); render(); },
   zoomFit: () => { const c = $("wd-canvas"); state.zoom = Math.max(0.25, Math.min(4, (c.clientWidth - 56) / page().width, (c.clientHeight - 56) / page().height)); render(); },
 };
+/** Auto-layout (#87): the selected shapes, or the whole page when fewer than two are selected; one undo step. */
+function layout(direction) {
+  run(() => {
+    const picked = selShapes().map((s) => s.id);
+    const ids = picked.length >= 2 ? picked : null;
+    const plan = autoLayout(page(), { direction, ids });
+    if (plan.positions.size < 2) throw new Error("Nothing to lay out: add two or more shapes");
+    state.model.edit((d) => applyLayout(d.pages.find((p) => p.id === state.pageId), plan));
+  });
+}
 /** Moves several shapes in one undo step. */
 function arrange(fn, min = 2) {
   run(() => {

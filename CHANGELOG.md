@@ -1,5 +1,25 @@
 # Change log
 
+## 10.1.47
+
+### New features
+
+#### Diagram
+
+* Auto-layout: Arrange › Layout ↓ (org charts and trees) and Layout →
+  (flowcharts) arrange the selected shapes, or the whole page, following the
+  lines between them. In a tree each manager sits centred over their team; a
+  flowchart is laid out in steps, ordered to cross fewer lines, and a line back
+  to an earlier step goes round the side. The page grows if the result needs
+  more room. One Undo puts everything back.
+
+### Fixes
+
+#### Diagram
+
+* An elbow line between two shapes joined on the same side now goes round
+  them instead of through them.
+
 ## 10.1.46
 
 ### New features
