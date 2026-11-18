@@ -7,13 +7,16 @@
  * The document (schema version 1), saved as canonical JSON inside the .wsproj zip:
  *   { app: "worksuite.project", v: 1, name, start, tasks: [Task], links: [Link], calendars: [], resources: [] }
  *   Task: { id, name, level (0 = top), start ("YYYY-MM-DD"), duration (days, 0 = milestone), progress (0-100),
- *           owner?, notes?, actualStart?, actualFinish?, deadline?, inactive? }
+ *           owner?, notes?, actualStart?, actualFinish?, deadline?, inactive?, type?, work?, effortDriven? }
+ *         type: fixedUnits (default) | fixedWork | fixedDuration; work: person-hours; see tasktypes.js
  *         deadline: a date the task should finish by (it does not move the task; missing it is flagged);
  *         inactive: kept in the plan but not scheduled, rolled up, counted or linked (stage 5)   actual dates: when work really began and ended (#86)
  *   statusDate?: the date progress was last reported on (#86)      tasks are in outline order; a task is a summary when the next task is deeper
  *   Link: { from, to, type: "FS" | "SS" | "FF" | "SF", lag (days) }
  * Stage 2 counts calendar days; working calendars and automatic scheduling come in stage 3 (#83).
  */
+
+import { recalc, TASK_TYPES } from "./tasktypes.js";
 
 export const APP = "worksuite.project";
 export const SCHEMA_VERSION = 1;
@@ -75,6 +78,9 @@ export function validate(doc) {
     if (!(t.progress >= 0 && t.progress <= 100)) errs.push(`${at}: progress must be 0-100`);
     for (const k of ["actualStart", "actualFinish", "deadline"]) if (t[k] !== undefined && !DATE.test(t[k])) errs.push(`${at}: ${k} must be a date`);
     if (t.inactive !== undefined && typeof t.inactive !== "boolean") errs.push(`${at}: inactive must be true or false`);
+    if (t.effortDriven !== undefined && typeof t.effortDriven !== "boolean") errs.push(`${at}: effortDriven must be true or false`);
+    if (t.type !== undefined && !TASK_TYPES.includes(t.type)) errs.push(`${at}: type must be one of ${TASK_TYPES.join(", ")}`);
+    if (t.work !== undefined && !(Number.isFinite(t.work) && t.work >= 0)) errs.push(`${at}: work must be hours, 0 or more`);
     if (t.actualStart && t.actualFinish && t.actualFinish < t.actualStart) errs.push(`${at}: actual finish is before actual start`);
   });
   (doc.links || []).forEach((l, i) => {
@@ -189,7 +195,13 @@ export class ProjectModel {
 
   set(id, fields) {
     return this.edit((d) => {
-      const t = Object.assign(d.tasks.find((x) => x.id === id), fields);
+      const target = d.tasks.find((x) => x.id === id);
+      const before = { ...target };
+      const t = Object.assign(target, fields);
+      // duration, work and people stay in balance by the task's type (tasktypes.js)
+      const changed = "work" in fields ? "work" : "duration" in fields ? "duration" : "owner" in fields ? "units" : null;
+      if (changed) recalc(before, t, changed);
+      if (t.work === undefined) delete t.work;
       // progress keeps the actual dates (#86): work began on the planned start, and 100% ends it on the planned finish
       if (fields.progress !== undefined && !("actualStart" in fields) && !("actualFinish" in fields)) {
         if (t.progress > 0 && !t.actualStart) t.actualStart = t.start;
