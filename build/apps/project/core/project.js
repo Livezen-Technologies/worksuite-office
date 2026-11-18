@@ -7,7 +7,8 @@
  * The document (schema version 1), saved as canonical JSON inside the .wsproj zip:
  *   { app: "worksuite.project", v: 1, name, start, tasks: [Task], links: [Link], calendars: [], resources: [] }
  *   Task: { id, name, level (0 = top), start ("YYYY-MM-DD"), duration (days, 0 = milestone), progress (0-100),
- *           owner?, notes?, actualStart?, actualFinish?, deadline?, inactive?, type?, work?, effortDriven? }
+ *           owner?, notes?, actualStart?, actualFinish?, deadline?, inactive?, type?, work?, effortDriven?, fixedCost? }
+ *   resources: [{ name, rate (per hour), costPerUse }]   the Resource Sheet, by the names in Owner (costs.js)
  *         type: fixedUnits (default) | fixedWork | fixedDuration; work: person-hours; see tasktypes.js
  *         deadline: a date the task should finish by (it does not move the task; missing it is flagged);
  *         inactive: kept in the plan but not scheduled, rolled up, counted or linked (stage 5)   actual dates: when work really began and ended (#86)
@@ -81,6 +82,7 @@ export function validate(doc) {
     if (t.effortDriven !== undefined && typeof t.effortDriven !== "boolean") errs.push(`${at}: effortDriven must be true or false`);
     if (t.type !== undefined && !TASK_TYPES.includes(t.type)) errs.push(`${at}: type must be one of ${TASK_TYPES.join(", ")}`);
     if (t.work !== undefined && !(Number.isFinite(t.work) && t.work >= 0)) errs.push(`${at}: work must be hours, 0 or more`);
+    if (t.fixedCost !== undefined && !(Number.isFinite(t.fixedCost) && t.fixedCost >= 0)) errs.push(`${at}: fixed cost must be 0 or more`);
     if (t.actualStart && t.actualFinish && t.actualFinish < t.actualStart) errs.push(`${at}: actual finish is before actual start`);
   });
   (doc.links || []).forEach((l, i) => {
@@ -91,6 +93,18 @@ export function validate(doc) {
     if (!Number.isInteger(l.lag)) errs.push(`${at}: lag must be whole days`);
   });
   if (doc.statusDate !== undefined && !DATE.test(doc.statusDate)) errs.push("status date must be a date");
+  if (doc.resources !== undefined) {
+    if (!Array.isArray(doc.resources)) errs.push("resources must be a list");
+    else {
+      const names = new Set();
+      doc.resources.forEach((r, i) => {
+        if (typeof r?.name !== "string" || !r.name.trim()) errs.push(`resource ${i + 1}: no name`);
+        else if (names.has(r.name)) errs.push(`resource ${i + 1}: ${r.name} is listed twice`);
+        names.add(r?.name);
+        for (const k of ["rate", "costPerUse"]) if (r?.[k] !== undefined && !(Number.isFinite(r[k]) && r[k] >= 0)) errs.push(`resource ${i + 1}: ${k} must be 0 or more`);
+      });
+    }
+  }
   if (doc.baselines !== undefined) {
     if (!Array.isArray(doc.baselines) || doc.baselines.length > MAX_BASELINES) errs.push(`baselines must be a list of at most ${MAX_BASELINES}`);
     else doc.baselines.forEach((b, i) => {
@@ -209,6 +223,16 @@ export class ProjectModel {
         if (t.progress === 100) t.actualFinish = t.actualFinish || finishOf(t, this.isWork);
         else delete t.actualFinish;
       }
+    });
+  }
+  /** Sets a person's Resource Sheet row (rate per hour, cost per use), creating it; empty values clear them. */
+  setResource(name, fields) {
+    return this.edit((d) => {
+      d.resources = d.resources || [];
+      let r = d.resources.find((x) => x.name === name);
+      if (!r) { r = { name }; d.resources.push(r); }
+      for (const k of ["rate", "costPerUse"]) if (k in fields) { if (fields[k] === null || fields[k] === undefined || fields[k] === "") delete r[k]; else r[k] = Number(fields[k]); }
+      d.resources = d.resources.filter((x) => x.rate || x.costPerUse);
     });
   }
   /** The status date progress is measured against; null clears it. */

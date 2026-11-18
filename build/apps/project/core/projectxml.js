@@ -104,7 +104,17 @@ export function fromProjectXml(text) {
   // owners: resource names by UID, then each task's assignments
   const resources = new Map();
   const resEl = kid(top, "Resources");
-  for (const r of resEl ? kids(resEl, "Resource") : []) if (val(r, "Name")) resources.set(val(r, "UID"), val(r, "Name"));
+  for (const r of resEl ? kids(resEl, "Resource") : []) {
+    if (!val(r, "Name")) continue;
+    resources.set(val(r, "UID"), val(r, "Name"));
+    // the Resource Sheet: a rate per hour (StandardRateFormat 2, the default) and a cost per use
+    const rate = Number(val(r, "StandardRate")), perUse = Number(val(r, "CostPerUse"));
+    const fmt = val(r, "StandardRateFormat") || "2", perHour = { 1: 1 / 60, 2: 1, 3: 1 / 8, 4: 1 / 40, 5: 1 / 160, 7: 1 / 2080 }[fmt] ?? 1;
+    const row = { name: val(r, "Name") };
+    if (rate > 0) row.rate = Math.round(rate * perHour * 100) / 100;
+    if (perUse > 0) row.costPerUse = Math.round(perUse * 100) / 100;
+    if ((row.rate || row.costPerUse) && !doc.resources.some((x) => x.name === row.name)) doc.resources.push(row);
+  }
   const owners = new Map();
   const asgEl = kid(top, "Assignments");
   for (const a of asgEl ? kids(asgEl, "Assignment") : []) {
@@ -140,6 +150,7 @@ export function fromProjectXml(text) {
     const type = TASKTYPE_IN[val(t, "Type")];
     if (type && type !== "fixedUnits") task.type = type;
     if (val(t, "EffortDriven") === "1") task.effortDriven = true;
+    if (Number(val(t, "FixedCost")) > 0) task.fixedCost = Math.round(Number(val(t, "FixedCost")) * 100) / 100;
     const workHours = hoursOf(val(t, "Work"));
     if (workHours !== null && !milestone && workHours > 0) task.work = workHours;
     if (val(t, "ActualFinish") && task.actualStart) task.actualFinish = val(t, "ActualFinish").slice(0, 10);
@@ -175,7 +186,7 @@ export function toProjectXml(doc, isWork = null) {
   const m = new ProjectModel(doc);
   m.isWork = isWork;
   const uid = new Map(doc.tasks.map((t, i) => [t.id, i + 1]));
-  const resources = [...new Set(doc.tasks.flatMap((t) => assignmentsOf(t).map((a) => a.name)))];
+  const resources = [...new Set([...doc.tasks.flatMap((t) => assignmentsOf(t).map((a) => a.name)), ...(doc.resources || []).map((r) => r.name)])];
   const rid = new Map(resources.map((r, i) => [r, i + 1]));
   const tasks = doc.tasks.map((t, i) => {
     const v = m.view(t.id);
@@ -184,7 +195,7 @@ export function toProjectXml(doc, isWork = null) {
     const con = t.constraint && CON_OUT[t.constraint.type] !== undefined ? `<ConstraintType>${CON_OUT[t.constraint.type]}</ConstraintType><ConstraintDate>${t.constraint.date}T08:00:00</ConstraintDate>` : "<ConstraintType>0</ConstraintType>";
     const work = !v.summary && !v.milestone && t.work !== undefined ? `<Work>PT${t.work}H0M0S</Work>` : "";
     return `<Task><UID>${i + 1}</UID><ID>${i + 1}</ID>${el("Name", t.name)}<Type>${TASKTYPE_OUT[t.type || "fixedUnits"]}</Type><IsNull>0</IsNull>` +
-      `<EffortDriven>${t.effortDriven ? 1 : 0}</EffortDriven>${work}` +
+      `<EffortDriven>${t.effortDriven ? 1 : 0}</EffortDriven>${work}` + (t.fixedCost ? `<FixedCost>${t.fixedCost}</FixedCost>` : "") +
       `<OutlineLevel>${t.level + 1}</OutlineLevel><Start>${v.start}T08:00:00</Start><Finish>${v.finish}T17:00:00</Finish>` +
       `<Duration>${daysDuration(v.duration)}</Duration><DurationFormat>7</DurationFormat>` +
       `<Milestone>${v.milestone ? 1 : 0}</Milestone><Summary>${v.summary ? 1 : 0}</Summary><PercentComplete>${v.progress}</PercentComplete>` +
@@ -192,7 +203,12 @@ export function toProjectXml(doc, isWork = null) {
       (t.deadline ? `<Deadline>${t.deadline}T17:00:00</Deadline>` : "") + (t.inactive ? "<Active>0</Active>" : "") + (t.actualFinish ? `<ActualFinish>${t.actualFinish}T17:00:00</ActualFinish>` : "") +
       `${con}${el("Notes", t.notes)}${links}</Task>`;
   }).join("\n    ");
-  const resXml = resources.map((r) => `<Resource><UID>${rid.get(r)}</UID><ID>${rid.get(r)}</ID>${el("Name", r)}<Type>1</Type></Resource>`).join("\n    ");
+  const sheet = new Map((doc.resources || []).map((r) => [r.name, r]));
+  const resXml = resources.map((r) => {
+    const s = sheet.get(r) || {};
+    return `<Resource><UID>${rid.get(r)}</UID><ID>${rid.get(r)}</ID>${el("Name", r)}<Type>1</Type>` +
+      (s.rate ? `<StandardRate>${s.rate}</StandardRate><StandardRateFormat>2</StandardRateFormat>` : "") + (s.costPerUse ? `<CostPerUse>${s.costPerUse}</CostPerUse>` : "") + `</Resource>`;
+  }).join("\n    ");
   let a = 0;
   const asgXml = doc.tasks.flatMap((t) => assignmentsOf(t).map((r) =>
     `<Assignment><UID>${++a}</UID><TaskUID>${uid.get(t.id)}</TaskUID><ResourceUID>${rid.get(r.name)}</ResourceUID><Units>${r.units}</Units></Assignment>`)).join("\n    ");
