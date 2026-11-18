@@ -7,7 +7,9 @@
  * The document (schema version 1), saved as canonical JSON inside the .wsproj zip:
  *   { app: "worksuite.project", v: 1, name, start, tasks: [Task], links: [Link], calendars: [], resources: [] }
  *   Task: { id, name, level (0 = top), start ("YYYY-MM-DD"), duration (days, 0 = milestone), progress (0-100),
- *           owner?, notes?, actualStart?, actualFinish? }   actual dates: when work really began and ended (#86)
+ *           owner?, notes?, actualStart?, actualFinish?, deadline?, inactive? }
+ *         deadline: a date the task should finish by (it does not move the task; missing it is flagged);
+ *         inactive: kept in the plan but not scheduled, rolled up, counted or linked (stage 5)   actual dates: when work really began and ended (#86)
  *   statusDate?: the date progress was last reported on (#86)      tasks are in outline order; a task is a summary when the next task is deeper
  *   Link: { from, to, type: "FS" | "SS" | "FF" | "SF", lag (days) }
  * Stage 2 counts calendar days; working calendars and automatic scheduling come in stage 3 (#83).
@@ -32,6 +34,17 @@ export function finishOf(t, isWork = null) {
   while (!isWork(d)) { d++; if (++guard > 3660) throw new Error("the calendar has no working days"); }
   while (left > 0) { d++; if (isWork(d)) left--; if (++guard > 40000) throw new Error("the calendar has too few working days"); }
   return fromDay(d);
+}
+
+/* ---- WBS codes: 1, 1.1, 1.2, 2 … from the outline ---- */
+export function wbsCodes(tasks) {
+  const counts = [], out = new Map();
+  for (const t of tasks) {
+    counts.length = t.level + 1;
+    counts[t.level] = (counts[t.level] || 0) + 1;
+    out.set(t.id, counts.map((n) => n || 1).join("."));
+  }
+  return out;
 }
 
 /* ---- the document ---- */
@@ -60,7 +73,8 @@ export function validate(doc) {
     if (!DATE.test(t.start || "")) errs.push(`${at}: start must be a date`);
     if (!Number.isInteger(t.duration) || t.duration < 0) errs.push(`${at}: duration must be whole days`);
     if (!(t.progress >= 0 && t.progress <= 100)) errs.push(`${at}: progress must be 0-100`);
-    for (const k of ["actualStart", "actualFinish"]) if (t[k] !== undefined && !DATE.test(t[k])) errs.push(`${at}: ${k} must be a date`);
+    for (const k of ["actualStart", "actualFinish", "deadline"]) if (t[k] !== undefined && !DATE.test(t[k])) errs.push(`${at}: ${k} must be a date`);
+    if (t.inactive !== undefined && typeof t.inactive !== "boolean") errs.push(`${at}: inactive must be true or false`);
     if (t.actualStart && t.actualFinish && t.actualFinish < t.actualStart) errs.push(`${at}: actual finish is before actual start`);
   });
   (doc.links || []).forEach((l, i) => {
@@ -255,7 +269,9 @@ export class ProjectModel {
     const tasks = this.doc.tasks, i = this.indexOf(id), t = tasks[i];
     const finish = finishOf(t, this.isWork);
     if (!this.isSummary(id)) return { ...t, finish, summary: false, milestone: t.duration === 0 };
-    const kids = tasks.slice(i + 1, this.endOf(tasks, i)).filter((k, n, all) => !(n + 1 < all.length && all[n + 1].level > k.level));
+    const leaves = tasks.slice(i + 1, this.endOf(tasks, i)).filter((k, n, all) => !(n + 1 < all.length && all[n + 1].level > k.level));
+    const active = leaves.filter((k) => !k.inactive);
+    const kids = active.length ? active : leaves; // a summary of only inactive tasks still shows where they were
     const s = Math.min(...kids.map((k) => toDay(k.start)));
     const f = Math.max(...kids.map((k) => toDay(finishOf(k, this.isWork))));
     const weight = kids.reduce((a, k) => a + Math.max(1, k.duration), 0);

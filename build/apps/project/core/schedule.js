@@ -82,11 +82,13 @@ export function workDays(cal, a, b) {
 export function schedule(doc, cal = STANDARD) {
   const tasks = doc.tasks, num = numbering(cal, doc.start);
   const isSummary = (i) => i + 1 < tasks.length && tasks[i + 1].level > tasks[i].level;
-  const leaves = tasks.filter((_, i) => !isSummary(i));
+  // inactive tasks stay in the plan but are not scheduled, linked or counted (stage 5)
+  const leaves = tasks.filter((t, i) => !isSummary(i) && !t.inactive);
   const leafIds = new Set(leaves.map((t) => t.id));
   const links = doc.links.filter((l) => leafIds.has(l.from) && leafIds.has(l.to));
   const problems = [];
-  if (doc.links.length !== links.length) problems.push("links to summary tasks are ignored; link their subtasks");
+  const summaryIds = new Set(tasks.filter((_, i) => isSummary(i)).map((t) => t.id));
+  if (doc.links.some((l) => summaryIds.has(l.from) || summaryIds.has(l.to))) problems.push("links to summary tasks are ignored; link their subtasks");
 
   // topological order over the leaf tasks (the model refuses loops; checked again here)
   const preds = new Map(leaves.map((t) => [t.id, []])), succs = new Map(leaves.map((t) => [t.id, []]));
@@ -136,6 +138,7 @@ export function schedule(doc, cal = STANDARD) {
       else if (l.type === "SF") f = Math.min(f, f2 - l.lag + d);
     }
     const c = t.constraint;
+    if (t.deadline && ef.get(id) > num.n(t.deadline) - (cal.isWork(toDay(t.deadline)) ? 0 : 1)) problems.push(`"${t.name}" finishes after its deadline, ${t.deadline}`);
     if (c && c.type === "FNLT") {
       const limit = num.n(c.date) - (cal.isWork(toDay(c.date)) ? 0 : 1);
       if (ef.get(id) > limit) problems.push(`"${t.name}" finishes after ${c.date}, its finish no later than date`);
@@ -155,6 +158,7 @@ export function schedule(doc, cal = STANDARD) {
     let j = i + 1;
     const kids = [];
     while (j < tasks.length && tasks[j].level > t.level) { if (out[tasks[j].id] && !out[tasks[j].id].summary) kids.push(out[tasks[j].id]); j++; }
+    if (!kids.length) return; // only inactive tasks under it
     const start = kids.map((k) => k.start).sort()[0], finish = kids.map((k) => k.finish).sort().at(-1);
     out[t.id] = { start, finish, lateStart: start, lateFinish: finish, slack: Math.min(...kids.map((k) => k.slack)), critical: kids.some((k) => k.critical), summary: true };
   });

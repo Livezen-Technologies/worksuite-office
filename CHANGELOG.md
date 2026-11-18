@@ -1,5 +1,22 @@
 # Change log
 
+## 10.1.53
+
+### New features
+
+#### Project
+
+* WBS codes: a WBS column numbers the plan by its outline (1, 1.1, 1.2, 2…),
+  and the codes go into XLSX and CSV exports.
+* Deadlines: a Deadline column sets the date a task should finish by. It does
+  not move the task; a task that finishes later shows its deadline in red, gets
+  a red marker in the Gantt chart, is named by Schedule now and is counted in
+  the status bar.
+* Inactive tasks: Task › Inactivate keeps a task in the plan but leaves it out
+  of scheduling, its links, summary dates, the workload and progress tracking;
+  it is greyed out and struck through. Inactivate again brings it back.
+* Deadlines and inactive tasks are saved in Project XML (Deadline, Active).
+
 ## 10.1.52
 
 ### New features

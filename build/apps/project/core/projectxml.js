@@ -125,6 +125,8 @@ export function fromProjectXml(text) {
     if (owner) task.owner = ownerText(owner);
     if (val(t, "Notes")) task.notes = val(t, "Notes");
     if (val(t, "ActualStart")) task.actualStart = val(t, "ActualStart").slice(0, 10);
+    if (/^\d{4}-\d{2}-\d{2}/.test(val(t, "Deadline"))) task.deadline = val(t, "Deadline").slice(0, 10);
+    if (val(t, "Active") === "0") task.inactive = true;
     if (val(t, "ActualFinish") && task.actualStart) task.actualFinish = val(t, "ActualFinish").slice(0, 10);
     const con = CON_IN[val(t, "ConstraintType")];
     if (con && val(t, "ConstraintDate")) task.constraint = { type: con, date: val(t, "ConstraintDate").slice(0, 10) };
@@ -169,7 +171,8 @@ export function toProjectXml(doc, isWork = null) {
       `<OutlineLevel>${t.level + 1}</OutlineLevel><Start>${v.start}T08:00:00</Start><Finish>${v.finish}T17:00:00</Finish>` +
       `<Duration>${daysDuration(v.duration)}</Duration><DurationFormat>7</DurationFormat>` +
       `<Milestone>${v.milestone ? 1 : 0}</Milestone><Summary>${v.summary ? 1 : 0}</Summary><PercentComplete>${v.progress}</PercentComplete>` +
-      (t.actualStart ? `<ActualStart>${t.actualStart}T08:00:00</ActualStart>` : "") + (t.actualFinish ? `<ActualFinish>${t.actualFinish}T17:00:00</ActualFinish>` : "") +
+      (t.actualStart ? `<ActualStart>${t.actualStart}T08:00:00</ActualStart>` : "") +
+      (t.deadline ? `<Deadline>${t.deadline}T17:00:00</Deadline>` : "") + (t.inactive ? "<Active>0</Active>" : "") + (t.actualFinish ? `<ActualFinish>${t.actualFinish}T17:00:00</ActualFinish>` : "") +
       `${con}${el("Notes", t.notes)}${links}</Task>`;
   }).join("\n    ");
   const resXml = resources.map((r) => `<Resource><UID>${rid.get(r)}</UID><ID>${rid.get(r)}</ID>${el("Name", r)}<Type>1</Type></Resource>`).join("\n    ");
