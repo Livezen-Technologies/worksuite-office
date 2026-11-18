@@ -35,7 +35,7 @@ body { font: 13px/1.35 Inter, system-ui, -apple-system, "Segoe UI", sans-serif; 
 .wp-ribbon { display: flex; gap: 0; padding: 4px 6px 2px; background: var(--card); border-bottom: 1px solid var(--line); flex-wrap: wrap; min-height: 92px; }
 
 .wp-main { flex: 1; display: flex; min-height: 0; background: var(--card); }
-.wp-grid { width: 680px; max-width: 55%; flex: none; overflow: auto; outline: none; }
+.wp-grid { width: 820px; max-width: 60%; flex: none; overflow: auto; outline: none; }
 .wp-split { width: 1px; background: var(--line); flex: none; }
 .wp-chart { flex: 1; overflow: auto; position: relative; }
 
@@ -69,6 +69,13 @@ table.wp-table { border-collapse: collapse; width: 100%; table-layout: fixed; }
 .wp-bar { fill: var(--bar); }
 .wp-bar-done { fill: var(--bar-done); }
 .wp-bar.is-crit { fill: #fca5a5; }
+.wp-bar.is-inactive, .wp-bar-done.is-inactive { fill: none; stroke: var(--ink3); stroke-dasharray: 3 2; }
+.wp-table tr.is-inactive td { color: var(--ink3); }
+.wp-table tr.is-inactive td.name { text-decoration: line-through; }
+.wp-table td.is-late { color: var(--today); font-weight: 600; }
+.wp-table td.wbs { color: var(--ink3); font-variant-numeric: tabular-nums; }
+.wp-deadline { fill: var(--ink2); }
+.wp-deadline.is-late { fill: var(--today); }
 .wp-base { fill: var(--ink3); opacity: .55; }
 .wp-bar-done.is-crit { fill: #dc2626; }
 .wp-sum { fill: var(--sum); }

@@ -26,10 +26,17 @@ export function behindSchedule(doc, statusDate = doc.statusDate, isWork = null) 
   if (!statusDate) return [];
   const out = [];
   doc.tasks.forEach((t, i) => {
-    if (isSummaryAt(doc.tasks, i) || t.progress >= 100) return;
+    if (isSummaryAt(doc.tasks, i) || t.progress >= 100 || t.inactive) return;
     const expected = t.duration === 0 ? (toDay(statusDate) >= toDay(t.start) ? 100 : 0) : expectedProgress(t, statusDate, isWork);
     const behind = expected - t.progress;
     if (behind > 0) out.push({ id: t.id, name: t.name, expected, progress: t.progress, behind, late: expected === 100 });
   });
   return out;
+}
+
+/** Tasks whose (planned) finish is after their deadline: [{ id, name, deadline, finish }]. Inactive tasks are left out. */
+export function pastDeadline(doc, isWork = null) {
+  // a summary's finish is its subtasks': they are checked one by one
+  return doc.tasks.filter((t, i) => t.deadline && !t.inactive && !isSummaryAt(doc.tasks, i)).map((t) => ({ id: t.id, name: t.name, deadline: t.deadline, finish: finishOf(t, isWork) }))
+    .filter((x) => x.finish > x.deadline);
 }

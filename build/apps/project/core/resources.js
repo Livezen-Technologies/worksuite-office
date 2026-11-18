@@ -36,7 +36,7 @@ const isSummaryAt = (tasks, i) => i + 1 < tasks.length && tasks[i + 1].level > t
 export function workload(doc, isWork = null) {
   const out = new Map();
   doc.tasks.forEach((t, i) => {
-    if (t.duration <= 0 || isSummaryAt(doc.tasks, i)) return;
+    if (t.duration <= 0 || t.inactive || isSummaryAt(doc.tasks, i)) return;
     const people = assignmentsOf(t).filter((a) => a.units > 0);
     if (!people.length) return;
     const s = toDay(t.start), f = toDay(finishOf(t, isWork));

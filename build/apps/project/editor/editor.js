@@ -9,11 +9,11 @@
  * The page stands alone until the native shell hosts it (#72): it saves and opens through the browser, and
  * window.WorkSuiteProject lets the shell load a file, read it back and switch read-only mode (free viewing, #73).
  */
-import { ProjectModel, newProject, parse, serialize, finishOf, APP } from "../core/project.js";
+import { ProjectModel, newProject, parse, serialize, finishOf, wbsCodes, APP } from "../core/project.js";
 import { fromProjectXml, toProjectXml, isMpp, MPP_HELP } from "../core/projectxml.js";
 import { schedule, applySchedule, criticalPath, STANDARD, SRI_LANKA } from "../core/schedule.js";
 import { overallocations, weeklyLoad } from "../core/resources.js";
-import { behindSchedule } from "../core/progress.js";
+import { behindSchedule, pastDeadline } from "../core/progress.js";
 import { outlineToDoc } from "../core/outline.js";
 import { askText } from "../../common/dialog.js";
 import { decorateRibbon, ribbonStyles } from "../../common/ribbon.js";
@@ -29,10 +29,12 @@ const fmt = (iso) => new Date(iso + "T00:00:00Z").toLocaleDateString("en-GB", { 
 
 const COLS = [
   { key: "n", label: "", w: 36 },
+  { key: "wbs", label: "WBS", w: 48 },
   { key: "name", label: "Task name", w: 210, edit: true },
   { key: "duration", label: "Duration", w: 72, edit: true },
   { key: "start", label: "Start", w: 104, edit: true },
   { key: "finish", label: "Finish", w: 104 },
+  { key: "deadline", label: "Deadline", w: 96, edit: true },
   { key: "progress", label: "% done", w: 60, edit: true },
   { key: "owner", label: "Owner", w: 90, edit: true },
 ];
@@ -86,6 +88,13 @@ const commands = {
   print: () => { fitForPrint(); window.print(); },
   addTask: () => run(() => { const id = state.model.addTask({ start: startForNew() }, first() || null); state.sel = [id]; startEdit(id, "name"); }),
   addMilestone: () => run(() => { const id = state.model.addMilestone({ start: startForNew() }, first() || null); state.sel = [id]; }),
+  inactive: () => run(() => {
+    const ids = selected().filter((id) => !state.model.isSummary(id));
+    if (!ids.length) throw new Error("Select tasks to make inactive or active again (not summaries)");
+    const on = !ids.every((id) => state.model.task(id).inactive); // mixed or all active: inactivate all; all inactive: back on
+    state.model.edit((d) => { for (const t of d.tasks) if (ids.includes(t.id)) t.inactive = on || undefined; });
+    state.note = on ? `${ids.length} task${ids.length === 1 ? "" : "s"} inactive: kept in the plan, left out of the schedule` : "Active again";
+  }),
   remove: () => run(() => { for (const id of selected()) if (state.model.tasks.some((t) => t.id === id)) state.model.removeTask(id); state.sel = []; }),
   indent: () => run(() => selected().forEach((id) => state.model.indent(id))),
   outdent: () => run(() => selected().forEach((id) => state.model.outdent(id))),
@@ -171,11 +180,12 @@ function download(name, text, type) {
 }
 /** The task list as rows, for CSV and XLSX: a header, then one row per task with its predecessors. */
 function tableRows() {
-  const rows = [["ID", "Level", "Task name", "Duration (days)", "Start", "Finish", "% done", "Owner", "Predecessors"]];
+  const rows = [["ID", "WBS", "Level", "Task name", "Duration (days)", "Start", "Finish", "Deadline", "% done", "Owner", "Predecessors", "Active"]];
+  const wbs = wbsCodes(state.model.tasks);
   state.model.tasks.forEach((t, i) => {
     const v = state.model.view(t.id);
     const preds = state.model.doc.links.filter((l) => l.to === t.id).map((l) => `${state.model.indexOf(l.from) + 1}${l.type}${l.lag ? (l.lag > 0 ? "+" : "") + l.lag + "d" : ""}`).join(";");
-    rows.push([i + 1, t.level, "  ".repeat(t.level) + t.name, v.duration, v.start, v.finish, v.progress, t.owner || "", preds]);
+    rows.push([i + 1, wbs.get(t.id), t.level, "  ".repeat(t.level) + t.name, v.duration, v.start, v.finish, t.deadline || "", v.progress, t.owner || "", preds, t.inactive ? "No" : "Yes"]);
   });
   return rows;
 }
@@ -188,15 +198,18 @@ function toCsv() {
 function renderGrid(rows) {
   const t = state.model;
   const selSet = new Set(state.sel);
+  const wbs = wbsCodes(t.tasks);
   let html = `<table class="wp-table"><colgroup>${COLS.map((c) => `<col style="width:${c.w}px">`).join("")}</colgroup><tr>${COLS.map((c) => `<th>${c.label}</th>`).join("")}</tr>`;
   for (const r of rows) {
     const n = t.indexOf(r.id) + 1;
     const cells = COLS.map((c) => {
       if (state.editing && state.editing.id === r.id && state.editing.key === c.key) {
         const value = c.key === "duration" ? `${r.duration}d` : c.key === "progress" ? r.progress : (r[c.key] ?? "");
-        return `<td class="${c.key}"><input data-edit-input value="${esc(value)}" ${c.key === "start" ? 'type="date"' : ""}></td>`;
+        return `<td class="${c.key}"><input data-edit-input value="${esc(value)}" ${c.key === "start" || c.key === "deadline" ? 'type="date"' : ""}></td>`;
       }
       if (c.key === "n") return `<td class="n">${n}</td>`;
+      if (c.key === "wbs") return `<td class="wbs">${wbs.get(r.id)}</td>`;
+      if (c.key === "deadline") return `<td class="${r.deadline && !r.inactive && r.finish > r.deadline ? "is-late" : ""}">${r.deadline ? fmt(r.deadline) : ""}</td>`;
       if (c.key === "name") {
         const tw = r.summary ? `<span class="tw" data-toggle="${r.id}">${state.collapsed.has(r.id) ? "▸" : "▾"}</span>` : `<span class="tw"></span>`;
         return `<td class="name" style="padding-inline-start:${8 + r.level * 16}px">${tw}${esc(r.name)}</td>`;
@@ -206,7 +219,7 @@ function renderGrid(rows) {
       if (c.key === "progress") return `<td>${r.progress}%</td>`;
       return `<td>${esc(r[c.key])}</td>`;
     }).join("");
-    html += `<tr data-id="${r.id}" class="${selSet.has(r.id) ? "is-sel" : ""} ${r.summary ? "is-summary" : ""}">${cells}</tr>`;
+    html += `<tr data-id="${r.id}" class="${selSet.has(r.id) ? "is-sel" : ""} ${r.summary ? "is-summary" : ""} ${r.inactive ? "is-inactive" : ""}">${cells}</tr>`;
   }
   $("wp-grid").innerHTML = html + "</table>";
   const input = $("wp-grid").querySelector("[data-edit-input]");
@@ -217,7 +230,7 @@ function startEdit(id, key) {
   if (state.readOnly) return;
   const col = COLS.find((c) => c.key === key);
   if (!col || !col.edit) return;
-  if (state.model.isSummary(id) && (key === "duration" || key === "start" || key === "progress")) { state.message = "A summary's dates and progress come from its subtasks"; render(); return; }
+  if (state.model.isSummary(id) && (key === "duration" || key === "start" || key === "progress" || key === "deadline")) { state.message = "A summary's dates and progress come from its subtasks"; render(); return; }
   state.editing = { id, key };
   render();
 }
@@ -229,6 +242,7 @@ function commitEdit(value) {
   else if (key === "owner") fields.owner = value.trim() || undefined;
   else if (key === "start") { if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) { state.message = "Start must be a date"; render(); return; } fields.start = value; }
   else if (key === "duration") { const d = parseDuration(value); if (d === null) { state.message = "Duration is whole days, like 5 or 2w"; render(); return; } fields.duration = d; }
+  else if (key === "deadline") { if (value && !/^\d{4}-\d{2}-\d{2}$/.test(value)) { state.message = "A deadline is a date"; render(); return; } fields.deadline = value || undefined; }
   else if (key === "progress") { const p = Number(String(value).replace("%", "")); if (!(p >= 0 && p <= 100)) { state.message = "Progress is 0 to 100"; render(); return; } fields.progress = Math.round(p); }
   run(() => state.model.set(id, fields));
 }
@@ -265,7 +279,7 @@ function renderChart(rows) {
     } else {
       const base = state.showBaseline && state.model.baseline("Baseline")?.tasks[b.id];
       if (base) svg += `<rect class="wp-base" x="${sc.x(base.start)}" y="${b.y + 23}" width="${Math.max(2, sc.x(base.finish) - sc.x(base.start) + sc.dayW)}" height="4" rx="2"/>`;
-      const crit = critical.has(b.id) ? " is-crit" : "";
+      const crit = (critical.has(b.id) ? " is-crit" : "") + (r.inactive ? " is-inactive" : "");
       const late = behind.get(b.id);
       if (late) svg += `<rect class="wp-behind" x="${b.x - 4}" y="${b.y + 4}" width="${b.w + 8}" height="22" rx="6"><title>${late.late ? "Late" : "Behind"}: ${late.progress}% done, ${late.expected}% expected by the status date</title></rect>`;
       if (over.has(b.id)) svg += `<rect class="wp-over" x="${b.x - 2}" y="${b.y + 6}" width="${b.w + 4}" height="18" rx="5"><title>Someone on this task has another task at the same time</title></rect>`;
@@ -273,6 +287,10 @@ function renderChart(rows) {
       if (b.progress) svg += `<rect class="wp-bar-done${crit}" x="${b.x}" y="${b.y + 8}" width="${(b.w * b.progress) / 100}" height="14" rx="4"/>`;
       if (r.owner) svg += `<text class="wp-label" x="${b.x + b.w + 6}" y="${b.y + 19}">${esc(r.owner)}</text>`;
       svg += `<rect class="wp-hit" data-drag="move" data-id="${b.id}" x="${b.x}" y="${b.y + 4}" width="${Math.max(0, b.w - 6)}" height="22"/><rect class="wp-grip" data-drag="size" data-id="${b.id}" x="${b.x + b.w - 6}" y="${b.y + 4}" width="10" height="22"/>`;
+    }
+    if (r.deadline && !r.summary) {
+      const dx = sc.x(r.deadline) + sc.dayW, late = !r.inactive && r.finish > r.deadline;
+      svg += `<path class="wp-deadline${late ? " is-late" : ""}" d="M${dx - 5} ${b.y + 2} h10 l-5 7 z"><title>Deadline ${fmt(r.deadline)}${late ? " (missed)" : ""}</title></path>`;
     }
     if (selSet.has(b.id)) svg += `<rect class="wp-sel-bar" x="${b.x - 3}" y="${b.y + 4}" width="${b.w + 6}" height="22" rx="5"/>`;
   }
@@ -302,6 +320,11 @@ function renderWorkload() {
     }).join("")}</tr>`;
   }
   $("wp-chart").innerHTML = h + "</tbody></table>";
+}
+
+function deadlineText() {
+  const late = pastDeadline(state.model.doc, calendar().isWork);
+  return late.length ? `<span class="err" title="${esc(late.map((x) => `${x.name}: finishes ${fmt(x.finish)}, deadline ${fmt(x.deadline)}`).join("\n"))}">${late.length} past deadline</span>` : "";
 }
 
 function behindText() {
@@ -355,7 +378,7 @@ function draw() {
   $("wp-ribbon").querySelector('[data-cmd="redo"]').disabled ||= !state.model.redoStack.length;
   const all = state.model.tasks.map((t) => state.model.view(t.id));
   const finish = all.length ? all.reduce((m, v) => (v.finish > m ? v.finish : m), all[0].finish) : null;
-  $("wp-status").innerHTML = `<span>${state.model.tasks.length} task${state.model.tasks.length === 1 ? "" : "s"}</span>${finish ? `<span>Finish: ${fmt(finish)}</span>` : ""}<span>${state.model.doc.links.length} link${state.model.doc.links.length === 1 ? "" : "s"}</span>${behindText()}${overText()}${state.message ? `<span class="err" role="alert">${esc(state.message)}</span>` : state.note ? `<span>${esc(state.note)}</span>` : slipText()}`;
+  $("wp-status").innerHTML = `<span>${state.model.tasks.length} task${state.model.tasks.length === 1 ? "" : "s"}</span>${finish ? `<span>Finish: ${fmt(finish)}</span>` : ""}<span>${state.model.doc.links.length} link${state.model.doc.links.length === 1 ? "" : "s"}</span>${deadlineText()}${behindText()}${overText()}${state.message ? `<span class="err" role="alert">${esc(state.message)}</span>` : state.note ? `<span>${esc(state.note)}</span>` : slipText()}`;
 }
 
 /* ---- events ---- */
@@ -519,7 +542,8 @@ if (new URLSearchParams(location.search).has("sample")) {
   const net = m.addTask({ name: "Network and power", level: 1, start: "2026-02-12", duration: 6, progress: 30, owner: "Ravi" }, fit);
   const furn = m.addTask({ name: "Furniture", start: "2026-02-12", duration: 8, progress: 10, owner: "Ayesha, Ravi 50%" }, net);
   const sec = m.addTask({ name: "Security and access", start: "2026-02-20", duration: 5, owner: "Ravi" }, furn);
-  const insp = m.addTask({ name: "Inspection", start: "2026-02-27", duration: 4, owner: "Nimal" }, sec);
+  const insp = m.addTask({ name: "Inspection", start: "2026-02-27", duration: 4, owner: "Nimal", deadline: "2026-03-03" }, sec);
+  m.addTask({ name: "Art for the walls (if budget allows)", start: "2026-03-02", duration: 3, owner: "Ayesha", inactive: true }, insp);
   const mv = m.addTask({ name: "Move", start: "2026-03-05", duration: 7 }, fit);
   const pack = m.addTask({ name: "Pack and label", level: 1, start: "2026-03-05", duration: 3, owner: "Team" }, mv);
   const day = m.addTask({ name: "Moving day", start: "2026-03-10", duration: 2, owner: "Movers" }, pack);
