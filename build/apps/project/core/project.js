@@ -17,7 +17,8 @@
  * Stage 2 counts calendar days; working calendars and automatic scheduling come in stage 3 (#83).
  */
 
-import { recalc, TASK_TYPES } from "./tasktypes.js";
+import { recalc, TASK_TYPES, unitsOf, workOf } from "./tasktypes.js";
+import { costs } from "./costs.js";
 
 export const APP = "worksuite.project";
 export const SCHEMA_VERSION = 1;
@@ -114,6 +115,7 @@ export function validate(doc) {
       if (!b.tasks || typeof b.tasks !== "object") { errs.push(`${at}: no tasks`); return; }
       for (const [id, v] of Object.entries(b.tasks)) {
         if (!DATE.test(v.start || "") || !DATE.test(v.finish || "") || !Number.isInteger(v.duration)) errs.push(`${at}: task ${id} is incomplete`);
+        if (v.cost !== undefined && !(Number.isFinite(v.cost) && v.cost >= 0)) errs.push(`${at}: task ${id} has a bad cost`);
       }
     });
   }
@@ -270,7 +272,12 @@ export class ProjectModel {
   saveBaseline(name = "Baseline", saved = new Date().toISOString().slice(0, 10)) {
     return this.edit((d) => {
       const tasks = {};
-      for (const t of d.tasks) { const v = this.viewIn(d, t.id); tasks[t.id] = { start: v.start, finish: v.finish, duration: v.duration }; }
+      const cost = costs(d).byId; // the planned cost goes into the baseline too: earned value measures against it
+      for (const t of d.tasks) {
+        const v = this.viewIn(d, t.id);
+        tasks[t.id] = { start: v.start, finish: v.finish, duration: v.duration, cost: cost.get(t.id) || 0 };
+        if (!this.isSummary(t.id) && t.duration > 0 && unitsOf(t) > 0) tasks[t.id].work = workOf(t);
+      }
       const list = (d.baselines || []).filter((b) => b.name !== name);
       if (list.length >= MAX_BASELINES) throw new Error(`a project keeps at most ${MAX_BASELINES} baselines; clear one first`);
       d.baselines = [...list, { name, saved, tasks }];

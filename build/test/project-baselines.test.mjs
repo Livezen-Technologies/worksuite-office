@@ -18,7 +18,7 @@ test("a baseline keeps every task's start, finish and duration", () => {
   m.saveBaseline("Original", "2026-01-30");
   const bl = m.baseline("Original");
   assert.equal(bl.saved, "2026-01-30");
-  assert.deepEqual(bl.tasks[a], { start: "2026-02-02", finish: "2026-02-04", duration: 3 });
+  assert.deepEqual(bl.tasks[a], { start: "2026-02-02", finish: "2026-02-04", duration: 3, cost: 0 }); // the planned cost too (earned value)
   assert.equal(bl.tasks[ph].finish, "2026-02-06"); // summaries too
 });
 

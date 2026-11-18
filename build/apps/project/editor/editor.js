@@ -17,6 +17,7 @@ import { behindSchedule, pastDeadline } from "../core/progress.js";
 import { outlineToDoc } from "../core/outline.js";
 import { workOf, unitsOf, TASK_TYPES } from "../core/tasktypes.js";
 import { costs, resourceSheet, formatMoney } from "../core/costs.js";
+import { earnedValue } from "../core/earnedvalue.js";
 import { askText } from "../../common/dialog.js";
 import { decorateRibbon, ribbonStyles } from "../../common/ribbon.js";
 import { aiDraft } from "../../common/aidraft.js";
@@ -49,6 +50,7 @@ const state = {
   cal: "standard",
   showBaseline: false,
   showCritical: false,
+  ev: false, // the earned value table in place of the Gantt chart (stage 5)
   sheet: false, // the Resource Sheet in place of the Gantt chart (stage 5)
   workload: false, // the workload view in place of the Gantt chart (#86)
   note: "",
@@ -84,9 +86,10 @@ const commands = {
   new: () => { if (confirmDiscard()) { state.model = new ProjectModel(newProject("Untitled project", mondayOf(new Date()))); state.sel = []; state.fileName = "Untitled project.wsproj"; render(); } },
   open: () => $("wp-file").click(),
   fromOutline: () => fromOutline(),
-  viewGantt: () => { state.workload = false; state.sheet = false; render(); },
-  viewWorkload: () => { state.workload = true; state.sheet = false; render(); },
-  viewSheet: () => { state.sheet = true; state.workload = false; render(); },
+  viewGantt: () => { state.workload = state.sheet = state.ev = false; render(); },
+  viewWorkload: () => { state.workload = true; state.sheet = state.ev = false; render(); },
+  viewSheet: () => { state.sheet = true; state.workload = state.ev = false; render(); },
+  viewEv: () => { state.ev = true; state.workload = state.sheet = false; render(); },
   aiPlan: () => aiPlan(),
   save: () => { download(state.fileName, packDocument(APP, serialize(state.model.doc)), "application/zip"); state.saved = state.model.undoStack.length; render(); },
   exportCsv: () => download(state.fileName.replace(/\.wsproj$/, "") + ".csv", toCsv(), "text/csv"),
@@ -326,6 +329,20 @@ function renderChart(rows) {
   state.scale = sc;
 }
 
+/** Earned value at the status date: planned, earned and actual value per task, the indexes, and totals. */
+function renderEv() {
+  const r = earnedValue(state.model.doc, { isWork: calendar().isWork });
+  if (r.error) { $("wp-chart").innerHTML = `<p class="wp-empty">${esc(r.error)}</p>`; return; }
+  const m = (n) => formatMoney(n), idx = (x) => (x === null ? "–" : x.toFixed(2)), cls = (x) => (x !== null && x < 1 ? "is-over" : "");
+  const neg = (n) => (n < 0 ? "is-over" : "");
+  const line = (name, f, tag = "td") => `<tr><th>${name}</th><${tag} class="money">${m(f.bac)}</${tag}><${tag} class="money">${m(f.pv)}</${tag}><${tag} class="money">${m(f.ev)}</${tag}><${tag} class="money">${m(f.ac)}</${tag}>` +
+    `<${tag} class="money ${neg(f.sv)}">${m(f.sv)}</${tag}><${tag} class="money ${neg(f.cv)}">${m(f.cv)}</${tag}><${tag} class="${cls(f.spi)}">${idx(f.spi)}</${tag}><${tag} class="${cls(f.cpi)}">${idx(f.cpi)}</${tag}><${tag} class="money">${m(f.eac)}</${tag}></tr>`;
+  let h = `<p class="wp-evnote">At the status date, ${fmt(r.statusDate)}, against “${esc(r.baseline)}”. Actual cost is the current cost of the work done.</p>`;
+  h += `<table class="wp-load wp-ev"><thead><tr><th>Task</th><th title="Budget at completion: the baselined cost">BAC</th><th title="Planned value: the budget of the work planned by the status date">PV</th><th title="Earned value: the budget of the work done">EV</th><th title="Actual cost of the work done">AC</th><th title="Schedule variance: EV − PV">SV</th><th title="Cost variance: EV − AC">CV</th><th title="Schedule performance: EV ÷ PV; under 1 is behind">SPI</th><th title="Cost performance: EV ÷ AC; under 1 is over budget">CPI</th><th title="Estimate at completion: BAC ÷ CPI">EAC</th></tr></thead><tbody>`;
+  for (const row of r.rows) h += line(esc(row.name), row);
+  $("wp-chart").innerHTML = h + `</tbody><tfoot>${line("Project", r.total)}</tfoot></table>`;
+}
+
 /** The Resource Sheet: everyone on the plan, with a rate per hour and a cost per use to type in. */
 function renderSheet() {
   const rows = resourceSheet(state.model.doc);
@@ -369,7 +386,9 @@ function renderWorkload() {
 
 function costText() {
   const total = costs(state.model.doc).total;
-  return total ? `<span>Cost: ${formatMoney(total)}</span>` : "";
+  const ev = state.model.doc.statusDate ? earnedValue(state.model.doc, { isWork: calendar().isWork }) : { error: true };
+  const idx = !ev.error && ev.total.spi !== null ? ` · SPI ${ev.total.spi.toFixed(2)}${ev.total.cpi !== null ? ` · CPI ${ev.total.cpi.toFixed(2)}` : ""}` : "";
+  return total ? `<span title="SPI under 1: behind schedule. CPI under 1: over budget.">Cost: ${formatMoney(total)}${idx}</span>` : "";
 }
 
 function deadlineText() {
@@ -420,9 +439,9 @@ function draw() {
   $("wp-type").value = firstTyped?.type || "fixedUnits";
   $("wp-effort").checked = !!firstTyped?.effortDriven;
   $("wp-type").disabled = $("wp-effort").disabled = state.readOnly || !firstTyped;
-  const view = state.sheet ? "viewSheet" : state.workload ? "viewWorkload" : "viewGantt";
-  for (const b of document.querySelectorAll('[data-cmd="viewGantt"], [data-cmd="viewWorkload"], [data-cmd="viewSheet"]')) b.setAttribute("aria-pressed", String(b.dataset.cmd === view));
-  if (state.sheet) renderSheet(); else if (state.workload) renderWorkload(); else renderChart(rows);
+  const view = state.ev ? "viewEv" : state.sheet ? "viewSheet" : state.workload ? "viewWorkload" : "viewGantt";
+  for (const b of document.querySelectorAll('[data-cmd="viewGantt"], [data-cmd="viewWorkload"], [data-cmd="viewSheet"], [data-cmd="viewEv"]')) b.setAttribute("aria-pressed", String(b.dataset.cmd === view));
+  if (state.ev) renderEv(); else if (state.sheet) renderSheet(); else if (state.workload) renderWorkload(); else renderChart(rows);
   $("wp-title").textContent = state.fileName.replace(/\.wsproj$/, "") + (state.model.undoStack.length !== (state.saved || 0) ? " •" : ""); // • unsaved changes
   $("wp-mode").hidden = !state.readOnly;
   $("wp-mode-text").textContent = reasonText(state.licence || "no_license");
@@ -618,8 +637,10 @@ if (new URLSearchParams(location.search).has("sample")) {
   const open = m.addMilestone({ name: "Open for business", start: "2026-03-13" }, it);
   [[site, lease], [lease, signed], [net, sec], [sec, insp], [insp, pack], [pack, day], [day, it], [it, open]].forEach(([a, b]) => m.link(a, b));
   m.setStatusDate("2026-02-18");
-  m.setResource("Nimal", { rate: 2500 }); m.setResource("Ayesha", { rate: 2200 }); m.setResource("Ravi", { rate: 3000 }); m.setResource("Movers", { costPerUse: 45000 });
+  m.setResource("Nimal", { rate: 2500 }); m.setResource("Ayesha", { rate: 2200 }); m.setResource("Ravi", { rate: 2800 }); m.setResource("Movers", { costPerUse: 45000 });
   m.set(m.tasks.find((t) => t.name === "Furniture").id, { fixedCost: 380000 });
+  m.isWork = STANDARD.isWork; m.saveBaseline("Baseline", "2026-01-30");
+  m.setResource("Ravi", { rate: 3000 }); // dearer than planned: the cost index shows it
   state.model = new ProjectModel(m.doc);
   state.fileName = "Office move.wsproj";
 }

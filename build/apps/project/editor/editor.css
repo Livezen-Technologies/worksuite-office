@@ -68,6 +68,9 @@ table.wp-table { border-collapse: collapse; width: 100%; table-layout: fixed; }
 .wp-table td.money, .wp-load td.money { text-align: end; font-variant-numeric: tabular-nums; }
 .wp-sheet input { width: 96px; font: inherit; color: var(--ink); background: var(--card); border: 1px solid var(--line); border-radius: 5px; padding: 2px 6px; text-align: end; }
 .wp-sheet tfoot th, .wp-sheet tfoot td { font-weight: 600; }
+.wp-ev td { text-align: end; font-variant-numeric: tabular-nums; }
+.wp-ev tfoot th, .wp-ev tfoot td { font-weight: 600; }
+.wp-evnote { margin: 12px 12px 0; color: var(--ink3); font-size: 12px; }
 .wp-empty { margin: 24px; color: var(--ink3); }
 .wp-bar { fill: var(--bar); }
 .wp-bar-done { fill: var(--bar-done); }
