@@ -1,5 +1,19 @@
 # Change log
 
+## 10.1.55
+
+### New features
+
+#### Project
+
+* Costs: the Resource Sheet (Resource › Resource Sheet, or View) lists
+  everyone on the plan with a rate per hour and a cost per use to type in,
+  and their work and cost. Tasks get a Cost column (each person's hours at
+  their rate, plus cost per use, plus the task's fixed cost) and an editable
+  Fixed cost column; summaries add up their tasks, and the status bar shows
+  the project's cost.
+* Rates, costs per use and fixed costs are saved in Project XML.
+
 ## 10.1.54
 
 ### New features

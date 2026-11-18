@@ -35,7 +35,7 @@ body { font: 13px/1.35 Inter, system-ui, -apple-system, "Segoe UI", sans-serif; 
 .wp-ribbon { display: flex; gap: 0; padding: 4px 6px 2px; background: var(--card); border-bottom: 1px solid var(--line); flex-wrap: wrap; min-height: 92px; }
 
 .wp-main { flex: 1; display: flex; min-height: 0; background: var(--card); }
-.wp-grid { width: 900px; max-width: 62%; flex: none; overflow: auto; outline: none; }
+.wp-grid { width: 1100px; max-width: 64%; flex: none; overflow: auto; outline: none; }
 .wp-split { width: 1px; background: var(--line); flex: none; }
 .wp-chart { flex: 1; overflow: auto; position: relative; }
 
@@ -65,6 +65,9 @@ table.wp-table { border-collapse: collapse; width: 100%; table-layout: fixed; }
 .wp-load tbody th { text-align: start; font-weight: 500; }
 .wp-load td.is-over { color: var(--today); font-weight: 600; background: color-mix(in srgb, var(--today) 12%, transparent); }
 .wp-warn { color: var(--today); font-weight: 700; }
+.wp-table td.money, .wp-load td.money { text-align: end; font-variant-numeric: tabular-nums; }
+.wp-sheet input { width: 96px; font: inherit; color: var(--ink); background: var(--card); border: 1px solid var(--line); border-radius: 5px; padding: 2px 6px; text-align: end; }
+.wp-sheet tfoot th, .wp-sheet tfoot td { font-weight: 600; }
 .wp-empty { margin: 24px; color: var(--ink3); }
 .wp-bar { fill: var(--bar); }
 .wp-bar-done { fill: var(--bar-done); }

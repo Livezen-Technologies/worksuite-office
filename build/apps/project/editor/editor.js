@@ -16,6 +16,7 @@ import { overallocations, weeklyLoad } from "../core/resources.js";
 import { behindSchedule, pastDeadline } from "../core/progress.js";
 import { outlineToDoc } from "../core/outline.js";
 import { workOf, unitsOf, TASK_TYPES } from "../core/tasktypes.js";
+import { costs, resourceSheet, formatMoney } from "../core/costs.js";
 import { askText } from "../../common/dialog.js";
 import { decorateRibbon, ribbonStyles } from "../../common/ribbon.js";
 import { aiDraft } from "../../common/aidraft.js";
@@ -34,6 +35,8 @@ const COLS = [
   { key: "name", label: "Task name", w: 210, edit: true },
   { key: "duration", label: "Duration", w: 72, edit: true },
   { key: "work", label: "Work", w: 64, edit: true },
+  { key: "cost", label: "Cost", w: 104 },
+  { key: "fixedCost", label: "Fixed cost", w: 96, edit: true },
   { key: "start", label: "Start", w: 104, edit: true },
   { key: "finish", label: "Finish", w: 104 },
   { key: "deadline", label: "Deadline", w: 96, edit: true },
@@ -46,6 +49,7 @@ const state = {
   cal: "standard",
   showBaseline: false,
   showCritical: false,
+  sheet: false, // the Resource Sheet in place of the Gantt chart (stage 5)
   workload: false, // the workload view in place of the Gantt chart (#86)
   note: "",
   model: new ProjectModel(newProject("Untitled project", mondayOf(new Date()))),
@@ -80,8 +84,9 @@ const commands = {
   new: () => { if (confirmDiscard()) { state.model = new ProjectModel(newProject("Untitled project", mondayOf(new Date()))); state.sel = []; state.fileName = "Untitled project.wsproj"; render(); } },
   open: () => $("wp-file").click(),
   fromOutline: () => fromOutline(),
-  viewGantt: () => { state.workload = false; render(); },
-  viewWorkload: () => { state.workload = true; render(); },
+  viewGantt: () => { state.workload = false; state.sheet = false; render(); },
+  viewWorkload: () => { state.workload = true; state.sheet = false; render(); },
+  viewSheet: () => { state.sheet = true; state.workload = false; render(); },
   aiPlan: () => aiPlan(),
   save: () => { download(state.fileName, packDocument(APP, serialize(state.model.doc)), "application/zip"); state.saved = state.model.undoStack.length; render(); },
   exportCsv: () => download(state.fileName.replace(/\.wsproj$/, "") + ".csv", toCsv(), "text/csv"),
@@ -201,6 +206,7 @@ function renderGrid(rows) {
   const t = state.model;
   const selSet = new Set(state.sel);
   const wbs = wbsCodes(t.tasks);
+  const cost = costs(t.doc).byId;
   let html = `<table class="wp-table"><colgroup>${COLS.map((c) => `<col style="width:${c.w}px">`).join("")}</colgroup><tr>${COLS.map((c) => `<th>${c.label}</th>`).join("")}</tr>`;
   for (const r of rows) {
     const n = t.indexOf(r.id) + 1;
@@ -217,6 +223,8 @@ function renderGrid(rows) {
         return `<td class="name" style="padding-inline-start:${8 + r.level * 16}px">${tw}${esc(r.name)}</td>`;
       }
       if (c.key === "duration") return `<td>${r.milestone ? "0 d" : `${r.duration} d`}</td>`;
+      if (c.key === "cost") return `<td class="money">${cost.get(r.id) ? formatMoney(cost.get(r.id)) : ""}</td>`;
+      if (c.key === "fixedCost") return `<td class="money">${r.fixedCost ? formatMoney(r.fixedCost) : ""}</td>`;
       if (c.key === "work") return `<td class="work">${!r.summary && !r.milestone && unitsOf(r) > 0 ? `${workOf(r)} h` : ""}</td>`;
       if (c.key === "start" || c.key === "finish") return `<td>${fmt(r[c.key])}</td>`;
       if (c.key === "progress") return `<td>${r.progress}%</td>`;
@@ -245,6 +253,11 @@ function commitEdit(value) {
   else if (key === "owner") fields.owner = value.trim() || undefined;
   else if (key === "start") { if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) { state.message = "Start must be a date"; render(); return; } fields.start = value; }
   else if (key === "duration") { const d = parseDuration(value); if (d === null) { state.message = "Duration is whole days, like 5 or 2w"; render(); return; } fields.duration = d; }
+  else if (key === "fixedCost") {
+    const n = Number(String(value).replace(/,/g, "").trim() || 0);
+    if (!(n >= 0)) { state.message = "A fixed cost is an amount, 0 or more"; render(); return; }
+    fields.fixedCost = n ? Math.round(n * 100) / 100 : undefined;
+  }
   else if (key === "work") {
     const h = Number(String(value).trim().replace(/\s*(h|hrs?|hours?)$/i, ""));
     if (!(h >= 0) || !String(value).trim()) { state.message = "Work is hours, like 40 or 40h"; render(); return; }
@@ -313,6 +326,29 @@ function renderChart(rows) {
   state.scale = sc;
 }
 
+/** The Resource Sheet: everyone on the plan, with a rate per hour and a cost per use to type in. */
+function renderSheet() {
+  const rows = resourceSheet(state.model.doc);
+  if (!rows.length) { $("wp-chart").innerHTML = `<p class="wp-empty">No one is assigned yet. Type names in the Owner column; each person then gets a row here for their rate.</p>`; return; }
+  const ro = state.readOnly ? "disabled" : "";
+  let h = `<table class="wp-load wp-sheet"><thead><tr><th>Person</th><th>Rate per hour</th><th>Cost per use</th><th>Tasks</th><th>Work</th><th>Cost</th></tr></thead><tbody>`;
+  for (const r of rows) {
+    h += `<tr><th>${esc(r.name)}</th><td><input data-rate="${esc(r.name)}" data-field="rate" type="number" min="0" step="0.01" value="${r.rate || ""}" placeholder="0.00" ${ro}></td>` +
+      `<td><input data-rate="${esc(r.name)}" data-field="costPerUse" type="number" min="0" step="0.01" value="${r.costPerUse || ""}" placeholder="0.00" ${ro}></td>` +
+      `<td>${r.tasks}</td><td>${r.work} h</td><td class="money">${formatMoney(r.cost)}</td></tr>`;
+  }
+  $("wp-chart").innerHTML = h + `</tbody><tfoot><tr><th>Total</th><td></td><td></td><td></td><td>${Math.round(rows.reduce((s, r) => s + r.work, 0) * 100) / 100} h</td><td class="money">${formatMoney(rows.reduce((s, r) => s + r.cost, 0))}</td></tr></tfoot></table>`;
+}
+$("wp-chart").addEventListener("change", (e) => {
+  const input = e.target.closest("[data-rate]");
+  if (!input) return;
+  const v = input.value.trim();
+  run(() => {
+    if (v !== "" && !(Number(v) >= 0)) throw new Error("A rate is an amount, 0 or more");
+    state.model.setResource(input.dataset.rate, { [input.dataset.field]: v === "" ? null : Math.round(Number(v) * 100) / 100 });
+  });
+});
+
 /** The workload view: each person's task-days per week; a red cell has a day with two tasks or more. */
 function renderWorkload() {
   const rows = weeklyLoad(state.model.doc, calendar().isWork);
@@ -329,6 +365,11 @@ function renderWorkload() {
     }).join("")}</tr>`;
   }
   $("wp-chart").innerHTML = h + "</tbody></table>";
+}
+
+function costText() {
+  const total = costs(state.model.doc).total;
+  return total ? `<span>Cost: ${formatMoney(total)}</span>` : "";
 }
 
 function deadlineText() {
@@ -379,8 +420,9 @@ function draw() {
   $("wp-type").value = firstTyped?.type || "fixedUnits";
   $("wp-effort").checked = !!firstTyped?.effortDriven;
   $("wp-type").disabled = $("wp-effort").disabled = state.readOnly || !firstTyped;
-  for (const b of document.querySelectorAll('[data-cmd="viewGantt"], [data-cmd="viewWorkload"]')) b.setAttribute("aria-pressed", String((b.dataset.cmd === "viewWorkload") === !!state.workload));
-  if (state.workload) renderWorkload(); else renderChart(rows);
+  const view = state.sheet ? "viewSheet" : state.workload ? "viewWorkload" : "viewGantt";
+  for (const b of document.querySelectorAll('[data-cmd="viewGantt"], [data-cmd="viewWorkload"], [data-cmd="viewSheet"]')) b.setAttribute("aria-pressed", String(b.dataset.cmd === view));
+  if (state.sheet) renderSheet(); else if (state.workload) renderWorkload(); else renderChart(rows);
   $("wp-title").textContent = state.fileName.replace(/\.wsproj$/, "") + (state.model.undoStack.length !== (state.saved || 0) ? " •" : ""); // • unsaved changes
   $("wp-mode").hidden = !state.readOnly;
   $("wp-mode-text").textContent = reasonText(state.licence || "no_license");
@@ -391,7 +433,7 @@ function draw() {
   $("wp-ribbon").querySelector('[data-cmd="redo"]').disabled ||= !state.model.redoStack.length;
   const all = state.model.tasks.map((t) => state.model.view(t.id));
   const finish = all.length ? all.reduce((m, v) => (v.finish > m ? v.finish : m), all[0].finish) : null;
-  $("wp-status").innerHTML = `<span>${state.model.tasks.length} task${state.model.tasks.length === 1 ? "" : "s"}</span>${finish ? `<span>Finish: ${fmt(finish)}</span>` : ""}<span>${state.model.doc.links.length} link${state.model.doc.links.length === 1 ? "" : "s"}</span>${deadlineText()}${behindText()}${overText()}${state.message ? `<span class="err" role="alert">${esc(state.message)}</span>` : state.note ? `<span>${esc(state.note)}</span>` : slipText()}`;
+  $("wp-status").innerHTML = `<span>${state.model.tasks.length} task${state.model.tasks.length === 1 ? "" : "s"}</span>${finish ? `<span>Finish: ${fmt(finish)}</span>` : ""}<span>${state.model.doc.links.length} link${state.model.doc.links.length === 1 ? "" : "s"}</span>${costText()}${deadlineText()}${behindText()}${overText()}${state.message ? `<span class="err" role="alert">${esc(state.message)}</span>` : state.note ? `<span>${esc(state.note)}</span>` : slipText()}`;
 }
 
 /* ---- events ---- */
@@ -576,6 +618,8 @@ if (new URLSearchParams(location.search).has("sample")) {
   const open = m.addMilestone({ name: "Open for business", start: "2026-03-13" }, it);
   [[site, lease], [lease, signed], [net, sec], [sec, insp], [insp, pack], [pack, day], [day, it], [it, open]].forEach(([a, b]) => m.link(a, b));
   m.setStatusDate("2026-02-18");
+  m.setResource("Nimal", { rate: 2500 }); m.setResource("Ayesha", { rate: 2200 }); m.setResource("Ravi", { rate: 3000 }); m.setResource("Movers", { costPerUse: 45000 });
+  m.set(m.tasks.find((t) => t.name === "Furniture").id, { fixedCost: 380000 });
   state.model = new ProjectModel(m.doc);
   state.fileName = "Office move.wsproj";
 }
