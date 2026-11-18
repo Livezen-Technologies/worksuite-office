@@ -12,7 +12,7 @@
   (SPI, CPI) and the estimate at completion, with project totals. The status
   bar shows the project's SPI and CPI.
 * A baseline now keeps each task's cost and work. Set the baseline again on
-  plans baselined before this version to measure earned value.
+  plans that had a baseline before this version, to measure earned value.
 
 ## 10.1.55
 
