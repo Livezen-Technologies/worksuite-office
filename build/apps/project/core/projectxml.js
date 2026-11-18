@@ -76,6 +76,16 @@ export function durationDays(iso) {
 export const daysDuration = (days) => `PT${days * HOURS_PER_DAY}H0M0S`;
 const lagDays = (tenthsOfMinutes) => Math.round(Number(tenthsOfMinutes || 0) / (HOURS_PER_DAY * 600));
 
+/* ---- task types: Project XML Type 0 fixed units, 1 fixed duration, 2 fixed work ---- */
+const TASKTYPE_IN = { 0: "fixedUnits", 1: "fixedDuration", 2: "fixedWork" };
+const TASKTYPE_OUT = { fixedUnits: 0, fixedDuration: 1, fixedWork: 2 };
+/** PT40H0M0S → 40 (hours of work), or null. */
+function hoursOf(iso) {
+  const m = /^P(?:(\d+(?:\.\d+)?)D)?T?(?:(\d+(?:\.\d+)?)H)?(?:(\d+(?:\.\d+)?)M)?(?:(\d+(?:\.\d+)?)S)?$/.exec(iso || "");
+  if (!m || !iso) return null;
+  return Math.round((Number(m[1] || 0) * 24 + Number(m[2] || 0) + Number(m[3] || 0) / 60 + Number(m[4] || 0) / 3600) * 100) / 100;
+}
+
 /* ---- reading ---- */
 
 /** A WorkSuite Project document from Project XML text. Throws with the reason when it cannot. */
@@ -127,6 +137,11 @@ export function fromProjectXml(text) {
     if (val(t, "ActualStart")) task.actualStart = val(t, "ActualStart").slice(0, 10);
     if (/^\d{4}-\d{2}-\d{2}/.test(val(t, "Deadline"))) task.deadline = val(t, "Deadline").slice(0, 10);
     if (val(t, "Active") === "0") task.inactive = true;
+    const type = TASKTYPE_IN[val(t, "Type")];
+    if (type && type !== "fixedUnits") task.type = type;
+    if (val(t, "EffortDriven") === "1") task.effortDriven = true;
+    const workHours = hoursOf(val(t, "Work"));
+    if (workHours !== null && !milestone && workHours > 0) task.work = workHours;
     if (val(t, "ActualFinish") && task.actualStart) task.actualFinish = val(t, "ActualFinish").slice(0, 10);
     const con = CON_IN[val(t, "ConstraintType")];
     if (con && val(t, "ConstraintDate")) task.constraint = { type: con, date: val(t, "ConstraintDate").slice(0, 10) };
@@ -167,7 +182,9 @@ export function toProjectXml(doc, isWork = null) {
     const links = doc.links.filter((l) => l.to === t.id).map((l) =>
       `<PredecessorLink><PredecessorUID>${uid.get(l.from)}</PredecessorUID><Type>${TYPE_OUT[l.type]}</Type><CrossProject>0</CrossProject><LinkLag>${l.lag * HOURS_PER_DAY * 600}</LinkLag><LagFormat>7</LagFormat></PredecessorLink>`).join("");
     const con = t.constraint && CON_OUT[t.constraint.type] !== undefined ? `<ConstraintType>${CON_OUT[t.constraint.type]}</ConstraintType><ConstraintDate>${t.constraint.date}T08:00:00</ConstraintDate>` : "<ConstraintType>0</ConstraintType>";
-    return `<Task><UID>${i + 1}</UID><ID>${i + 1}</ID>${el("Name", t.name)}<Type>1</Type><IsNull>0</IsNull>` +
+    const work = !v.summary && !v.milestone && t.work !== undefined ? `<Work>PT${t.work}H0M0S</Work>` : "";
+    return `<Task><UID>${i + 1}</UID><ID>${i + 1}</ID>${el("Name", t.name)}<Type>${TASKTYPE_OUT[t.type || "fixedUnits"]}</Type><IsNull>0</IsNull>` +
+      `<EffortDriven>${t.effortDriven ? 1 : 0}</EffortDriven>${work}` +
       `<OutlineLevel>${t.level + 1}</OutlineLevel><Start>${v.start}T08:00:00</Start><Finish>${v.finish}T17:00:00</Finish>` +
       `<Duration>${daysDuration(v.duration)}</Duration><DurationFormat>7</DurationFormat>` +
       `<Milestone>${v.milestone ? 1 : 0}</Milestone><Summary>${v.summary ? 1 : 0}</Summary><PercentComplete>${v.progress}</PercentComplete>` +

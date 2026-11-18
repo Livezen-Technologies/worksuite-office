@@ -1,5 +1,25 @@
 # Change log
 
+## 10.1.54
+
+### New features
+
+#### Project
+
+* Work and task types: a Work column shows each task's person-hours (duration
+  × the people's shares × 8 hours) and can be typed in. The task type (Task ›
+  Type) says what gives way when duration, work or people change: fixed units
+  (the default), fixed work or fixed duration. Effort driven tasks get shorter
+  when people are added, sharing the same work.
+* Task type, effort driven and work are saved in Project XML.
+
+### Fixes
+
+#### Project
+
+* Project XML from WorkSuite Project marked every task as fixed duration; it
+  now writes each task's own type (fixed units unless changed).
+
 ## 10.1.53
 
 ### New features

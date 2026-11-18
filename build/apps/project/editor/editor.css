@@ -35,7 +35,7 @@ body { font: 13px/1.35 Inter, system-ui, -apple-system, "Segoe UI", sans-serif; 
 .wp-ribbon { display: flex; gap: 0; padding: 4px 6px 2px; background: var(--card); border-bottom: 1px solid var(--line); flex-wrap: wrap; min-height: 92px; }
 
 .wp-main { flex: 1; display: flex; min-height: 0; background: var(--card); }
-.wp-grid { width: 820px; max-width: 60%; flex: none; overflow: auto; outline: none; }
+.wp-grid { width: 900px; max-width: 62%; flex: none; overflow: auto; outline: none; }
 .wp-split { width: 1px; background: var(--line); flex: none; }
 .wp-chart { flex: 1; overflow: auto; position: relative; }
 

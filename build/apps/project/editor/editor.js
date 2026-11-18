@@ -15,6 +15,7 @@ import { schedule, applySchedule, criticalPath, STANDARD, SRI_LANKA } from "../c
 import { overallocations, weeklyLoad } from "../core/resources.js";
 import { behindSchedule, pastDeadline } from "../core/progress.js";
 import { outlineToDoc } from "../core/outline.js";
+import { workOf, unitsOf, TASK_TYPES } from "../core/tasktypes.js";
 import { askText } from "../../common/dialog.js";
 import { decorateRibbon, ribbonStyles } from "../../common/ribbon.js";
 import { aiDraft } from "../../common/aidraft.js";
@@ -32,6 +33,7 @@ const COLS = [
   { key: "wbs", label: "WBS", w: 48 },
   { key: "name", label: "Task name", w: 210, edit: true },
   { key: "duration", label: "Duration", w: 72, edit: true },
+  { key: "work", label: "Work", w: 64, edit: true },
   { key: "start", label: "Start", w: 104, edit: true },
   { key: "finish", label: "Finish", w: 104 },
   { key: "deadline", label: "Deadline", w: 96, edit: true },
@@ -204,7 +206,7 @@ function renderGrid(rows) {
     const n = t.indexOf(r.id) + 1;
     const cells = COLS.map((c) => {
       if (state.editing && state.editing.id === r.id && state.editing.key === c.key) {
-        const value = c.key === "duration" ? `${r.duration}d` : c.key === "progress" ? r.progress : (r[c.key] ?? "");
+        const value = c.key === "duration" ? `${r.duration}d` : c.key === "progress" ? r.progress : c.key === "work" ? `${workOf(r)}h` : (r[c.key] ?? "");
         return `<td class="${c.key}"><input data-edit-input value="${esc(value)}" ${c.key === "start" || c.key === "deadline" ? 'type="date"' : ""}></td>`;
       }
       if (c.key === "n") return `<td class="n">${n}</td>`;
@@ -215,6 +217,7 @@ function renderGrid(rows) {
         return `<td class="name" style="padding-inline-start:${8 + r.level * 16}px">${tw}${esc(r.name)}</td>`;
       }
       if (c.key === "duration") return `<td>${r.milestone ? "0 d" : `${r.duration} d`}</td>`;
+      if (c.key === "work") return `<td class="work">${!r.summary && !r.milestone && unitsOf(r) > 0 ? `${workOf(r)} h` : ""}</td>`;
       if (c.key === "start" || c.key === "finish") return `<td>${fmt(r[c.key])}</td>`;
       if (c.key === "progress") return `<td>${r.progress}%</td>`;
       return `<td>${esc(r[c.key])}</td>`;
@@ -230,7 +233,7 @@ function startEdit(id, key) {
   if (state.readOnly) return;
   const col = COLS.find((c) => c.key === key);
   if (!col || !col.edit) return;
-  if (state.model.isSummary(id) && (key === "duration" || key === "start" || key === "progress" || key === "deadline")) { state.message = "A summary's dates and progress come from its subtasks"; render(); return; }
+  if (state.model.isSummary(id) && (key === "duration" || key === "start" || key === "progress" || key === "deadline" || key === "work")) { state.message = "A summary's dates and progress come from its subtasks"; render(); return; }
   state.editing = { id, key };
   render();
 }
@@ -242,6 +245,12 @@ function commitEdit(value) {
   else if (key === "owner") fields.owner = value.trim() || undefined;
   else if (key === "start") { if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) { state.message = "Start must be a date"; render(); return; } fields.start = value; }
   else if (key === "duration") { const d = parseDuration(value); if (d === null) { state.message = "Duration is whole days, like 5 or 2w"; render(); return; } fields.duration = d; }
+  else if (key === "work") {
+    const h = Number(String(value).trim().replace(/\s*(h|hrs?|hours?)$/i, ""));
+    if (!(h >= 0) || !String(value).trim()) { state.message = "Work is hours, like 40 or 40h"; render(); return; }
+    if (!(unitsOf(state.model.task(id)) > 0)) { state.message = "Assign someone in the Owner column first: work is their hours"; render(); return; }
+    fields.work = Math.round(h * 100) / 100;
+  }
   else if (key === "deadline") { if (value && !/^\d{4}-\d{2}-\d{2}$/.test(value)) { state.message = "A deadline is a date"; render(); return; } fields.deadline = value || undefined; }
   else if (key === "progress") { const p = Number(String(value).replace("%", "")); if (!(p >= 0 && p <= 100)) { state.message = "Progress is 0 to 100"; render(); return; } fields.progress = Math.round(p); }
   run(() => state.model.set(id, fields));
@@ -366,6 +375,10 @@ function draw() {
   try { state.over = overallocations(state.model.doc, calendar().isWork); } catch { state.over = []; }
   try { state.behind = behindSchedule(state.model.doc, state.model.doc.statusDate, calendar().isWork); } catch { state.behind = []; }
   $("wp-status-date").value = state.model.doc.statusDate || "";
+  const firstTyped = typedTargets()[0] ? state.model.task(typedTargets()[0]) : null;
+  $("wp-type").value = firstTyped?.type || "fixedUnits";
+  $("wp-effort").checked = !!firstTyped?.effortDriven;
+  $("wp-type").disabled = $("wp-effort").disabled = state.readOnly || !firstTyped;
   for (const b of document.querySelectorAll('[data-cmd="viewGantt"], [data-cmd="viewWorkload"]')) b.setAttribute("aria-pressed", String((b.dataset.cmd === "viewWorkload") === !!state.workload));
   if (state.workload) renderWorkload(); else renderChart(rows);
   $("wp-title").textContent = state.fileName.replace(/\.wsproj$/, "") + (state.model.undoStack.length !== (state.saved || 0) ? " •" : ""); // • unsaved changes
@@ -391,6 +404,18 @@ $("wp-ribbon").addEventListener("click", (e) => { const b = e.target.closest("[d
 $("wp-zoom").addEventListener("change", (e) => { state.zoom = e.target.value; render(); });
 $("wp-cal").addEventListener("change", (e) => { state.cal = e.target.value; render(); });
 $("wp-critical").addEventListener("change", (e) => { state.showCritical = e.target.checked; render(); });
+/* task type and effort driven: for the selected tasks (not summaries or milestones) */
+function typedTargets() { return selected().filter((id) => !state.model.isSummary(id) && state.model.task(id).duration > 0); }
+$("wp-type").addEventListener("change", (e) => run(() => {
+  const ids = typedTargets();
+  if (!ids.length) throw new Error("Select tasks to set their type");
+  state.model.edit((d) => { for (const t of d.tasks) if (ids.includes(t.id)) t.type = e.target.value === "fixedUnits" ? undefined : e.target.value; });
+}));
+$("wp-effort").addEventListener("change", (e) => run(() => {
+  const ids = typedTargets();
+  if (!ids.length) throw new Error("Select tasks to make effort driven");
+  state.model.edit((d) => { for (const t of d.tasks) if (ids.includes(t.id)) t.effortDriven = e.target.checked || undefined; });
+}));
 $("wp-status-date").addEventListener("change", (e) => run(() => state.model.setStatusDate(e.target.value || null)));
 $("wp-baseline").addEventListener("change", (e) => { state.showBaseline = e.target.checked; render(); });
 $("wp-upgrade").addEventListener("click", () => (window.WorkSuiteProject.onUpgrade || openUpgrade)());
