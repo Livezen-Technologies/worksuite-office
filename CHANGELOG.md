@@ -1,5 +1,16 @@
 # Change log
 
+## 10.1.52
+
+### New features
+
+#### Start page
+
+* WorkSuite Office diagrams (.wsdiagram) in WorkSuite Drive are listed with
+  the other documents, and Open takes them to WorkSuite's Diagram app on the
+  web, where they can be shared and edited together and stay one Drive file.
+  This needs the WorkSuite server's Diagram 1.4.0.
+
 ## 10.1.51
 
 ### New features
