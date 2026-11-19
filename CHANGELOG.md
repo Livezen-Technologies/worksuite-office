@@ -1,5 +1,18 @@
 # Change log
 
+## 10.1.59
+
+### New features
+
+#### Project
+
+* Task Board: View › Task Board shows the tasks as cards in Not started, In
+  progress and Done, with their phase, dates, people and progress, and late
+  tasks marked. Dragging a card to another column sets its progress.
+* Calendar: View › Calendar shows a month at a time, Monday first, with the
+  tasks that run on each working day; milestones show on their day. Clicking a
+  card or a task in either view selects it in the grid.
+
 ## 10.1.58
 
 ### New features

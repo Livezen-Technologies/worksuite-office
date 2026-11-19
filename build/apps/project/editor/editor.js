@@ -19,6 +19,7 @@ import { outlineToDoc } from "../core/outline.js";
 import { workOf, unitsOf, TASK_TYPES } from "../core/tasktypes.js";
 import { costs, resourceSheet, formatMoney } from "../core/costs.js";
 import { earnedValue } from "../core/earnedvalue.js";
+import { BOARD_COLUMNS, board, progressFor, month } from "./views.js";
 import { askText, askForm } from "../../common/dialog.js";
 import { describe as describeRecurring, patternError } from "../core/recurring.js";
 import { decorateRibbon, ribbonStyles } from "../../common/ribbon.js";
@@ -53,6 +54,9 @@ const state = {
   cal: "standard",
   showBaseline: false,
   showCritical: false,
+  board: false, // the Task Board (stage 5)
+  cal: false, // the Calendar view, and the month it shows
+  calMonth: null, // [year, month index]
   ev: false, // the earned value table in place of the Gantt chart (stage 5)
   sheet: false, // the Resource Sheet in place of the Gantt chart (stage 5)
   workload: false, // the workload view in place of the Gantt chart (#86)
@@ -89,10 +93,12 @@ const commands = {
   new: () => { if (confirmDiscard()) { state.model = new ProjectModel(newProject("Untitled project", mondayOf(new Date()))); state.sel = []; state.fileName = "Untitled project.wsproj"; render(); } },
   open: () => $("wp-file").click(),
   fromOutline: () => fromOutline(),
-  viewGantt: () => { state.workload = state.sheet = state.ev = false; render(); },
-  viewWorkload: () => { state.workload = true; state.sheet = state.ev = false; render(); },
-  viewSheet: () => { state.sheet = true; state.workload = state.ev = false; render(); },
-  viewEv: () => { state.ev = true; state.workload = state.sheet = false; render(); },
+  viewGantt: () => showView(null),
+  viewWorkload: () => showView("workload"),
+  viewSheet: () => showView("sheet"),
+  viewEv: () => showView("ev"),
+  viewBoard: () => showView("board"),
+  viewCal: () => showView("cal"),
   aiPlan: () => aiPlan(),
   save: () => { download(state.fileName, packDocument(APP, serialize(state.model.doc)), "application/zip"); state.saved = state.model.undoStack.length; render(); },
   exportCsv: () => download(state.fileName.replace(/\.wsproj$/, "") + ".csv", toCsv(), "text/csv"),
@@ -386,6 +392,61 @@ function renderChart(rows) {
   state.scale = sc;
 }
 
+/** One view at a time in the right-hand pane (null: the Gantt chart). */
+function showView(name) {
+  for (const k of ["workload", "sheet", "ev", "board", "cal"]) state[k] = k === name;
+  if (name === "cal" && !state.calMonth) {
+    const d = new Date((first() ? state.model.task(first()).start : state.model.doc.start) + "T00:00:00Z");
+    state.calMonth = [d.getUTCFullYear(), d.getUTCMonth()];
+  }
+  render();
+}
+
+/** The Task Board: cards in Not started, In progress and Done; dragging a card to a column sets its progress. */
+function renderBoard() {
+  const b = board(state.model.doc, calendar().isWork, state.model.doc.statusDate || null);
+  const sel = new Set(state.sel), drag = state.readOnly ? "" : 'draggable="true"';
+  $("wp-chart").innerHTML = `<div class="wp-board">${BOARD_COLUMNS.map((c) => `<section class="wp-col" data-col="${c.key}"><h3>${c.title} <span>${b[c.key].length}</span></h3>${
+    b[c.key].map((k) => `<article class="wp-card ${sel.has(k.id) ? "is-sel" : ""} ${k.late ? "is-late" : ""}" data-card="${k.id}" ${drag}>${k.phase ? `<small>${esc(k.phase)}</small>` : ""}<b>${k.milestone ? "◆ " : ""}${esc(k.name)}</b>` +
+      `<span class="meta">${fmt(k.start)}${k.milestone ? "" : ` – ${fmt(k.finish)}`}${k.late ? " · late" : ""}</span>${k.owner ? `<span class="who">${esc(k.owner)}</span>` : ""}` +
+      (c.key === "doing" ? `<span class="bar"><i style="width:${k.progress}%"></i></span>` : "") + `</article>`).join("")}</section>`).join("")}</div>`;
+}
+$("wp-chart").addEventListener("dragstart", (e) => { const c = e.target.closest("[data-card]"); if (c) e.dataTransfer.setData("text/x-ws-task", c.dataset.card); });
+$("wp-chart").addEventListener("dragover", (e) => { const col = e.target.closest("[data-col]"); if (col && state.board) { e.preventDefault(); col.classList.add("is-over"); } });
+$("wp-chart").addEventListener("dragleave", (e) => { const col = e.target.closest("[data-col]"); if (col) col.classList.remove("is-over"); });
+$("wp-chart").addEventListener("drop", (e) => {
+  const col = e.target.closest("[data-col]"), id = e.dataTransfer.getData("text/x-ws-task");
+  if (!col || !id || !state.board) return;
+  e.preventDefault();
+  const t = state.model.task(id);
+  run(() => { state.model.set(id, { progress: progressFor(col.dataset.col, t) }); state.sel = [id]; });
+});
+
+/** The Calendar: a month of working days with the tasks that run on each. */
+function renderCal() {
+  const [y, mo] = state.calMonth;
+  const m = month(state.model.doc, y, mo, calendar().isWork), sel = new Set(state.sel);
+  let h = `<div class="wp-cal"><header><button type="button" data-cal="-1" title="Previous month">‹</button><b>${m.title}</b><button type="button" data-cal="1" title="Next month">›</button><button type="button" data-cal="0">Today</button></header>`;
+  h += `<div class="grid">${["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => `<div class="dow">${d}</div>`).join("")}`;
+  for (const w of m.weeks) w.forEach((d, wd) => {
+    h += `<div class="day ${d.inMonth ? "" : "out"} ${d.working ? "" : "off"}"><span class="n">${Number(d.date.slice(8))}</span>` +
+      d.tasks.slice(0, 4).map((t) => `<span class="chip ${t.milestone ? "ms" : ""} ${sel.has(t.id) ? "is-sel" : ""}" data-card="${t.id}" title="${esc(t.name)}">${t.first || t.milestone || wd === 0 ? esc(t.name) : "&nbsp;"}</span>`).join("") +
+      (d.tasks.length > 4 ? `<span class="more">+${d.tasks.length - 4} more</span>` : "") + `</div>`;
+  });
+  $("wp-chart").innerHTML = h + "</div></div>";
+}
+$("wp-chart").addEventListener("click", (e) => {
+  const nav = e.target.closest("[data-cal]");
+  if (nav && state.cal) {
+    const step = Number(nav.dataset.cal);
+    if (step === 0) { const t = new Date(); state.calMonth = [t.getUTCFullYear(), t.getUTCMonth()]; }
+    else { const d = new Date(Date.UTC(state.calMonth[0], state.calMonth[1] + step, 1)); state.calMonth = [d.getUTCFullYear(), d.getUTCMonth()]; }
+    render(); return;
+  }
+  const card = e.target.closest("[data-card]");
+  if (card && (state.board || state.cal)) { state.sel = [card.dataset.card]; render(); }
+});
+
 /** Earned value at the status date: planned, earned and actual value per task, the indexes, and totals. */
 function renderEv() {
   const r = earnedValue(state.model.doc, { isWork: calendar().isWork });
@@ -496,9 +557,9 @@ function draw() {
   $("wp-type").value = firstTyped?.type || "fixedUnits";
   $("wp-effort").checked = !!firstTyped?.effortDriven;
   $("wp-type").disabled = $("wp-effort").disabled = state.readOnly || !firstTyped;
-  const view = state.ev ? "viewEv" : state.sheet ? "viewSheet" : state.workload ? "viewWorkload" : "viewGantt";
-  for (const b of document.querySelectorAll('[data-cmd="viewGantt"], [data-cmd="viewWorkload"], [data-cmd="viewSheet"], [data-cmd="viewEv"]')) b.setAttribute("aria-pressed", String(b.dataset.cmd === view));
-  if (state.ev) renderEv(); else if (state.sheet) renderSheet(); else if (state.workload) renderWorkload(); else renderChart(rows);
+  const view = state.board ? "viewBoard" : state.cal ? "viewCal" : state.ev ? "viewEv" : state.sheet ? "viewSheet" : state.workload ? "viewWorkload" : "viewGantt";
+  for (const b of document.querySelectorAll('[data-cmd^="view"]')) b.setAttribute("aria-pressed", String(b.dataset.cmd === view));
+  if (state.board) renderBoard(); else if (state.cal) renderCal(); else if (state.ev) renderEv(); else if (state.sheet) renderSheet(); else if (state.workload) renderWorkload(); else renderChart(rows);
   $("wp-title").textContent = state.fileName.replace(/\.wsproj$/, "") + (state.model.undoStack.length !== (state.saved || 0) ? " •" : ""); // • unsaved changes
   $("wp-mode").hidden = !state.readOnly;
   $("wp-mode-text").textContent = reasonText(state.licence || "no_license");
