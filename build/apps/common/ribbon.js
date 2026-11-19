@@ -51,6 +51,7 @@ const I = {
   layoutright: "M2.5 8h3v4h-3z M13 3h3v4h-3z M13 13h3v4h-3z M5.5 10h4 M13 5h-3.5v10h3.5",
   grid: "M3 3h14v14h-14z M7.7 3v14 M12.3 3v14 M3 7.7h14 M3 12.3h14",
   inactive: "M10 3a7 7 0 1 0 .01 0z M5 15L15 5",
+  money: "M3 5h14v10h-14z M10 7.5a2.5 2.5 0 1 0 .01 0z M5.5 7.5v5 M14.5 7.5v5",
   page: "M5 2.5h7l3.5 3.5v11.5h-10.5z M12 2.5v3.5h3.5 M10 9.5v5 M7.5 12h5",
 };
 
