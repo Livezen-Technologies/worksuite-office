@@ -8,7 +8,8 @@
  *   { app: "worksuite.project", v: 1, name, start, tasks: [Task], links: [Link], calendars: [], resources: [] }
  *   Task: { id, name, level (0 = top), start ("YYYY-MM-DD"), duration (days, 0 = milestone), progress (0-100),
  *           owner?, notes?, actualStart?, actualFinish?, deadline?, inactive?, type?, work?, effortDriven?, fixedCost?,
- *           priority? (0-1000, default 500), levelDelay? (working days added by resource levelling) }
+ *           priority? (0-1000, default 500), levelDelay? (working days added by resource levelling),
+ *           recurring? (on a summary: the pattern its occurrences were made from, recurring.js) }
  *   resources: [{ name, rate (per hour), costPerUse }]   the Resource Sheet, by the names in Owner (costs.js)
  *         type: fixedUnits (default) | fixedWork | fixedDuration; work: person-hours; see tasktypes.js
  *         deadline: a date the task should finish by (it does not move the task; missing it is flagged);
@@ -20,6 +21,7 @@
 
 import { recalc, TASK_TYPES, unitsOf, workOf } from "./tasktypes.js";
 import { costs } from "./costs.js";
+import { occurrences, patternError } from "./recurring.js";
 
 export const APP = "worksuite.project";
 export const SCHEMA_VERSION = 1;
@@ -87,6 +89,7 @@ export function validate(doc) {
     if (t.fixedCost !== undefined && !(Number.isFinite(t.fixedCost) && t.fixedCost >= 0)) errs.push(`${at}: fixed cost must be 0 or more`);
     if (t.priority !== undefined && !(Number.isInteger(t.priority) && t.priority >= 0 && t.priority <= 1000)) errs.push(`${at}: priority must be a whole number from 0 to 1000`);
     if (t.levelDelay !== undefined && !(Number.isInteger(t.levelDelay) && t.levelDelay >= 0)) errs.push(`${at}: levelling delay must be whole working days`);
+    if (t.recurring !== undefined && patternError(t.recurring)) errs.push(`${at}: ${patternError(t.recurring)}`);
     if (t.actualStart && t.actualFinish && t.actualFinish < t.actualStart) errs.push(`${at}: actual finish is before actual start`);
   });
   (doc.links || []).forEach((l, i) => {
@@ -198,6 +201,24 @@ export class ProjectModel {
       let at = d.tasks.length, level = 0;
       if (afterId) { const i = d.tasks.findIndex((t) => t.id === afterId); at = this.endOf(d.tasks, i); level = d.tasks[i].level; }
       d.tasks.splice(at, 0, { id, name: "New task", level, start: d.start, duration: 1, progress: 0, ...fields, ...(fields.level === undefined ? { level } : {}) });
+    });
+    return id;
+  }
+  /**
+   * A recurring task: a summary named `name`, keeping `pattern`, with one subtask per occurrence from `start`
+   * (recurring.js). `fields` go on every occurrence (duration, owner…). Returns the summary's id; one undo step.
+   */
+  addRecurring(name, start, pattern, fields = {}, afterId = null) {
+    const dates = occurrences(start, pattern, this.isWork);
+    if (!dates.length) throw new Error("That pattern has no dates");
+    const id = "t" + ++this.seq;
+    const kids = dates.map(() => "t" + ++this.seq);
+    this.edit((d) => {
+      let at = d.tasks.length, level = 0;
+      if (afterId) { const i = d.tasks.findIndex((t) => t.id === afterId); at = this.endOf(d.tasks, i); level = d.tasks[i].level; }
+      const rows = [{ id, name, level, start: dates[0], duration: 1, progress: 0, recurring: { ...pattern } },
+        ...dates.map((date, n) => ({ id: kids[n], name: `${name} ${n + 1}`, level: level + 1, start: date, duration: 1, progress: 0, ...fields }))];
+      d.tasks.splice(at, 0, ...rows);
     });
     return id;
   }

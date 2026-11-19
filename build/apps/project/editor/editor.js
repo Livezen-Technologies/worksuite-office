@@ -19,7 +19,8 @@ import { outlineToDoc } from "../core/outline.js";
 import { workOf, unitsOf, TASK_TYPES } from "../core/tasktypes.js";
 import { costs, resourceSheet, formatMoney } from "../core/costs.js";
 import { earnedValue } from "../core/earnedvalue.js";
-import { askText } from "../../common/dialog.js";
+import { askText, askForm } from "../../common/dialog.js";
+import { describe as describeRecurring, patternError } from "../core/recurring.js";
 import { decorateRibbon, ribbonStyles } from "../../common/ribbon.js";
 import { aiDraft } from "../../common/aidraft.js";
 import { checkEdit, reasonText, openUpgrade } from "../../common/licence.js";
@@ -99,6 +100,7 @@ const commands = {
   exportXlsx: () => download(state.fileName.replace(/\.wsproj$/, "") + ".xlsx", xlsx(tableRows(), state.model.doc.name), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
   print: () => { fitForPrint(); window.print(); },
   addTask: () => run(() => { const id = state.model.addTask({ start: startForNew() }, first() || null); state.sel = [id]; startEdit(id, "name"); }),
+  addRecurring: () => addRecurring(),
   addMilestone: () => run(() => { const id = state.model.addMilestone({ start: startForNew() }, first() || null); state.sel = [id]; }),
   levelAll: () => run(() => {
     const before = overallocations(state.model.doc, calendar().isWork).length;
@@ -145,6 +147,37 @@ const commands = {
   }),
   today: () => { const sc = timescale(visibleRows(state.model, state.collapsed), state.zoom, state.model.doc.start); $("wp-chart").scrollLeft = Math.max(0, sc.x(new Date().toISOString().slice(0, 10)) - 120); },
 };
+
+/** A recurring task (stage 5): a summary with one subtask per occurrence. */
+async function addRecurring() {
+  if (state.readOnly) return;
+  const dow = (new Date(startForNew() + "T00:00:00Z").getUTCDay() + 6) % 7 + 1;
+  const pattern = (v) => ({ every: v.every, interval: v.interval, ...(v.every === "week" ? { weekdays: v.weekdays } : {}), ...(v.ends === "count" ? { count: v.count } : { until: v.until }) });
+  const v = await askForm({
+    title: "Recurring task",
+    hint: "A summary with one task for each time. Times on a holiday or weekend move to the next working day.",
+    ok: "Add",
+    fields: [
+      { key: "name", label: "Name", value: "Status meeting" },
+      { key: "duration", label: "Each takes", type: "number", value: 1, min: 1, hint: "working days" },
+      { key: "owner", label: "Owner", value: "", hint: "names, as in the Owner column" },
+      { key: "every", label: "Repeats", type: "select", value: "week", options: [["day", "Daily"], ["week", "Weekly"], ["month", "Monthly"]] },
+      { key: "interval", label: "Every", type: "number", value: 1, min: 1, max: 99, hint: "days, weeks or months" },
+      { key: "weekdays", label: "On", type: "days", value: [dow > 5 ? 1 : dow], showIf: (x) => x.every === "week" },
+      { key: "start", label: "From", type: "date", value: startForNew() },
+      { key: "ends", label: "Ends", type: "radio", value: "count", options: [["count", "After a number of times"], ["until", "On a date"]] },
+      { key: "count", label: "Times", type: "number", value: 6, min: 1, showIf: (x) => x.ends === "count" },
+      { key: "until", label: "Until", type: "date", value: "", showIf: (x) => x.ends === "until" },
+    ],
+    check: (x) => !x.name.trim() ? "Give it a name" : !(x.duration >= 1) ? "Each time takes at least a day" : !/^\d{4}-\d{2}-\d{2}$/.test(x.start) ? "Choose a start date" : patternError(pattern(x)),
+  });
+  if (!v) return;
+  run(() => {
+    const id = state.model.addRecurring(v.name.trim(), v.start, pattern(v), { duration: Math.round(v.duration), ...(v.owner.trim() ? { owner: v.owner.trim() } : {}) }, first() || null);
+    state.sel = [id];
+    state.note = `${describeRecurring(state.model.task(id).recurring)}: ${state.model.tasks.filter((t, i, all) => i > state.model.indexOf(id) && t.level > state.model.task(id).level).length} tasks added`;
+  });
+}
 
 /** A new plan from an outline (#88): one task per line, indented under its summary. */
 async function fromOutline(value = "") {
@@ -240,7 +273,8 @@ function renderGrid(rows) {
       if (c.key === "deadline") return `<td class="${r.deadline && !r.inactive && r.finish > r.deadline ? "is-late" : ""}">${r.deadline ? fmt(r.deadline) : ""}</td>`;
       if (c.key === "name") {
         const tw = r.summary ? `<span class="tw" data-toggle="${r.id}">${state.collapsed.has(r.id) ? "▸" : "▾"}</span>` : `<span class="tw"></span>`;
-        return `<td class="name" style="padding-inline-start:${8 + r.level * 16}px">${tw}${esc(r.name)}</td>`;
+        const rec = r.recurring ? ` <span class="rec" title="${esc(describeRecurring(r.recurring))}">↻</span>` : "";
+        return `<td class="name" style="padding-inline-start:${8 + r.level * 16}px">${tw}${esc(r.name)}${rec}</td>`;
       }
       if (c.key === "duration") return `<td>${r.milestone ? "0 d" : `${r.duration} d`}</td>`;
       if (c.key === "priority") return `<td class="${r.levelDelay ? "is-levelled" : ""}" title="${r.levelDelay ? `Delayed ${r.levelDelay} working day${r.levelDelay === 1 ? "" : "s"} by levelling` : ""}">${r.summary ? "" : r.priority ?? 500}</td>`;

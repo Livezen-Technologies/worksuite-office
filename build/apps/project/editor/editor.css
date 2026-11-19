@@ -80,6 +80,7 @@ table.wp-table { border-collapse: collapse; width: 100%; table-layout: fixed; }
 .wp-table tr.is-inactive td.name { text-decoration: line-through; }
 .wp-table td.is-late { color: var(--today); font-weight: 600; }
 .wp-table td.is-levelled { color: var(--brand); font-weight: 600; }
+.wp-table td.name .rec { color: var(--brand); font-weight: 600; cursor: help; }
 .wp-table td.wbs { color: var(--ink3); font-variant-numeric: tabular-nums; }
 .wp-deadline { fill: var(--ink2); }
 .wp-deadline.is-late { fill: var(--today); }

@@ -1,5 +1,17 @@
 # Change log
 
+## 10.1.58
+
+### New features
+
+#### Project
+
+* Recurring tasks: Task › Recurring adds a task that repeats daily, weekly
+  on chosen weekdays, or monthly, every so many days, weeks or months, a
+  number of times or until a date. It becomes a summary with one task for each
+  time, marked ↻ with its pattern; times on a weekend or holiday move to the
+  next working day.
+
 ## 10.1.57
 
 ### New features
