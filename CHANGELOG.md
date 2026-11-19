@@ -1,5 +1,19 @@
 # Change log
 
+## 10.1.57
+
+### New features
+
+#### Project
+
+* Resource levelling: Resource › Level All removes over-allocations by
+  delaying tasks, never by changing their work or people. The task with the
+  lowest priority waits (a new Priority column, 0 to 1000, 500 by default);
+  tasks that are not part of a clash stay where they are, and a task that must
+  start on a date is never moved. The Priority column shows how long levelling
+  delayed a task. Clear Levelling takes the delays out again.
+* Priority and levelling delay are saved in Project XML.
+
 ## 10.1.56
 
 ### New features

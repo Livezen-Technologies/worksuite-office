@@ -11,7 +11,8 @@
  */
 import { ProjectModel, newProject, parse, serialize, finishOf, wbsCodes, APP } from "../core/project.js";
 import { fromProjectXml, toProjectXml, isMpp, MPP_HELP } from "../core/projectxml.js";
-import { schedule, applySchedule, criticalPath, STANDARD, SRI_LANKA } from "../core/schedule.js";
+import { schedule, applySchedule, applyLevelling, clearLevelling, criticalPath, STANDARD, SRI_LANKA } from "../core/schedule.js";
+import { level, unlevelledStart } from "../core/levelling.js";
 import { overallocations, weeklyLoad } from "../core/resources.js";
 import { behindSchedule, pastDeadline } from "../core/progress.js";
 import { outlineToDoc } from "../core/outline.js";
@@ -43,6 +44,7 @@ const COLS = [
   { key: "deadline", label: "Deadline", w: 96, edit: true },
   { key: "progress", label: "% done", w: 60, edit: true },
   { key: "owner", label: "Owner", w: 90, edit: true },
+  { key: "priority", label: "Priority", w: 64, edit: true },
 ];
 
 const calendar = () => (state.cal === "lk" ? SRI_LANKA : STANDARD);
@@ -98,6 +100,21 @@ const commands = {
   print: () => { fitForPrint(); window.print(); },
   addTask: () => run(() => { const id = state.model.addTask({ start: startForNew() }, first() || null); state.sel = [id]; startEdit(id, "name"); }),
   addMilestone: () => run(() => { const id = state.model.addMilestone({ start: startForNew() }, first() || null); state.sel = [id]; }),
+  levelAll: () => run(() => {
+    const before = overallocations(state.model.doc, calendar().isWork).length;
+    if (!before) { state.note = "Nobody is over-allocated: nothing to level"; return; }
+    const finish = () => state.model.tasks.reduce((f, t) => { const v = state.model.view(t.id); return v.finish > f ? v.finish : f; }, "");
+    const was = finish();
+    const plan = applyLevelling(state.model, calendar(), level);
+    state.note = plan.moved.length
+      ? `Levelled: ${plan.moved.length} task${plan.moved.length === 1 ? "" : "s"} delayed; finish ${fmt(was)} → ${fmt(finish())}` + (plan.unresolved.length ? ` (${plan.unresolved.length} clash${plan.unresolved.length === 1 ? "" : "es"} could not be moved)` : "")
+      : "No task could be delayed to remove the over-allocation";
+  }),
+  clearLevel: () => run(() => {
+    if (!state.model.tasks.some((t) => t.levelDelay)) { state.note = "Nothing has been levelled"; return; }
+    clearLevelling(state.model, calendar(), unlevelledStart);
+    state.note = "Levelling cleared: tasks back where their links put them";
+  }),
   inactive: () => run(() => {
     const ids = selected().filter((id) => !state.model.isSummary(id));
     if (!ids.length) throw new Error("Select tasks to make inactive or active again (not summaries)");
@@ -226,6 +243,7 @@ function renderGrid(rows) {
         return `<td class="name" style="padding-inline-start:${8 + r.level * 16}px">${tw}${esc(r.name)}</td>`;
       }
       if (c.key === "duration") return `<td>${r.milestone ? "0 d" : `${r.duration} d`}</td>`;
+      if (c.key === "priority") return `<td class="${r.levelDelay ? "is-levelled" : ""}" title="${r.levelDelay ? `Delayed ${r.levelDelay} working day${r.levelDelay === 1 ? "" : "s"} by levelling` : ""}">${r.summary ? "" : r.priority ?? 500}</td>`;
       if (c.key === "cost") return `<td class="money">${cost.get(r.id) ? formatMoney(cost.get(r.id)) : ""}</td>`;
       if (c.key === "fixedCost") return `<td class="money">${r.fixedCost ? formatMoney(r.fixedCost) : ""}</td>`;
       if (c.key === "work") return `<td class="work">${!r.summary && !r.milestone && unitsOf(r) > 0 ? `${workOf(r)} h` : ""}</td>`;
@@ -244,7 +262,7 @@ function startEdit(id, key) {
   if (state.readOnly) return;
   const col = COLS.find((c) => c.key === key);
   if (!col || !col.edit) return;
-  if (state.model.isSummary(id) && (key === "duration" || key === "start" || key === "progress" || key === "deadline" || key === "work")) { state.message = "A summary's dates and progress come from its subtasks"; render(); return; }
+  if (state.model.isSummary(id) && (key === "duration" || key === "start" || key === "progress" || key === "deadline" || key === "work" || key === "priority")) { state.message = "A summary's dates and progress come from its subtasks"; render(); return; }
   state.editing = { id, key };
   render();
 }
@@ -256,6 +274,11 @@ function commitEdit(value) {
   else if (key === "owner") fields.owner = value.trim() || undefined;
   else if (key === "start") { if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) { state.message = "Start must be a date"; render(); return; } fields.start = value; }
   else if (key === "duration") { const d = parseDuration(value); if (d === null) { state.message = "Duration is whole days, like 5 or 2w"; render(); return; } fields.duration = d; }
+  else if (key === "priority") {
+    const p = Number(String(value).trim());
+    if (!(Number.isInteger(p) && p >= 0 && p <= 1000)) { state.message = "Priority is a whole number from 0 to 1000 (500 is normal)"; render(); return; }
+    fields.priority = p === 500 ? undefined : p;
+  }
   else if (key === "fixedCost") {
     const n = Number(String(value).replace(/,/g, "").trim() || 0);
     if (!(n >= 0)) { state.message = "A fixed cost is an amount, 0 or more"; render(); return; }
