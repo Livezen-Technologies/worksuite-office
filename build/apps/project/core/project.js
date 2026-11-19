@@ -7,7 +7,8 @@
  * The document (schema version 1), saved as canonical JSON inside the .wsproj zip:
  *   { app: "worksuite.project", v: 1, name, start, tasks: [Task], links: [Link], calendars: [], resources: [] }
  *   Task: { id, name, level (0 = top), start ("YYYY-MM-DD"), duration (days, 0 = milestone), progress (0-100),
- *           owner?, notes?, actualStart?, actualFinish?, deadline?, inactive?, type?, work?, effortDriven?, fixedCost? }
+ *           owner?, notes?, actualStart?, actualFinish?, deadline?, inactive?, type?, work?, effortDriven?, fixedCost?,
+ *           priority? (0-1000, default 500), levelDelay? (working days added by resource levelling) }
  *   resources: [{ name, rate (per hour), costPerUse }]   the Resource Sheet, by the names in Owner (costs.js)
  *         type: fixedUnits (default) | fixedWork | fixedDuration; work: person-hours; see tasktypes.js
  *         deadline: a date the task should finish by (it does not move the task; missing it is flagged);
@@ -84,6 +85,8 @@ export function validate(doc) {
     if (t.type !== undefined && !TASK_TYPES.includes(t.type)) errs.push(`${at}: type must be one of ${TASK_TYPES.join(", ")}`);
     if (t.work !== undefined && !(Number.isFinite(t.work) && t.work >= 0)) errs.push(`${at}: work must be hours, 0 or more`);
     if (t.fixedCost !== undefined && !(Number.isFinite(t.fixedCost) && t.fixedCost >= 0)) errs.push(`${at}: fixed cost must be 0 or more`);
+    if (t.priority !== undefined && !(Number.isInteger(t.priority) && t.priority >= 0 && t.priority <= 1000)) errs.push(`${at}: priority must be a whole number from 0 to 1000`);
+    if (t.levelDelay !== undefined && !(Number.isInteger(t.levelDelay) && t.levelDelay >= 0)) errs.push(`${at}: levelling delay must be whole working days`);
     if (t.actualStart && t.actualFinish && t.actualFinish < t.actualStart) errs.push(`${at}: actual finish is before actual start`);
   });
   (doc.links || []).forEach((l, i) => {

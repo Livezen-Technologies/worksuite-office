@@ -150,6 +150,10 @@ export function fromProjectXml(text) {
     const type = TASKTYPE_IN[val(t, "Type")];
     if (type && type !== "fixedUnits") task.type = type;
     if (val(t, "EffortDriven") === "1") task.effortDriven = true;
+    const prio = Number(val(t, "Priority"));
+    if (val(t, "Priority") && Number.isInteger(prio) && prio !== 500 && prio >= 0 && prio <= 1000) task.priority = prio;
+    const delay = Math.round(Number(val(t, "LevelingDelay") || 0) / (HOURS_PER_DAY * 600)); // tenths of minutes → working days
+    if (delay > 0) task.levelDelay = delay;
     if (Number(val(t, "FixedCost")) > 0) task.fixedCost = Math.round(Number(val(t, "FixedCost")) * 100) / 100;
     const workHours = hoursOf(val(t, "Work"));
     if (workHours !== null && !milestone && workHours > 0) task.work = workHours;
@@ -195,7 +199,8 @@ export function toProjectXml(doc, isWork = null) {
     const con = t.constraint && CON_OUT[t.constraint.type] !== undefined ? `<ConstraintType>${CON_OUT[t.constraint.type]}</ConstraintType><ConstraintDate>${t.constraint.date}T08:00:00</ConstraintDate>` : "<ConstraintType>0</ConstraintType>";
     const work = !v.summary && !v.milestone && t.work !== undefined ? `<Work>PT${t.work}H0M0S</Work>` : "";
     return `<Task><UID>${i + 1}</UID><ID>${i + 1}</ID>${el("Name", t.name)}<Type>${TASKTYPE_OUT[t.type || "fixedUnits"]}</Type><IsNull>0</IsNull>` +
-      `<EffortDriven>${t.effortDriven ? 1 : 0}</EffortDriven>${work}` + (t.fixedCost ? `<FixedCost>${t.fixedCost}</FixedCost>` : "") +
+      `<EffortDriven>${t.effortDriven ? 1 : 0}</EffortDriven>${work}` + (t.fixedCost ? `<FixedCost>${t.fixedCost}</FixedCost>` : "") + `<Priority>${t.priority ?? 500}</Priority>` +
+      (t.levelDelay ? `<LevelingDelay>${t.levelDelay * HOURS_PER_DAY * 600}</LevelingDelay><LevelingDelayFormat>7</LevelingDelayFormat>` : "") +
       `<OutlineLevel>${t.level + 1}</OutlineLevel><Start>${v.start}T08:00:00</Start><Finish>${v.finish}T17:00:00</Finish>` +
       `<Duration>${daysDuration(v.duration)}</Duration><DurationFormat>7</DurationFormat>` +
       `<Milestone>${v.milestone ? 1 : 0}</Milestone><Summary>${v.summary ? 1 : 0}</Summary><PercentComplete>${v.progress}</PercentComplete>` +

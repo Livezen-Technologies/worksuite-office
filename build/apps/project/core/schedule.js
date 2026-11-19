@@ -116,6 +116,7 @@ export function schedule(doc, cal = STANDARD) {
     }
     const c = t.constraint;
     if (c && c.type === "SNET") s = Math.max(s, num.n(c.date));
+    if (t.levelDelay > 0) s += t.levelDelay; // resource levelling (levelling.js): working days added after the links
     if (c && c.type === "MSO") {
       const must = num.n(c.date);
       if (must < s) problems.push(`"${t.name}" must start on ${c.date}, earlier than its links allow`);
@@ -167,6 +168,33 @@ export function schedule(doc, cal = STANDARD) {
 
 /** The critical path: leaf task ids with no slack, in start order. */
 export const criticalPath = (result) => Object.entries(result.tasks).filter(([, v]) => v.critical && !v.summary).sort((a, b) => (a[1].start < b[1].start ? -1 : a[1].start > b[1].start ? 1 : 0)).map(([id]) => id);
+
+/** Levels the plan (levelling.js) and writes the delays and the new starts back: one undo step. */
+export function applyLevelling(model, cal = STANDARD, level) {
+  const plan = level(model.doc, cal);
+  model.edit((d) => {
+    for (const t of d.tasks) {
+      const n = plan.delays.get(t.id);
+      if (n > 0) t.levelDelay = n; else delete t.levelDelay;
+      if (plan.starts.has(t.id)) t.start = plan.starts.get(t.id); // only delayed tasks and what follows them move
+    }
+  });
+  return plan;
+}
+
+/**
+ * Removes every levelling delay: each delayed task goes back by its delay, and the tasks linked after them go
+ * back to where their links put them; tasks with no links stay where they were placed. One undo step.
+ */
+export function clearLevelling(model, cal = STANDARD, unlevelledStart) {
+  model.edit((d) => {
+    for (const t of d.tasks) if (t.levelDelay) { t.start = unlevelledStart(t, cal); delete t.levelDelay; }
+    const linked = new Set(d.links.map((l) => l.to));
+    const pinned = { ...d, tasks: d.tasks.map((t) => (t.constraint || linked.has(t.id) ? t : { ...t, constraint: { type: "SNET", date: t.start } })) };
+    const r = schedule(pinned, cal);
+    for (const t of d.tasks) if (r.tasks[t.id] && !r.tasks[t.id].summary) t.start = r.tasks[t.id].start;
+  });
+}
 
 /** Writes the scheduled starts back as an edit on a ProjectModel (one undo step); returns the schedule. */
 export function applySchedule(model, cal = STANDARD) {
