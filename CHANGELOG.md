@@ -1,5 +1,17 @@
 # Change log
 
+## 10.1.61
+
+### New features
+
+#### Project
+
+* Task Usage and Resource Usage: two new views under View show each task's
+  work in hours per week, spread over its working days and shared by its
+  people's units. Task Usage lists each task with its people beneath it;
+  Resource Usage lists each person with their tasks beneath them, and weeks in
+  which a person has more than a day's work on any day are shown in red.
+
 ## 10.1.60
 
 ### New features

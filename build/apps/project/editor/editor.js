@@ -19,7 +19,7 @@ import { outlineToDoc } from "../core/outline.js";
 import { workOf, unitsOf, TASK_TYPES } from "../core/tasktypes.js";
 import { costs, resourceSheet, formatMoney } from "../core/costs.js";
 import { earnedValue } from "../core/earnedvalue.js";
-import { BOARD_COLUMNS, board, progressFor, month, network, NODE } from "./views.js";
+import { BOARD_COLUMNS, board, progressFor, month, network, NODE, usage } from "./views.js";
 import { askText, askForm } from "../../common/dialog.js";
 import { describe as describeRecurring, patternError } from "../core/recurring.js";
 import { decorateRibbon, ribbonStyles } from "../../common/ribbon.js";
@@ -56,6 +56,8 @@ const state = {
   showCritical: false,
   board: false, // the Task Board (stage 5)
   net: false, // the Network Diagram (stage 5)
+  tuse: false, // Task Usage (stage 5)
+  ruse: false, // Resource Usage (stage 5)
   cal: false, // the Calendar view, and the month it shows
   calMonth: null, // [year, month index]
   ev: false, // the earned value table in place of the Gantt chart (stage 5)
@@ -101,6 +103,8 @@ const commands = {
   viewBoard: () => showView("board"),
   viewCal: () => showView("cal"),
   viewNet: () => showView("net"),
+  viewTaskUsage: () => showView("tuse"),
+  viewResUsage: () => showView("ruse"),
   aiPlan: () => aiPlan(),
   save: () => { download(state.fileName, packDocument(APP, serialize(state.model.doc)), "application/zip"); state.saved = state.model.undoStack.length; render(); },
   exportCsv: () => download(state.fileName.replace(/\.wsproj$/, "") + ".csv", toCsv(), "text/csv"),
@@ -396,7 +400,7 @@ function renderChart(rows) {
 
 /** One view at a time in the right-hand pane (null: the Gantt chart). */
 function showView(name) {
-  for (const k of ["workload", "sheet", "ev", "board", "cal", "net"]) state[k] = k === name;
+  for (const k of ["workload", "sheet", "ev", "board", "cal", "net", "tuse", "ruse"]) state[k] = k === name;
   if (name === "cal" && !state.calMonth) {
     const d = new Date((first() ? state.model.task(first()).start : state.model.doc.start) + "T00:00:00Z");
     state.calMonth = [d.getUTCFullYear(), d.getUTCMonth()];
@@ -467,7 +471,7 @@ $("wp-chart").addEventListener("click", (e) => {
     render(); return;
   }
   const card = e.target.closest("[data-card]");
-  if (card && (state.board || state.cal || state.net)) { state.sel = [card.dataset.card]; render(); }
+  if (card && (state.board || state.cal || state.net || state.tuse || state.ruse)) { state.sel = [card.dataset.card]; render(); }
 });
 
 /** Earned value at the status date: planned, earned and actual value per task, the indexes, and totals. */
@@ -485,6 +489,20 @@ function renderEv() {
 }
 
 /** The Resource Sheet: everyone on the plan, with a rate per hour and a cost per use to type in. */
+/** Task Usage and Resource Usage: hours per week, a row per task (or person) with its people (or tasks) beneath. */
+function renderUsage(by) {
+  const u = usage(state.model.doc, calendar().isWork, by);
+  if (!u.rows.length) { $("wp-chart").innerHTML = `<p class="wp-empty">No work is assigned yet. Type names in the Owner column to see hours per week here.</p>`; return; }
+  const fmt = (d) => new Date(d + "T00:00:00Z").toLocaleDateString(undefined, { day: "numeric", month: "short", timeZone: "UTC" });
+  const cells = (r, over) => u.weeks.map((w) => `<td class="${over && over.has(w) ? "is-over" : ""}">${r.weeks.get(w) ? r.weeks.get(w) + " h" : ""}</td>`).join("");
+  let h = `<table class="wp-load wp-usage"><thead><tr><th>${by === "task" ? "Task" : "Person"}</th><th>Work</th>${u.weeks.map((w) => `<th>${fmt(w)}</th>`).join("")}</tr></thead><tbody>`;
+  for (const r of u.rows) {
+    h += `<tr class="wp-usage-top"${r.id ? ` data-card="${esc(r.id)}"` : ""}><th>${esc(r.name)}${r.over && r.over.size ? ' <span class="wp-over" title="Over-allocated">!</span>' : ""}</th><td>${r.total} h</td>${cells(r, r.over)}</tr>`;
+    for (const c of r.children) h += `<tr class="wp-usage-sub"${c.id ? ` data-card="${esc(c.id)}"` : ""}><th>${esc(c.name)}</th><td>${c.total} h</td>${cells(c)}</tr>`;
+  }
+  $("wp-chart").innerHTML = h + `</tbody></table>`;
+}
+
 function renderSheet() {
   const rows = resourceSheet(state.model.doc);
   if (!rows.length) { $("wp-chart").innerHTML = `<p class="wp-empty">No one is assigned yet. Type names in the Owner column; each person then gets a row here for their rate.</p>`; return; }
@@ -580,9 +598,9 @@ function draw() {
   $("wp-type").value = firstTyped?.type || "fixedUnits";
   $("wp-effort").checked = !!firstTyped?.effortDriven;
   $("wp-type").disabled = $("wp-effort").disabled = state.readOnly || !firstTyped;
-  const view = state.net ? "viewNet" : state.board ? "viewBoard" : state.cal ? "viewCal" : state.ev ? "viewEv" : state.sheet ? "viewSheet" : state.workload ? "viewWorkload" : "viewGantt";
+  const view = state.tuse ? "viewTaskUsage" : state.ruse ? "viewResUsage" : state.net ? "viewNet" : state.board ? "viewBoard" : state.cal ? "viewCal" : state.ev ? "viewEv" : state.sheet ? "viewSheet" : state.workload ? "viewWorkload" : "viewGantt";
   for (const b of document.querySelectorAll('[data-cmd^="view"]')) b.setAttribute("aria-pressed", String(b.dataset.cmd === view));
-  if (state.net) renderNet(); else if (state.board) renderBoard(); else if (state.cal) renderCal(); else if (state.ev) renderEv(); else if (state.sheet) renderSheet(); else if (state.workload) renderWorkload(); else renderChart(rows);
+  if (state.tuse) renderUsage("task"); else if (state.ruse) renderUsage("resource"); else if (state.net) renderNet(); else if (state.board) renderBoard(); else if (state.cal) renderCal(); else if (state.ev) renderEv(); else if (state.sheet) renderSheet(); else if (state.workload) renderWorkload(); else renderChart(rows);
   $("wp-title").textContent = state.fileName.replace(/\.wsproj$/, "") + (state.model.undoStack.length !== (state.saved || 0) ? " •" : ""); // • unsaved changes
   $("wp-mode").hidden = !state.readOnly;
   $("wp-mode-text").textContent = reasonText(state.licence || "no_license");

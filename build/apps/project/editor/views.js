@@ -3,6 +3,7 @@
  * cover them; editor.js draws what they return.
  */
 import { toDay, fromDay, finishOf } from "../core/project.js";
+import { assignmentsOf } from "../core/resources.js";
 
 export const BOARD_COLUMNS = [
   { key: "todo", title: "Not started" },
@@ -110,4 +111,52 @@ export function network(doc, isWork = null) {
   const width = Math.max(0, ...nodes.map((n) => n.x + NODE.w)) + 16;
   const height = Math.max(0, ...nodes.map((n) => n.y + NODE.h)) + 26;
   return { nodes, edges, width, height };
+}
+
+/* ---- Task Usage and Resource Usage ---- */
+
+/**
+ * Hours per week, from each task's work spread evenly over its working days and shared by its people's units.
+ * by "resource": rows per person { name, total, weeks: Map monday → hours, over: Set mondays, children: [{ name, id,
+ * total, weeks }] }; by "task": rows per task with its people as children. Summaries and inactive tasks are left out.
+ * Returns { weeks: [mondays, sorted], rows }.
+ */
+export function usage(doc, isWork = null, by = "resource", hoursPerDay = 8) {
+  const round = (n) => Math.round(n * 100) / 100;
+  const monday = (d) => d - ((new Date(d * 86400000).getUTCDay() + 6) % 7);
+  const weeks = new Set(), people = new Map(), taskRows = [];
+  const add = (map, k, h) => map.set(k, round((map.get(k) || 0) + h));
+  doc.tasks.forEach((t, i) => {
+    const summary = i + 1 < doc.tasks.length && doc.tasks[i + 1].level > t.level;
+    if (summary || t.inactive || t.duration <= 0) return;
+    const list = assignmentsOf(t), U = list.reduce((s, a) => s + a.units, 0);
+    if (!(U > 0)) return;
+    const W = t.work !== undefined ? t.work : t.duration * U * hoursPerDay;
+    const days = [];
+    for (let d = toDay(t.start), f = toDay(finishOf(t, isWork)); d <= f; d++) if (!isWork || isWork(d)) days.push(d);
+    if (!days.length) return;
+    const row = { id: t.id, name: t.name, total: round(W), weeks: new Map(), children: [] };
+    for (const a of list) {
+      const share = (W * a.units) / U, perDay = share / days.length;
+      const kid = { name: a.name, total: round(share), weeks: new Map() };
+      if (!people.has(a.name)) people.set(a.name, { name: a.name, total: 0, weeks: new Map(), daily: new Map(), over: new Set(), children: [] });
+      const p = people.get(a.name);
+      const pk = { id: t.id, name: t.name, total: round(share), weeks: new Map() };
+      for (const d of days) {
+        const m = fromDay(monday(d));
+        weeks.add(m);
+        add(kid.weeks, m, perDay); add(row.weeks, m, perDay); add(pk.weeks, m, perDay); add(p.weeks, m, perDay); add(p.daily, d, perDay);
+      }
+      p.total = round(p.total + share);
+      p.children.push(pk);
+      row.children.push(kid);
+    }
+    taskRows.push(row);
+  });
+  for (const p of people.values()) {
+    for (const [d, h] of p.daily) if (h > hoursPerDay + 1e-6) p.over.add(fromDay(monday(d)));
+    delete p.daily;
+  }
+  const rows = by === "task" ? taskRows : [...people.values()].sort((a, b) => a.name.localeCompare(b.name));
+  return { weeks: [...weeks].sort(), rows };
 }
