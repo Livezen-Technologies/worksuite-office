@@ -22,6 +22,7 @@ import { costs, resourceSheet, formatMoney } from "../core/costs.js";
 import { earnedValue } from "../core/earnedvalue.js";
 import { BOARD_COLUMNS, board, progressFor, month, network, NODE, usage, FILTERS, filterTasks, timeline, GROUPS, groupRows } from "./views.js";
 import { askText, askForm } from "../../common/dialog.js";
+import { FIELD_TYPES, parseValue, formatValue } from "../core/fields.js";
 import { describe as describeRecurring, patternError } from "../core/recurring.js";
 import { decorateRibbon, ribbonStyles } from "../../common/ribbon.js";
 import { aiDraft } from "../../common/aidraft.js";
@@ -49,6 +50,9 @@ const COLS = [
   { key: "owner", label: "Owner", w: 90, edit: true },
   { key: "priority", label: "Priority", w: 64, edit: true },
 ];
+
+/** The grid's columns: the fixed ones, then one per custom field (key "c:<field key>"). */
+const cols = () => [...COLS, ...(state.model.doc.fields || []).map((f) => ({ key: "c:" + f.key, label: f.name, w: f.type === "flag" ? 56 : f.type === "text" ? 120 : 96, edit: true, field: f }))];
 
 const calendar = () => (state.cal === "lk" ? SRI_LANKA : STANDARD);
 const state = {
@@ -107,6 +111,25 @@ const commands = {
   viewBoard: () => showView("board"),
   viewCal: () => showView("cal"),
   viewNet: () => showView("net"),
+  addField: async () => {
+    if (state.readOnly) return;
+    const v = await askForm({
+      title: "New custom field", hint: "A column of your own for every task, such as Supplier, Budget code, Approved or Delivery date.", ok: "Add column",
+      fields: [{ key: "name", label: "Name", value: "" }, { key: "type", label: "Type", type: "select", options: FIELD_TYPES.map((t) => [t.key, t.title]), value: "text" }],
+      check: (x) => (!x.name.trim() ? "Give the field a name" : (state.model.doc.fields || []).some((f) => f.name.toLowerCase() === x.name.trim().toLowerCase()) ? "There is already a field with that name" : null),
+    });
+    if (v) run(() => state.model.addField(v.name, v.type));
+  },
+  removeField: async () => {
+    if (state.readOnly) return;
+    const fs = state.model.doc.fields || [];
+    if (!fs.length) { state.message = "There are no custom fields yet"; render(); return; }
+    const v = await askForm({
+      title: "Remove a custom field", hint: "The column and its values on every task are removed. Undo brings them back.", ok: "Remove",
+      fields: [{ key: "key", label: "Field", type: "select", options: fs.map((f) => [f.key, f.name]), value: fs[0].key }],
+    });
+    if (v) run(() => state.model.removeField(v.key));
+  },
   clearFilter: () => { state.filter = "all"; render(); },
   viewTaskUsage: () => showView("tuse"),
   viewResUsage: () => showView("ruse"),
@@ -258,12 +281,13 @@ function download(name, text, type) {
 }
 /** The task list as rows, for CSV and XLSX: a header, then one row per task with its predecessors. */
 function tableRows() {
-  const rows = [["ID", "WBS", "Level", "Task name", "Duration (days)", "Start", "Finish", "Deadline", "% done", "Owner", "Predecessors", "Active"]];
+  const rows = [["ID", "WBS", "Level", "Task name", "Duration (days)", "Start", "Finish", "Deadline", "% done", "Owner", "Predecessors", "Active", ...(state.model.doc.fields || []).map((f) => f.name)]];
+  const fs = state.model.doc.fields || [];
   const wbs = wbsCodes(state.model.tasks);
   state.model.tasks.forEach((t, i) => {
     const v = state.model.view(t.id);
     const preds = state.model.doc.links.filter((l) => l.to === t.id).map((l) => `${state.model.indexOf(l.from) + 1}${l.type}${l.lag ? (l.lag > 0 ? "+" : "") + l.lag + "d" : ""}`).join(";");
-    rows.push([i + 1, wbs.get(t.id), t.level, "  ".repeat(t.level) + t.name, v.duration, v.start, v.finish, t.deadline || "", v.progress, t.owner || "", preds, t.inactive ? "No" : "Yes"]);
+    rows.push([i + 1, wbs.get(t.id), t.level, "  ".repeat(t.level) + t.name, v.duration, v.start, v.finish, t.deadline || "", v.progress, t.owner || "", preds, t.inactive ? "No" : "Yes", ...fs.map((f) => (f.type === "flag" ? (t.custom?.[f.key] ? "Yes" : "No") : t.custom?.[f.key] ?? ""))]);
   });
   return rows;
 }
@@ -278,14 +302,20 @@ function renderGrid(rows) {
   const selSet = new Set(state.sel);
   const wbs = wbsCodes(t.tasks);
   const cost = costs(t.doc).byId;
-  let html = `<table class="wp-table"><colgroup>${COLS.map((c) => `<col style="width:${c.w}px">`).join("")}</colgroup><tr>${COLS.map((c) => `<th>${c.label}</th>`).join("")}</tr>`;
+  const C = cols();
+  let html = `<table class="wp-table"><colgroup>${C.map((c) => `<col style="width:${c.w}px">`).join("")}</colgroup><tr>${C.map((c) => `<th${c.field ? ` class="custom" title="${esc(c.field.name)} (${c.field.type})"` : ""}>${esc(c.label)}</th>`).join("")}</tr>`;
   for (const r of rows) {
     if (r.group) {
-      html += `<tr class="is-summary is-group" data-group="${esc(r.id)}"><td class="n"></td><td colspan="${COLS.length - 1}" class="name"><span class="tw" data-toggle="${esc(r.id)}">${state.collapsed.has(r.id) ? "▸" : "▾"}</span>${esc(r.name)} <span class="wp-group-n">${r.count} task${r.count === 1 ? "" : "s"} · ${fmt(r.start)} – ${fmt(r.finish)} · ${r.progress}%</span></td></tr>`;
+      html += `<tr class="is-summary is-group" data-group="${esc(r.id)}"><td class="n"></td><td colspan="${C.length - 1}" class="name"><span class="tw" data-toggle="${esc(r.id)}">${state.collapsed.has(r.id) ? "▸" : "▾"}</span>${esc(r.name)} <span class="wp-group-n">${r.count} task${r.count === 1 ? "" : "s"} · ${fmt(r.start)} – ${fmt(r.finish)} · ${r.progress}%</span></td></tr>`;
       continue;
     }
     const n = t.indexOf(r.id) + 1;
-    const cells = COLS.map((c) => {
+    const cells = C.map((c) => {
+      if (c.field && state.editing && state.editing.id === r.id && state.editing.key === c.key) {
+        const v = r.custom?.[c.field.key];
+        return `<td class="custom"><input data-edit-input value="${esc(c.field.type === "flag" ? (v ? "yes" : "") : v ?? "")}" ${c.field.type === "date" ? 'type="date"' : ""} placeholder="${c.field.type === "flag" ? "yes / no" : ""}"></td>`;
+      }
+      if (c.field) return `<td class="custom ${c.field.type}">${esc(formatValue(c.field.type, r.custom?.[c.field.key], fmt))}</td>`;
       if (state.editing && state.editing.id === r.id && state.editing.key === c.key) {
         const value = c.key === "duration" ? `${r.duration}d` : c.key === "progress" ? r.progress : c.key === "work" ? `${workOf(r)}h` : (r[c.key] ?? "");
         return `<td class="${c.key}"><input data-edit-input value="${esc(value)}" ${c.key === "start" || c.key === "deadline" ? 'type="date"' : ""}></td>`;
@@ -316,7 +346,7 @@ function renderGrid(rows) {
 
 function startEdit(id, key) {
   if (state.readOnly) return;
-  const col = COLS.find((c) => c.key === key);
+  const col = cols().find((c) => c.key === key);
   if (!col || !col.edit) return;
   if (state.model.isSummary(id) && (key === "duration" || key === "start" || key === "progress" || key === "deadline" || key === "work" || key === "priority")) { state.message = "A summary's dates and progress come from its subtasks"; render(); return; }
   state.editing = { id, key };
@@ -325,6 +355,14 @@ function startEdit(id, key) {
 function commitEdit(value) {
   const { id, key } = state.editing;
   state.editing = null;
+  if (key.startsWith("c:")) {
+    const f = (state.model.doc.fields || []).find((x) => "c:" + x.key === key);
+    if (!f) return render();
+    const p = parseValue(f.type, value);
+    if (p.error) { state.message = `${f.name}: ${p.error}`; render(); return; }
+    run(() => state.model.setCustom(id, f.key, p.value));
+    return;
+  }
   const fields = {};
   if (key === "name") fields.name = value.trim() || "Task";
   else if (key === "owner") fields.owner = value.trim() || undefined;
@@ -724,7 +762,7 @@ $("wp-grid").addEventListener("click", (e) => {
   // the second click itself says it is the second (detail 2) and lands on the redrawn cell
   if (e.detail === 2 && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
     const td = e.target.closest("td");
-    if (td) { state.sel = [id]; startEdit(id, COLS[td.cellIndex].key); }
+    if (td) { state.sel = [id]; startEdit(id, cols()[td.cellIndex].key); }
     return;
   }
   if (e.ctrlKey || e.metaKey) state.sel = state.sel.includes(id) ? state.sel.filter((x) => x !== id) : [...state.sel, id];
