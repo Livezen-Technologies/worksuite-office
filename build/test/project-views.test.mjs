@@ -99,3 +99,22 @@ test("filterTasks: matching tasks and the summaries above them; people; all is n
   assert.deepEqual([...filterTasks(d, "critical", { critical: new Set(["b"]) })], ["b", "s"]);
   assert.deepEqual([...filterTasks(d, "person:Nimal")], ["b", "s"]);
 });
+
+test("timeline: top-level bars in lanes, milestones with label lanes, month ticks", async () => {
+  const { timeline } = await import("../apps/project/editor/views.js");
+  const d = newProject("P", "2026-02-02");
+  d.tasks = [
+    { id: "p1", name: "Plan", level: 0, start: "2026-02-02", duration: 10, progress: 0 },
+    { id: "c", name: "Child", level: 1, start: "2026-02-02", duration: 10, progress: 0 },
+    { id: "p2", name: "Build", level: 0, start: "2026-02-09", duration: 10, progress: 0 },
+    { id: "p3", name: "Ship", level: 0, start: "2026-03-02", duration: 5, progress: 0 },
+    { id: "m1", name: "Go", level: 0, start: "2026-02-16", duration: 0, progress: 0 },
+    { id: "m2", name: "Gate", level: 1, start: "2026-02-17", duration: 0, progress: 0 },
+  ];
+  const t = timeline(d, STANDARD.isWork, 1000);
+  assert.deepEqual(t.bars.map((b) => [b.id, b.lane]), [["p1", 0], ["p2", 1], ["p3", 0]], "Build overlaps Plan, Ship fits after it");
+  assert.deepEqual(t.milestones.map((m) => m.id), ["m1", "m2"]);
+  assert.notEqual(t.milestones[0].labelY, t.milestones[1].labelY, "labels a day apart take two lanes");
+  assert.deepEqual(t.ticks.map((k) => k.label), ["Feb 2026", "Mar 2026"]);
+  assert.equal(t.start, "2026-02-02");
+});

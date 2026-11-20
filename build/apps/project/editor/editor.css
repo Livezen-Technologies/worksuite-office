@@ -113,6 +113,21 @@ table.wp-table { border-collapse: collapse; width: 100%; table-layout: fixed; }
 .wp-net-link { fill: none; stroke: var(--ink3); stroke-width: 1.3; }
 .wp-net-link.is-crit { stroke: var(--today); }
 .wp-net-head { fill: var(--ink3); }
+.wp-tl { display: block; margin: 12px; }
+.wp-tl-bg { fill: var(--card); stroke: var(--line); }
+.wp-tl-tick { stroke: var(--line); }
+.wp-tl-month { font-size: 11px; fill: var(--ink3); }
+.wp-tl-bar { cursor: pointer; }
+.wp-tl-bar rect { fill: color-mix(in srgb, var(--accent, #2f6fde) 22%, var(--card)); stroke: var(--accent, #2f6fde); }
+.wp-tl-bar rect.done { fill: var(--accent, #2f6fde); stroke: none; }
+.wp-tl-bar text { font-size: 12px; font-weight: 600; fill: var(--ink); }
+.wp-tl-bar text.d { font-weight: 400; font-size: 11px; fill: var(--ink3); }
+.wp-tl-bar.is-sel rect:first-child, .wp-tl-ms.is-sel path { stroke-width: 2.5; }
+.wp-tl-ms { cursor: pointer; }
+.wp-tl-ms path { fill: var(--ink); stroke: var(--ink); }
+.wp-tl-ms line { stroke: var(--ink3); stroke-dasharray: 2 2; }
+.wp-tl-ms text { font-size: 11px; fill: var(--ink); }
+.wp-tl-status { stroke: var(--today); stroke-width: 1.5; stroke-dasharray: 4 3; }
 .wp-empty { margin: 24px; color: var(--ink3); }
 .wp-bar { fill: var(--bar); }
 .wp-bar-done { fill: var(--bar-done); }
