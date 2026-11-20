@@ -15,11 +15,12 @@ import { schedule, applySchedule, applyLevelling, clearLevelling, criticalPath, 
 import { level, unlevelledStart } from "../core/levelling.js";
 import { overallocations, weeklyLoad } from "../core/resources.js";
 import { behindSchedule, pastDeadline } from "../core/progress.js";
+import { assignmentsOf } from "../core/resources.js";
 import { outlineToDoc } from "../core/outline.js";
 import { workOf, unitsOf, TASK_TYPES } from "../core/tasktypes.js";
 import { costs, resourceSheet, formatMoney } from "../core/costs.js";
 import { earnedValue } from "../core/earnedvalue.js";
-import { BOARD_COLUMNS, board, progressFor, month, network, NODE, usage } from "./views.js";
+import { BOARD_COLUMNS, board, progressFor, month, network, NODE, usage, FILTERS, filterTasks } from "./views.js";
 import { askText, askForm } from "../../common/dialog.js";
 import { describe as describeRecurring, patternError } from "../core/recurring.js";
 import { decorateRibbon, ribbonStyles } from "../../common/ribbon.js";
@@ -69,6 +70,7 @@ const state = {
   over: [], // over-allocations: [{ name, from, to, days, tasks }]
   sel: [], // selected task ids, in the order they were picked
   collapsed: new Set(),
+  filter: "all", // the task filter (stage 5): a FILTERS key or "person:<name>"
   zoom: "week",
   readOnly: false,
   editing: null, // { id, key }
@@ -103,6 +105,7 @@ const commands = {
   viewBoard: () => showView("board"),
   viewCal: () => showView("cal"),
   viewNet: () => showView("net"),
+  clearFilter: () => { state.filter = "all"; render(); },
   viewTaskUsage: () => showView("tuse"),
   viewResUsage: () => showView("ruse"),
   aiPlan: () => aiPlan(),
@@ -157,7 +160,7 @@ const commands = {
     $("wp-baseline").checked = true;
     state.note = "Baseline saved: the grey bars show the plan as it is now";
   }),
-  today: () => { const sc = timescale(visibleRows(state.model, state.collapsed), state.zoom, state.model.doc.start); $("wp-chart").scrollLeft = Math.max(0, sc.x(new Date().toISOString().slice(0, 10)) - 120); },
+  today: () => { const sc = timescale(shownRows(), state.zoom, state.model.doc.start); $("wp-chart").scrollLeft = Math.max(0, sc.x(new Date().toISOString().slice(0, 10)) - 120); },
 };
 
 /** A recurring task (stage 5): a summary with one subtask per occurrence. */
@@ -581,6 +584,27 @@ function slipText() {
 
 /* ---- render ---- */
 let rendering = false;
+/** The rows on screen: the outline (less collapsed summaries), through the task filter. */
+function shownRows() {
+  const rows = visibleRows(state.model, state.collapsed);
+  let keep = null;
+  try {
+    let critical = new Set();
+    if (state.filter === "critical") critical = new Set(criticalPath(schedule(state.model.doc, calendar())));
+    keep = filterTasks(state.model.doc, state.filter, { critical, behind: new Set(state.behind.map((x) => x.id)), deadline: new Set(pastDeadline(state.model.doc, calendar().isWork).map((x) => x.id)) });
+  } catch { keep = null; }
+  return keep ? rows.filter((r) => keep.has(r.id)) : rows;
+}
+/** The Filter box: the fixed filters, then one per person. */
+function fillFilter() {
+  const sel = $("wp-filter"), people = [...new Set(state.model.doc.tasks.flatMap((t) => assignmentsOf(t).map((a) => a.name)))].sort();
+  if (state.filter.startsWith("person:") && !people.includes(state.filter.slice(7))) state.filter = "all";
+  const html = FILTERS.map((f) => `<option value="${f.key}">${f.title}</option>`).join("") + (people.length ? `<optgroup label="Assigned to">${people.map((p) => `<option value="person:${esc(p)}">${esc(p)}</option>`).join("")}</optgroup>` : "");
+  if (sel.dataset.html !== html) { sel.innerHTML = html; sel.dataset.html = html; }
+  sel.value = state.filter;
+  $("wp-filter-on").hidden = state.filter === "all";
+}
+
 function render() {
   // redrawing removes a focused edit box, whose blur would save and redraw again mid-render
   if (rendering) return;
@@ -589,10 +613,11 @@ function render() {
 }
 function draw() {
   state.model.isWork = calendar().isWork; // the grid, the chart and the scheduler count the same working days
-  const rows = visibleRows(state.model, state.collapsed);
-  renderGrid(rows);
   try { state.over = overallocations(state.model.doc, calendar().isWork); } catch { state.over = []; }
   try { state.behind = behindSchedule(state.model.doc, state.model.doc.statusDate, calendar().isWork); } catch { state.behind = []; }
+  const rows = shownRows();
+  fillFilter();
+  renderGrid(rows);
   $("wp-status-date").value = state.model.doc.statusDate || "";
   const firstTyped = typedTargets()[0] ? state.model.task(typedTargets()[0]) : null;
   $("wp-type").value = firstTyped?.type || "fixedUnits";
@@ -622,6 +647,7 @@ function showTab(name) {
 }
 $("wp-ribbon").addEventListener("click", (e) => { const b = e.target.closest("[data-cmd]"); if (b && !b.disabled) commands[b.dataset.cmd](); });
 $("wp-zoom").addEventListener("change", (e) => { state.zoom = e.target.value; render(); });
+$("wp-filter").addEventListener("change", (e) => { state.filter = e.target.value; render(); });
 $("wp-cal").addEventListener("change", (e) => { state.cal = e.target.value; render(); });
 $("wp-critical").addEventListener("change", (e) => { state.showCritical = e.target.checked; render(); });
 /* task type and effort driven: for the selected tasks (not summaries or milestones) */
@@ -662,7 +688,7 @@ $("wp-grid").addEventListener("click", (e) => {
   }
   if (e.ctrlKey || e.metaKey) state.sel = state.sel.includes(id) ? state.sel.filter((x) => x !== id) : [...state.sel, id];
   else if (e.shiftKey && state.sel.length) {
-    const rows = visibleRows(state.model, state.collapsed).map((r) => r.id), a = rows.indexOf(state.sel[0]), b = rows.indexOf(id);
+    const rows = shownRows().map((r) => r.id), a = rows.indexOf(state.sel[0]), b = rows.indexOf(id);
     state.sel = rows.slice(Math.min(a, b), Math.max(a, b) + 1);
   } else state.sel = [id];
   state.note = ""; // a new selection: the status bar shows its baseline slip, not the last command's note
@@ -685,7 +711,7 @@ $("wp-grid").addEventListener("keydown", (e) => {
   else if (e.key === "F2" && first()) { e.preventDefault(); startEdit(first(), "name"); }
   else if (e.key === "ArrowDown" || e.key === "ArrowUp") {
     e.preventDefault();
-    const rows = visibleRows(state.model, state.collapsed).map((r) => r.id);
+    const rows = shownRows().map((r) => r.id);
     const i = Math.max(0, rows.indexOf(first())), j = Math.min(rows.length - 1, Math.max(0, i + (e.key === "ArrowDown" ? 1 : -1)));
     if (rows.length) { state.sel = [rows[j]]; render(); }
   } else if (e.key.length === 1 && !mod && first()) { startEdit(first(), "name"); const inp = $("wp-grid").querySelector("[data-edit-input]"); if (inp) inp.value = e.key; e.preventDefault(); }
@@ -706,7 +732,7 @@ $("wp-chart").addEventListener("pointerdown", (e) => {
     const dx = ev.clientX - x0;
     const preview = mode === "move" ? { start: dragStart(task, dx, state.scale.dayW) } : { duration: dragDuration(task, dx, state.scale.dayW) };
     Object.assign(state.model.task(id), preview); // a live preview; the real edit happens on release
-    renderChart(visibleRows(state.model, state.collapsed));
+    renderChart(shownRows());
   };
   const up = (ev) => {
     hit.removeEventListener("pointermove", move);
@@ -761,7 +787,7 @@ function fitForPrint() {
   const width = svg ? Number(svg.getAttribute("width")) : 0;
   $("wp-chart").style.setProperty("--print-zoom", width ? String(Math.min(1, 1046 / width)) : "1");
   // on paper the chart is as tall as its tasks, not the window; the next redraw restores the screen size
-  if (svg) svg.setAttribute("height", String(visibleRows(state.model, state.collapsed).length * ROW_H + 8));
+  if (svg) svg.setAttribute("height", String(shownRows().length * ROW_H + 8));
 }
 window.addEventListener("beforeprint", fitForPrint);
 window.addEventListener("afterprint", () => render());

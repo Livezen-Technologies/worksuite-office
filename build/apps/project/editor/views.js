@@ -160,3 +160,44 @@ export function usage(doc, isWork = null, by = "resource", hoursPerDay = 8) {
   const rows = by === "task" ? taskRows : [...people.values()].sort((a, b) => a.name.localeCompare(b.name));
   return { weeks: [...weeks].sort(), rows };
 }
+
+/* ---- filters ---- */
+
+export const FILTERS = [
+  { key: "all", title: "All tasks" },
+  { key: "incomplete", title: "Incomplete tasks" },
+  { key: "completed", title: "Completed tasks" },
+  { key: "critical", title: "Critical tasks" },
+  { key: "milestones", title: "Milestones" },
+  { key: "late", title: "Late tasks" },
+  { key: "deadline", title: "Past deadline" },
+  { key: "active", title: "Active tasks" },
+];
+
+/**
+ * The ids a filter keeps: the matching tasks (summaries are not matched themselves) and the summaries above them, so
+ * the outline still reads. "person:<name>" keeps the tasks that person works on. ctx: { critical, behind, deadline }
+ * as Sets of ids. Returns null for "all".
+ */
+export function filterTasks(doc, key, ctx = {}) {
+  if (!key || key === "all") return null;
+  const has = (s, id) => !!(s && s.has(id));
+  const who = key.startsWith("person:") ? key.slice(7) : null;
+  const test = {
+    incomplete: (t) => (t.progress || 0) < 100,
+    completed: (t) => (t.progress || 0) >= 100,
+    critical: (t) => has(ctx.critical, t.id),
+    milestones: (t) => t.duration === 0,
+    late: (t) => has(ctx.behind, t.id),
+    deadline: (t) => has(ctx.deadline, t.id),
+    active: (t) => !t.inactive,
+  }[key] || (who !== null ? (t) => assignmentsOf(t).some((a) => a.name === who) : () => true);
+  const keep = new Set(), stack = [];
+  doc.tasks.forEach((t, i) => {
+    while (stack.length && stack[stack.length - 1].level >= t.level) stack.pop();
+    const summary = i + 1 < doc.tasks.length && doc.tasks[i + 1].level > t.level;
+    if (!summary && test(t)) { keep.add(t.id); for (const s of stack) keep.add(s.id); }
+    stack.push(t);
+  });
+  return keep;
+}
