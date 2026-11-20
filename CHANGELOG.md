@@ -1,5 +1,17 @@
 # Change log
 
+## 10.1.66
+
+### New features
+
+#### Project
+
+* Project Overview report: View › Project Overview shows the plan's headline
+  figures (percent complete, finish date against the baseline, cost against
+  the baseline cost, and tasks not started, in progress and done), the
+  milestones ahead of the status date, the tasks running late or past their
+  deadline, and each person's hours and cost. Clicking a row selects its task.
+
 ## 10.1.65
 
 ### New features

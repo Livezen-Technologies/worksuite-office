@@ -20,7 +20,7 @@ import { outlineToDoc } from "../core/outline.js";
 import { workOf, unitsOf, TASK_TYPES } from "../core/tasktypes.js";
 import { costs, resourceSheet, formatMoney } from "../core/costs.js";
 import { earnedValue } from "../core/earnedvalue.js";
-import { BOARD_COLUMNS, board, progressFor, month, network, NODE, usage, FILTERS, filterTasks, timeline, GROUPS, groupRows } from "./views.js";
+import { BOARD_COLUMNS, board, progressFor, month, network, NODE, usage, FILTERS, filterTasks, timeline, GROUPS, groupRows, overview } from "./views.js";
 import { askText, askForm } from "../../common/dialog.js";
 import { FIELD_TYPES, parseValue, formatValue } from "../core/fields.js";
 import { describe as describeRecurring, patternError } from "../core/recurring.js";
@@ -64,6 +64,7 @@ const state = {
   tuse: false, // Task Usage (stage 5)
   ruse: false, // Resource Usage (stage 5)
   tl: false, // the Timeline (stage 5)
+  report: false, // the Project Overview report (stage 5)
   cal: false, // the Calendar view, and the month it shows
   calMonth: null, // [year, month index]
   ev: false, // the earned value table in place of the Gantt chart (stage 5)
@@ -134,6 +135,7 @@ const commands = {
   viewTaskUsage: () => showView("tuse"),
   viewResUsage: () => showView("ruse"),
   viewTimeline: () => showView("tl"),
+  viewReport: () => showView("report"),
   aiPlan: () => aiPlan(),
   save: () => { download(state.fileName, packDocument(APP, serialize(state.model.doc)), "application/zip"); state.saved = state.model.undoStack.length; render(); },
   exportCsv: () => download(state.fileName.replace(/\.wsproj$/, "") + ".csv", toCsv(), "text/csv"),
@@ -448,7 +450,7 @@ function renderChart(rows) {
 
 /** One view at a time in the right-hand pane (null: the Gantt chart). */
 function showView(name) {
-  for (const k of ["workload", "sheet", "ev", "board", "cal", "net", "tuse", "ruse", "tl"]) state[k] = k === name;
+  for (const k of ["workload", "sheet", "ev", "board", "cal", "net", "tuse", "ruse", "tl", "report"]) state[k] = k === name;
   if (name === "cal" && !state.calMonth) {
     const d = new Date((first() ? state.model.task(first()).start : state.model.doc.start) + "T00:00:00Z");
     state.calMonth = [d.getUTCFullYear(), d.getUTCMonth()];
@@ -497,6 +499,29 @@ function renderNet() {
   $("wp-chart").innerHTML = svg + "</svg>";
 }
 
+/** The Project Overview report: headline figures, milestones ahead, tasks running late and work by person. */
+function renderReport() {
+  const doc = state.model.doc, isWork = calendar().isWork;
+  const o = overview(doc, { isWork, from: doc.statusDate || null });
+  const late = [...state.behind.map((x) => ({ id: x.id, name: x.name, why: `${x.progress}% done, ${x.expected}% expected` })),
+    ...pastDeadline(doc, isWork).filter((x) => !state.behind.some((b) => b.id === x.id)).map((x) => ({ id: x.id, name: x.name, why: `finishes ${fmt(x.finish)}, deadline ${fmt(x.deadline)}` }))];
+  const tile = (label, value, sub = "", cls = "") => `<section class="wp-tile ${cls}"><span class="l">${label}</span><b>${value}</b><span class="s">${sub}</span></section>`;
+  const slip = o.slipDays === null ? "No baseline set" : o.slipDays > 0 ? `${o.slipDays} day${o.slipDays === 1 ? "" : "s"} later than the baseline` : o.slipDays < 0 ? `${-o.slipDays} day${o.slipDays === -1 ? "" : "s"} earlier than the baseline` : "On the baseline";
+  const over = o.baselineCost !== null && o.cost > o.baselineCost;
+  const pct = (n) => (o.tasks ? (n / o.tasks) * 100 : 0);
+  let h = `<div class="wp-report"><h2>${esc(doc.name)} <span>Project Overview${doc.statusDate ? ` · status ${fmt(doc.statusDate)}` : ""}</span></h2><div class="wp-tiles">` +
+    tile("Complete", `${o.percent}%`, `<span class="wp-meter"><i style="width:${o.percent}%"></i></span>`) +
+    tile("Finish", fmt(o.finish), slip, o.slipDays > 0 ? "is-bad" : "") +
+    tile("Cost", formatMoney(o.cost), o.baselineCost === null ? "No baseline cost" : `${over ? "Over" : "Within"} the baseline of ${formatMoney(o.baselineCost)}`, over ? "is-bad" : "") +
+    tile("Tasks", String(o.tasks), `<span class="wp-stack"><i class="todo" style="width:${pct(o.todo)}%"></i><i class="doing" style="width:${pct(o.doing)}%"></i><i class="done" style="width:${pct(o.done)}%"></i></span><span class="wp-key"><i class="todo"></i>${o.todo} not started <i class="doing"></i>${o.doing} in progress <i class="done"></i>${o.done} done</span>`) +
+    `</div><div class="wp-panels">`;
+  h += `<section class="wp-panel"><h3>Milestones ahead</h3>${o.milestones.length ? `<ul>${o.milestones.map((m) => `<li data-card="${m.id}"><span>◆ ${esc(m.name)}</span><span class="${m.deadline && m.date > m.deadline ? "is-late" : ""}">${fmt(m.date)}</span></li>`).join("")}</ul>` : `<p class="wp-empty">No milestones ahead.</p>`}</section>`;
+  h += `<section class="wp-panel"><h3>Running late</h3>${late.length ? `<ul>${late.map((x) => `<li data-card="${x.id}"><span>${esc(x.name)}</span><span class="is-late">${x.why}</span></li>`).join("")}</ul>` : `<p class="wp-empty">${doc.statusDate ? "Nothing is behind." : "Set a status date (Project tab) to see what is behind."}</p>`}</section>`;
+  const max = Math.max(1, ...o.people.map((p) => p.work));
+  h += `<section class="wp-panel wide"><h3>Work by person</h3>${o.people.length ? `<table class="wp-bars">${o.people.map((p) => `<tr><th>${esc(p.name)}</th><td><span class="bar" style="width:${(p.work / max) * 100}%"></span><span class="v">${p.work} h${p.cost ? " · " + formatMoney(p.cost) : ""}</span></td></tr>`).join("")}</table>` : `<p class="wp-empty">No one is assigned yet.</p>`}</section>`;
+  $("wp-chart").innerHTML = h + `</div></div>`;
+}
+
 /** The Timeline: the plan at a glance; phases as bars, milestones as diamonds, the status date as a line. */
 function renderTimeline() {
   const w = Math.max(360, $("wp-chart").clientWidth - 24);
@@ -538,7 +563,7 @@ $("wp-chart").addEventListener("click", (e) => {
     render(); return;
   }
   const card = e.target.closest("[data-card]");
-  if (card && (state.board || state.cal || state.net || state.tuse || state.ruse || state.tl)) { state.sel = [card.dataset.card]; render(); }
+  if (card && (state.board || state.cal || state.net || state.tuse || state.ruse || state.tl || state.report)) { state.sel = [card.dataset.card]; render(); }
 });
 
 /** Earned value at the status date: planned, earned and actual value per task, the indexes, and totals. */
@@ -700,9 +725,9 @@ function draw() {
   $("wp-type").value = firstTyped?.type || "fixedUnits";
   $("wp-effort").checked = !!firstTyped?.effortDriven;
   $("wp-type").disabled = $("wp-effort").disabled = state.readOnly || !firstTyped;
-  const view = state.tl ? "viewTimeline" : state.tuse ? "viewTaskUsage" : state.ruse ? "viewResUsage" : state.net ? "viewNet" : state.board ? "viewBoard" : state.cal ? "viewCal" : state.ev ? "viewEv" : state.sheet ? "viewSheet" : state.workload ? "viewWorkload" : "viewGantt";
+  const view = state.report ? "viewReport" : state.tl ? "viewTimeline" : state.tuse ? "viewTaskUsage" : state.ruse ? "viewResUsage" : state.net ? "viewNet" : state.board ? "viewBoard" : state.cal ? "viewCal" : state.ev ? "viewEv" : state.sheet ? "viewSheet" : state.workload ? "viewWorkload" : "viewGantt";
   for (const b of document.querySelectorAll('[data-cmd^="view"]')) b.setAttribute("aria-pressed", String(b.dataset.cmd === view));
-  if (state.tl) renderTimeline(); else if (state.tuse) renderUsage("task"); else if (state.ruse) renderUsage("resource"); else if (state.net) renderNet(); else if (state.board) renderBoard(); else if (state.cal) renderCal(); else if (state.ev) renderEv(); else if (state.sheet) renderSheet(); else if (state.workload) renderWorkload(); else renderChart(rows);
+  if (state.report) renderReport(); else if (state.tl) renderTimeline(); else if (state.tuse) renderUsage("task"); else if (state.ruse) renderUsage("resource"); else if (state.net) renderNet(); else if (state.board) renderBoard(); else if (state.cal) renderCal(); else if (state.ev) renderEv(); else if (state.sheet) renderSheet(); else if (state.workload) renderWorkload(); else renderChart(rows);
   $("wp-title").textContent = state.fileName.replace(/\.wsproj$/, "") + (state.model.undoStack.length !== (state.saved || 0) ? " •" : ""); // • unsaved changes
   $("wp-mode").hidden = !state.readOnly;
   $("wp-mode-text").textContent = reasonText(state.licence || "no_license");
