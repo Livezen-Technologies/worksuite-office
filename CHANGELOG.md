@@ -1,5 +1,16 @@
 # Change log
 
+## 10.1.65
+
+### New features
+
+#### Project
+
+* Custom fields: Project › Custom Field adds a column of your own, of text,
+  number, date or yes/no, for every task. Values are typed in the grid and
+  checked by type, saved in the .wsproj file and exported to CSV and Excel.
+  Remove field takes the column and its values away; Undo brings them back.
+
 ## 10.1.64
 
 ### New features

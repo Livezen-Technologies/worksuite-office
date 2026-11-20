@@ -5,10 +5,11 @@
  * which patch-pdf-convert.py copies over web-apps.
  *
  * The document (schema version 1), saved as canonical JSON inside the .wsproj zip:
- *   { app: "worksuite.project", v: 1, name, start, tasks: [Task], links: [Link], calendars: [], resources: [] }
+ *   { app: "worksuite.project", v: 1, name, start, tasks: [Task], links: [Link], calendars: [], resources: [], fields?: [{ key: "f1", name, type: text|number|date|flag }] }
  *   Task: { id, name, level (0 = top), start ("YYYY-MM-DD"), duration (days, 0 = milestone), progress (0-100),
  *           owner?, notes?, actualStart?, actualFinish?, deadline?, inactive?, type?, work?, effortDriven?, fixedCost?,
  *           priority? (0-1000, default 500), levelDelay? (working days added by resource levelling),
+ *           custom? ({ fieldKey: value } for the document's custom fields),
  *           recurring? (on a summary: the pattern its occurrences were made from, recurring.js) }
  *   resources: [{ name, rate (per hour), costPerUse }]   the Resource Sheet, by the names in Owner (costs.js)
  *         type: fixedUnits (default) | fixedWork | fixedDuration; work: person-hours; see tasktypes.js
@@ -22,6 +23,7 @@
 import { recalc, TASK_TYPES, unitsOf, workOf } from "./tasktypes.js";
 import { costs } from "./costs.js";
 import { occurrences, patternError } from "./recurring.js";
+import { fieldError, valueError, nextFieldKey } from "./fields.js";
 
 export const APP = "worksuite.project";
 export const SCHEMA_VERSION = 1;
@@ -69,6 +71,10 @@ export function validate(doc) {
   if (typeof doc.name !== "string") errs.push("name must be text");
   if (!DATE.test(doc.start || "")) errs.push("start must be a date");
   if (!Array.isArray(doc.tasks) || !Array.isArray(doc.links)) errs.push("tasks and links must be lists");
+  if (doc.fields !== undefined) {
+    if (!Array.isArray(doc.fields)) errs.push("custom fields must be a list");
+    else { const keys = new Set(); for (const f of doc.fields) { if (fieldError(f)) errs.push(fieldError(f)); else if (keys.has(f.key)) errs.push(`duplicate custom field ${f.key}`); keys.add(f?.key); } }
+  }
   const ids = new Set();
   (doc.tasks || []).forEach((t, i) => {
     const at = `task ${i + 1}`;
@@ -91,6 +97,14 @@ export function validate(doc) {
     if (t.levelDelay !== undefined && !(Number.isInteger(t.levelDelay) && t.levelDelay >= 0)) errs.push(`${at}: levelling delay must be whole working days`);
     if (t.recurring !== undefined && patternError(t.recurring)) errs.push(`${at}: ${patternError(t.recurring)}`);
     if (t.actualStart && t.actualFinish && t.actualFinish < t.actualStart) errs.push(`${at}: actual finish is before actual start`);
+    if (t.custom !== undefined) {
+      if (!t.custom || typeof t.custom !== "object") errs.push(`${at}: custom values must be a set of fields`);
+      else for (const [k, v] of Object.entries(t.custom)) {
+        const f = (doc.fields || []).find((x) => x.key === k);
+        if (!f) errs.push(`${at}: no custom field ${k}`);
+        else if (valueError(f.type, v)) errs.push(`${at}: ${f.name} ${valueError(f.type, v)}`);
+      }
+    }
   });
   (doc.links || []).forEach((l, i) => {
     const at = `link ${i + 1}`;
@@ -259,6 +273,32 @@ export class ProjectModel {
       if (!r) { r = { name }; d.resources.push(r); }
       for (const k of ["rate", "costPerUse"]) if (k in fields) { if (fields[k] === null || fields[k] === undefined || fields[k] === "") delete r[k]; else r[k] = Number(fields[k]); }
       d.resources = d.resources.filter((x) => x.rate || x.costPerUse);
+    });
+  }
+  /** Adds a custom field (a column) of a type; returns its key. */
+  addField(name, type) {
+    let key;
+    this.edit((d) => { d.fields = d.fields || []; key = nextFieldKey(d.fields); d.fields.push({ key, name: String(name).trim(), type }); });
+    return key;
+  }
+  /** Renames a custom field. */
+  renameField(key, name) { return this.edit((d) => { const f = (d.fields || []).find((x) => x.key === key); if (f) f.name = String(name).trim(); }); }
+  /** Removes a custom field and its values. */
+  removeField(key) {
+    return this.edit((d) => {
+      d.fields = (d.fields || []).filter((f) => f.key !== key);
+      if (!d.fields.length) delete d.fields;
+      for (const t of d.tasks) if (t.custom) { delete t.custom[key]; if (!Object.keys(t.custom).length) delete t.custom; }
+    });
+  }
+  /** A task's value for a custom field; undefined clears it. */
+  setCustom(id, key, value) {
+    return this.edit((d) => {
+      const t = d.tasks.find((x) => x.id === id);
+      if (!t) return;
+      t.custom = { ...(t.custom || {}) };
+      if (value === undefined) delete t.custom[key]; else t.custom[key] = value;
+      if (!Object.keys(t.custom).length) delete t.custom;
     });
   }
   /** The status date progress is measured against; null clears it. */
