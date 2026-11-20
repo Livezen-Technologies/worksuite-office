@@ -66,3 +66,48 @@ export function month(doc, year, monthIndex, isWork = null) {
   const title = new Date(Date.UTC(year, monthIndex, 1)).toLocaleDateString("en-GB", { month: "long", year: "numeric", timeZone: "UTC" });
   return { title, weeks };
 }
+
+/* ---- the Network Diagram ---- */
+
+export const NODE = { w: 190, h: 76, gapX: 56, gapY: 22 };
+
+/**
+ * The Network Diagram's layout: a box per task (summaries and inactive tasks left out), in columns by the
+ * longest chain of links before it, rows in plan order within a column; links as orthogonal routes.
+ * Returns { nodes: [{ id, n, name, start, finish, duration, owner, milestone, x, y }], edges: [{ from, to, points }],
+ * width, height }.
+ */
+export function network(doc, isWork = null) {
+  const tasks = doc.tasks;
+  const index = new Map(tasks.map((t, i) => [t.id, i + 1]));
+  const leaves = tasks.filter((t, i) => !(i + 1 < tasks.length && tasks[i + 1].level > t.level) && !t.inactive);
+  const ids = new Set(leaves.map((t) => t.id));
+  const links = doc.links.filter((l) => ids.has(l.from) && ids.has(l.to));
+  const preds = new Map(leaves.map((t) => [t.id, []]));
+  for (const l of links) preds.get(l.to).push(l.from);
+  const col = new Map();
+  const depth = (id, seen = new Set()) => {
+    if (col.has(id)) return col.get(id);
+    if (seen.has(id)) return 0; // a loop (the model refuses them): stop
+    seen.add(id);
+    const d = preds.get(id).reduce((m, p) => Math.max(m, depth(p, seen) + 1), 0);
+    col.set(id, d);
+    return d;
+  };
+  const rows = [];
+  const nodes = leaves.map((t) => {
+    const c = depth(t.id), r = (rows[c] = (rows[c] || 0) + 1) - 1;
+    return { id: t.id, n: index.get(t.id), name: t.name, start: t.start, finish: finishOf(t, isWork), duration: t.duration, owner: t.owner || "", milestone: t.duration === 0,
+      x: 16 + c * (NODE.w + NODE.gapX), y: 16 + r * (NODE.h + NODE.gapY) };
+  });
+  const at = new Map(nodes.map((n) => [n.id, n]));
+  const edges = links.map((l) => {
+    const a = at.get(l.from), b = at.get(l.to);
+    const x1 = a.x + NODE.w, y1 = a.y + NODE.h / 2, x2 = b.x, y2 = b.y + NODE.h / 2, mx = x1 + NODE.gapX / 2;
+    const points = x2 > x1 ? [[x1, y1], [mx, y1], [mx, y2], [x2, y2]] : [[x1, y1], [x1 + 12, y1], [x1 + 12, Math.max(a.y, b.y) + NODE.h + 10], [x2 - 12, Math.max(a.y, b.y) + NODE.h + 10], [x2 - 12, y2], [x2, y2]];
+    return { from: l.from, to: l.to, type: l.type, points };
+  });
+  const width = Math.max(0, ...nodes.map((n) => n.x + NODE.w)) + 16;
+  const height = Math.max(0, ...nodes.map((n) => n.y + NODE.h)) + 26;
+  return { nodes, edges, width, height };
+}

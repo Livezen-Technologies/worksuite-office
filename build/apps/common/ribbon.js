@@ -55,6 +55,7 @@ const I = {
   level: "M3 16.5h14 M4.5 16.5v-5h3v5 M8.5 16.5v-5h3v5 M12.5 16.5v-5h3v5 M3 8.5h14 M10 3v4 M8 5l2 2 2-2",
   recurring: "M15.5 7.5a6 6 0 1 0 .8 4 M16 3.5v4h-4 M8 9.5h4 M8 12h4",
   board: "M3 3.5h4v13h-4z M8 3.5h4v9h-4z M13 3.5h4v6h-4z",
+  network: "M2.5 7h5v6h-5z M12.5 3h5v5h-5z M12.5 12h5v5h-5z M7.5 10h2.5v-4.5h2.5 M10 10v4.5h2.5",
   page: "M5 2.5h7l3.5 3.5v11.5h-10.5z M12 2.5v3.5h3.5 M10 9.5v5 M7.5 12h5",
 };
 

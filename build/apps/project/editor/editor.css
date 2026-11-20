@@ -97,6 +97,17 @@ table.wp-table { border-collapse: collapse; width: 100%; table-layout: fixed; }
 .wp-cal .chip.ms { background: #ede9fe; }
 .wp-cal .chip.is-sel { outline: 1.5px solid var(--brand); }
 .wp-cal .more { font-size: 10.5px; color: var(--ink3); }
+.wp-net { display: block; margin: 8px; }
+.wp-node rect { fill: var(--card); stroke: var(--line); stroke-width: 1.2; }
+.wp-node { cursor: pointer; }
+.wp-node.is-crit rect { stroke: var(--today); stroke-width: 1.8; }
+.wp-node.is-ms rect { fill: #f5f3ff; }
+.wp-node.is-sel rect { stroke: var(--brand); stroke-width: 2.2; }
+.wp-node .t { font-size: 12.5px; font-weight: 600; fill: var(--ink); }
+.wp-node .s { font-size: 11px; fill: var(--ink2); }
+.wp-net-link { fill: none; stroke: var(--ink3); stroke-width: 1.3; }
+.wp-net-link.is-crit { stroke: var(--today); }
+.wp-net-head { fill: var(--ink3); }
 .wp-empty { margin: 24px; color: var(--ink3); }
 .wp-bar { fill: var(--bar); }
 .wp-bar-done { fill: var(--bar-done); }

@@ -19,7 +19,7 @@ import { outlineToDoc } from "../core/outline.js";
 import { workOf, unitsOf, TASK_TYPES } from "../core/tasktypes.js";
 import { costs, resourceSheet, formatMoney } from "../core/costs.js";
 import { earnedValue } from "../core/earnedvalue.js";
-import { BOARD_COLUMNS, board, progressFor, month } from "./views.js";
+import { BOARD_COLUMNS, board, progressFor, month, network, NODE } from "./views.js";
 import { askText, askForm } from "../../common/dialog.js";
 import { describe as describeRecurring, patternError } from "../core/recurring.js";
 import { decorateRibbon, ribbonStyles } from "../../common/ribbon.js";
@@ -55,6 +55,7 @@ const state = {
   showBaseline: false,
   showCritical: false,
   board: false, // the Task Board (stage 5)
+  net: false, // the Network Diagram (stage 5)
   cal: false, // the Calendar view, and the month it shows
   calMonth: null, // [year, month index]
   ev: false, // the earned value table in place of the Gantt chart (stage 5)
@@ -99,6 +100,7 @@ const commands = {
   viewEv: () => showView("ev"),
   viewBoard: () => showView("board"),
   viewCal: () => showView("cal"),
+  viewNet: () => showView("net"),
   aiPlan: () => aiPlan(),
   save: () => { download(state.fileName, packDocument(APP, serialize(state.model.doc)), "application/zip"); state.saved = state.model.undoStack.length; render(); },
   exportCsv: () => download(state.fileName.replace(/\.wsproj$/, "") + ".csv", toCsv(), "text/csv"),
@@ -394,7 +396,7 @@ function renderChart(rows) {
 
 /** One view at a time in the right-hand pane (null: the Gantt chart). */
 function showView(name) {
-  for (const k of ["workload", "sheet", "ev", "board", "cal"]) state[k] = k === name;
+  for (const k of ["workload", "sheet", "ev", "board", "cal", "net"]) state[k] = k === name;
   if (name === "cal" && !state.calMonth) {
     const d = new Date((first() ? state.model.task(first()).start : state.model.doc.start) + "T00:00:00Z");
     state.calMonth = [d.getUTCFullYear(), d.getUTCMonth()];
@@ -422,6 +424,27 @@ $("wp-chart").addEventListener("drop", (e) => {
   run(() => { state.model.set(id, { progress: progressFor(col.dataset.col, t) }); state.sel = [id]; });
 });
 
+/** The Network Diagram: a box per task, in columns by its links; critical tasks outlined in red. */
+function renderNet() {
+  const n = network(state.model.doc, calendar().isWork);
+  if (!n.nodes.length) { $("wp-chart").innerHTML = `<p class="wp-empty">Add tasks to see how they depend on each other.</p>`; return; }
+  let crit = new Set();
+  try { crit = new Set(criticalPath(schedule(state.model.doc, calendar()))); } catch { /* a plan that cannot be scheduled still draws */ }
+  const sel = new Set(state.sel);
+  let svg = `<svg class="wp-net" width="${n.width}" height="${n.height}" xmlns="${NS}"><defs><marker id="wp-net-arrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7z" class="wp-net-head"/></marker></defs>`;
+  for (const e of n.edges) svg += `<polyline class="wp-net-link ${crit.has(e.from) && crit.has(e.to) ? "is-crit" : ""}" marker-end="url(#wp-net-arrow)" points="${e.points.map((p) => p.join(",")).join(" ")}"><title>${e.type}</title></polyline>`;
+  for (const b of n.nodes) {
+    const cls = `wp-node ${crit.has(b.id) ? "is-crit" : ""} ${sel.has(b.id) ? "is-sel" : ""} ${b.milestone ? "is-ms" : ""}`;
+    const clip = (s, k) => (s.length > k ? s.slice(0, k - 1) + "…" : s);
+    svg += `<g class="${cls}" data-card="${b.id}" transform="translate(${b.x},${b.y})"><rect width="${NODE.w}" height="${NODE.h}" rx="6"/>` +
+      `<text x="10" y="18" class="t">${b.milestone ? "◆ " : ""}${esc(clip(b.name, 26))}</text>` +
+      `<text x="10" y="37" class="s">Start ${fmt(b.start)}</text><text x="${NODE.w - 10}" y="37" class="s" text-anchor="end">ID ${b.n}</text>` +
+      `<text x="10" y="53" class="s">Finish ${fmt(b.finish)}</text><text x="${NODE.w - 10}" y="53" class="s" text-anchor="end">${b.milestone ? "0 d" : b.duration + " d"}</text>` +
+      `<text x="10" y="69" class="s">${esc(clip(b.owner, 30))}</text><title>${esc(b.name)}</title></g>`;
+  }
+  $("wp-chart").innerHTML = svg + "</svg>";
+}
+
 /** The Calendar: a month of working days with the tasks that run on each. */
 function renderCal() {
   const [y, mo] = state.calMonth;
@@ -444,7 +467,7 @@ $("wp-chart").addEventListener("click", (e) => {
     render(); return;
   }
   const card = e.target.closest("[data-card]");
-  if (card && (state.board || state.cal)) { state.sel = [card.dataset.card]; render(); }
+  if (card && (state.board || state.cal || state.net)) { state.sel = [card.dataset.card]; render(); }
 });
 
 /** Earned value at the status date: planned, earned and actual value per task, the indexes, and totals. */
@@ -557,9 +580,9 @@ function draw() {
   $("wp-type").value = firstTyped?.type || "fixedUnits";
   $("wp-effort").checked = !!firstTyped?.effortDriven;
   $("wp-type").disabled = $("wp-effort").disabled = state.readOnly || !firstTyped;
-  const view = state.board ? "viewBoard" : state.cal ? "viewCal" : state.ev ? "viewEv" : state.sheet ? "viewSheet" : state.workload ? "viewWorkload" : "viewGantt";
+  const view = state.net ? "viewNet" : state.board ? "viewBoard" : state.cal ? "viewCal" : state.ev ? "viewEv" : state.sheet ? "viewSheet" : state.workload ? "viewWorkload" : "viewGantt";
   for (const b of document.querySelectorAll('[data-cmd^="view"]')) b.setAttribute("aria-pressed", String(b.dataset.cmd === view));
-  if (state.board) renderBoard(); else if (state.cal) renderCal(); else if (state.ev) renderEv(); else if (state.sheet) renderSheet(); else if (state.workload) renderWorkload(); else renderChart(rows);
+  if (state.net) renderNet(); else if (state.board) renderBoard(); else if (state.cal) renderCal(); else if (state.ev) renderEv(); else if (state.sheet) renderSheet(); else if (state.workload) renderWorkload(); else renderChart(rows);
   $("wp-title").textContent = state.fileName.replace(/\.wsproj$/, "") + (state.model.undoStack.length !== (state.saved || 0) ? " •" : ""); // • unsaved changes
   $("wp-mode").hidden = !state.readOnly;
   $("wp-mode-text").textContent = reasonText(state.licence || "no_license");
