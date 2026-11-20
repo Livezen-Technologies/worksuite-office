@@ -118,3 +118,23 @@ test("timeline: top-level bars in lanes, milestones with label lanes, month tick
   assert.deepEqual(t.ticks.map((k) => k.label), ["Feb 2026", "Mar 2026"]);
   assert.equal(t.start, "2026-02-02");
 });
+
+test("groupRows: headings with their tasks; a task with two people is under both; none leaves rows alone", async () => {
+  const { groupRows } = await import("../apps/project/editor/views.js");
+  const d = newProject("P", "2026-02-02");
+  d.tasks = [
+    { id: "s", name: "Phase A", level: 0, start: "2026-02-02", duration: 5, progress: 0 },
+    { id: "a", name: "One", level: 1, start: "2026-02-02", duration: 2, progress: 100, owner: "Ravi", priority: 700 },
+    { id: "b", name: "Two", level: 1, start: "2026-02-04", duration: 2, progress: 0, owner: "Ravi, Nimal" },
+    { id: "c", name: "Three", level: 0, start: "2026-02-09", duration: 2, progress: 50 },
+  ];
+  const rows = d.tasks.map((t, i) => ({ ...t, summary: i === 0, finish: t.start }));
+  assert.equal(groupRows(rows, d, "none"), rows);
+  const p = groupRows(rows, d, "person");
+  assert.deepEqual(p.map((r) => r.group ? `[${r.name} ${r.count}]` : r.id), ["[Nimal 1]", "b", "[Ravi 2]", "a", "b", "[Unassigned 1]", "c"]);
+  assert.equal(p[3].level, 1);
+  assert.deepEqual(groupRows(rows, d, "status").filter((r) => r.group).map((r) => r.name), ["Not started", "In progress", "Done"]);
+  assert.deepEqual(groupRows(rows, d, "priority").filter((r) => r.group).map((r) => r.name), ["Priority 700", "Priority 500"]);
+  assert.deepEqual(groupRows(rows, d, "phase").filter((r) => r.group).map((r) => r.name), ["Phase A", "No phase"]);
+  assert.equal(groupRows(rows, d, "status").find((r) => r.name === "Done").progress, 100);
+});

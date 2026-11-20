@@ -1,5 +1,16 @@
 # Change log
 
+## 10.1.64
+
+### New features
+
+#### Project
+
+* Groups: View › Group by puts the tasks under headings by phase, person,
+  status, priority or critical path, each heading with its number of tasks,
+  dates and progress and a summary bar on the chart. A task with two people is
+  under both; headings collapse; groups work together with filters.
+
 ## 10.1.63
 
 ### New features

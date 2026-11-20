@@ -20,7 +20,7 @@ import { outlineToDoc } from "../core/outline.js";
 import { workOf, unitsOf, TASK_TYPES } from "../core/tasktypes.js";
 import { costs, resourceSheet, formatMoney } from "../core/costs.js";
 import { earnedValue } from "../core/earnedvalue.js";
-import { BOARD_COLUMNS, board, progressFor, month, network, NODE, usage, FILTERS, filterTasks, timeline } from "./views.js";
+import { BOARD_COLUMNS, board, progressFor, month, network, NODE, usage, FILTERS, filterTasks, timeline, GROUPS, groupRows } from "./views.js";
 import { askText, askForm } from "../../common/dialog.js";
 import { describe as describeRecurring, patternError } from "../core/recurring.js";
 import { decorateRibbon, ribbonStyles } from "../../common/ribbon.js";
@@ -71,6 +71,7 @@ const state = {
   over: [], // over-allocations: [{ name, from, to, days, tasks }]
   sel: [], // selected task ids, in the order they were picked
   collapsed: new Set(),
+  group: "none", // Group by (stage 5): a GROUPS key
   filter: "all", // the task filter (stage 5): a FILTERS key or "person:<name>"
   zoom: "week",
   readOnly: false,
@@ -279,6 +280,10 @@ function renderGrid(rows) {
   const cost = costs(t.doc).byId;
   let html = `<table class="wp-table"><colgroup>${COLS.map((c) => `<col style="width:${c.w}px">`).join("")}</colgroup><tr>${COLS.map((c) => `<th>${c.label}</th>`).join("")}</tr>`;
   for (const r of rows) {
+    if (r.group) {
+      html += `<tr class="is-summary is-group" data-group="${esc(r.id)}"><td class="n"></td><td colspan="${COLS.length - 1}" class="name"><span class="tw" data-toggle="${esc(r.id)}">${state.collapsed.has(r.id) ? "▸" : "▾"}</span>${esc(r.name)} <span class="wp-group-n">${r.count} task${r.count === 1 ? "" : "s"} · ${fmt(r.start)} – ${fmt(r.finish)} · ${r.progress}%</span></td></tr>`;
+      continue;
+    }
     const n = t.indexOf(r.id) + 1;
     const cells = COLS.map((c) => {
       if (state.editing && state.editing.id === r.id && state.editing.key === c.key) {
@@ -364,7 +369,7 @@ function renderChart(rows) {
   svg += `<svg width="${sc.width}" height="${h}" xmlns="${NS}"><defs><marker id="wp-arrow" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6z" fill="currentColor" class="wp-arrow"/></marker></defs>`;
   for (const w of hd.weekends) svg += `<rect class="wp-weekend" x="${w.x}" y="0" width="${w.w}" height="${h}"/>`;
   for (let i = 1; i <= rows.length; i++) svg += `<line class="wp-rowline" x1="0" x2="${sc.width}" y1="${i * ROW_H - 0.5}" y2="${i * ROW_H - 0.5}"/>`;
-  for (const l of state.model.doc.links) {
+  for (const l of state.group === "none" ? state.model.doc.links : []) { // grouped, rows are out of link order
     const a = byId.get(l.from), b = byId.get(l.to);
     if (!a || !b) continue;
     svg += `<polyline class="wp-link" style="color:var(--ink3)" marker-end="url(#wp-arrow)" points="${linkPath(a, b, l.type).map((p) => p.join(",")).join(" ")}"/>`;
@@ -614,8 +619,18 @@ function shownRows() {
     if (state.filter === "critical") critical = new Set(criticalPath(schedule(state.model.doc, calendar())));
     keep = filterTasks(state.model.doc, state.filter, { critical, behind: new Set(state.behind.map((x) => x.id)), deadline: new Set(pastDeadline(state.model.doc, calendar().isWork).map((x) => x.id)) });
   } catch { keep = null; }
-  return keep ? rows.filter((r) => keep.has(r.id)) : rows;
+  const shown = keep ? rows.filter((r) => keep.has(r.id)) : rows;
+  if (state.group === "none") return shown;
+  let critical = new Set();
+  if (state.group === "critical") try { critical = new Set(criticalPath(schedule(state.model.doc, calendar()))); } catch { /* none */ }
+  // grouped, every task shows: collapsing applies to the headings instead
+  const all = keep ? state.model.tasks.map((t) => state.model.view(t.id)).filter((r) => keep.has(r.id)) : state.model.tasks.map((t) => state.model.view(t.id));
+  const grouped = groupRows(all, state.model.doc, state.group, { critical });
+  let hide = false;
+  return grouped.filter((r) => (r.group ? ((hide = state.collapsed.has(r.id)), true) : !hide));
 }
+/** The tasks' ids among the rows (group headings left out). */
+const taskIds = (rows) => rows.filter((r) => !r.group).map((r) => r.id);
 /** The Filter box: the fixed filters, then one per person. */
 function fillFilter() {
   const sel = $("wp-filter"), people = [...new Set(state.model.doc.tasks.flatMap((t) => assignmentsOf(t).map((a) => a.name)))].sort();
@@ -623,6 +638,9 @@ function fillFilter() {
   const html = FILTERS.map((f) => `<option value="${f.key}">${f.title}</option>`).join("") + (people.length ? `<optgroup label="Assigned to">${people.map((p) => `<option value="person:${esc(p)}">${esc(p)}</option>`).join("")}</optgroup>` : "");
   if (sel.dataset.html !== html) { sel.innerHTML = html; sel.dataset.html = html; }
   sel.value = state.filter;
+  const g = $("wp-group");
+  if (!g.options.length) g.innerHTML = GROUPS.map((x) => `<option value="${x.key}">${x.title}</option>`).join("");
+  g.value = state.group;
   $("wp-filter-on").hidden = state.filter === "all";
 }
 
@@ -668,6 +686,7 @@ function showTab(name) {
 }
 $("wp-ribbon").addEventListener("click", (e) => { const b = e.target.closest("[data-cmd]"); if (b && !b.disabled) commands[b.dataset.cmd](); });
 $("wp-zoom").addEventListener("change", (e) => { state.zoom = e.target.value; render(); });
+$("wp-group").addEventListener("change", (e) => { state.group = e.target.value; render(); });
 $("wp-filter").addEventListener("change", (e) => { state.filter = e.target.value; render(); });
 $("wp-cal").addEventListener("change", (e) => { state.cal = e.target.value; render(); });
 $("wp-critical").addEventListener("change", (e) => { state.showCritical = e.target.checked; render(); });
@@ -697,6 +716,7 @@ async function applyLicence() {
 $("wp-grid").addEventListener("click", (e) => {
   const tog = e.target.closest("[data-toggle]");
   if (tog) { const id = tog.dataset.toggle; state.collapsed.has(id) ? state.collapsed.delete(id) : state.collapsed.add(id); render(); return; }
+  if (e.target.closest("tr[data-group]")) return;
   const tr = e.target.closest("tr[data-id]");
   if (!tr || e.target.closest("input")) return;
   const id = tr.dataset.id;
@@ -709,7 +729,7 @@ $("wp-grid").addEventListener("click", (e) => {
   }
   if (e.ctrlKey || e.metaKey) state.sel = state.sel.includes(id) ? state.sel.filter((x) => x !== id) : [...state.sel, id];
   else if (e.shiftKey && state.sel.length) {
-    const rows = shownRows().map((r) => r.id), a = rows.indexOf(state.sel[0]), b = rows.indexOf(id);
+    const rows = taskIds(shownRows()), a = rows.indexOf(state.sel[0]), b = rows.indexOf(id);
     state.sel = rows.slice(Math.min(a, b), Math.max(a, b) + 1);
   } else state.sel = [id];
   state.note = ""; // a new selection: the status bar shows its baseline slip, not the last command's note
@@ -732,7 +752,7 @@ $("wp-grid").addEventListener("keydown", (e) => {
   else if (e.key === "F2" && first()) { e.preventDefault(); startEdit(first(), "name"); }
   else if (e.key === "ArrowDown" || e.key === "ArrowUp") {
     e.preventDefault();
-    const rows = shownRows().map((r) => r.id);
+    const rows = taskIds(shownRows());
     const i = Math.max(0, rows.indexOf(first())), j = Math.min(rows.length - 1, Math.max(0, i + (e.key === "ArrowDown" ? 1 : -1)));
     if (rows.length) { state.sel = [rows[j]]; render(); }
   } else if (e.key.length === 1 && !mod && first()) { startEdit(first(), "name"); const inp = $("wp-grid").querySelector("[data-edit-input]"); if (inp) inp.value = e.key; e.preventDefault(); }
