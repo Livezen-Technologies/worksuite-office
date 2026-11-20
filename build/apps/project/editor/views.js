@@ -242,3 +242,55 @@ export function timeline(doc, isWork = null, width = 1000, statusDate = null) {
   const sd = statusDate && toDay(statusDate) >= s && toDay(statusDate) <= f ? x(toDay(statusDate)) : null;
   return { start: fromDay(s), finish: fromDay(f), bars, milestones, ticks, width, height: msTop + 30 + Math.max(1, labelEnd.length) * 16, statusX: sd, laneTop: top, barH };
 }
+
+/* ---- groups ---- */
+
+export const GROUPS = [
+  { key: "none", title: "No group" },
+  { key: "phase", title: "Phase" },
+  { key: "person", title: "Person" },
+  { key: "status", title: "Status" },
+  { key: "priority", title: "Priority" },
+  { key: "critical", title: "Critical" },
+];
+
+/**
+ * The rows under group headings. Summaries give way to a heading per group (a row { id: "g:<key>", group: true,
+ * summary: true, name, count, start, finish, progress }); each task, at level 1, follows its heading. By "person" a task
+ * with two people is under both; "phase" is its top-level summary. ctx: { critical: Set }. "none" returns rows as they are.
+ */
+export function groupRows(rows, doc, by, ctx = {}) {
+  if (!by || by === "none") return rows;
+  const phaseOf = new Map();
+  let top = null;
+  for (const t of doc.tasks) { if (t.level === 0) top = t; phaseOf.set(t.id, top && top.id !== t.id ? top.name : "No phase"); }
+  const keysOf = {
+    phase: (r) => [phaseOf.get(r.id) || "No phase"],
+    person: (r) => { const a = assignmentsOf(r).map((x) => x.name); return a.length ? a : ["Unassigned"]; },
+    status: (r) => [BOARD_COLUMNS.find((c) => c.key === columnOf(r)).title],
+    priority: (r) => [String(r.priority ?? 500)],
+    critical: (r) => [ctx.critical && ctx.critical.has(r.id) ? "Critical" : "Not critical"],
+  }[by];
+  if (!keysOf) return rows;
+  const groups = new Map();
+  for (const r of rows) if (!r.summary) for (const k of keysOf(r)) { if (!groups.has(k)) groups.set(k, []); groups.get(k).push(r); }
+  let names = [...groups.keys()];
+  if (by === "priority") names.sort((a, b) => Number(b) - Number(a));
+  else if (by === "status") names.sort((a, b) => BOARD_COLUMNS.findIndex((c) => c.title === a) - BOARD_COLUMNS.findIndex((c) => c.title === b));
+  else if (by === "critical") names.sort((a) => (a === "Critical" ? -1 : 1));
+  else if (by === "person") names.sort((a, b) => (a === "Unassigned") - (b === "Unassigned") || a.localeCompare(b));
+  const out = [];
+  for (const k of names) {
+    const list = groups.get(k);
+    const days = list.reduce((s, r) => s + Math.max(r.duration, 0), 0);
+    out.push({
+      id: "g:" + k, group: true, summary: true, milestone: false, level: 0, count: list.length,
+      name: by === "priority" ? `Priority ${k}` : k,
+      start: list.reduce((m, r) => (r.start < m ? r.start : m), list[0].start),
+      finish: list.reduce((m, r) => (r.finish > m ? r.finish : m), list[0].finish),
+      progress: days ? Math.round(list.reduce((s, r) => s + Math.max(r.duration, 0) * (r.progress || 0), 0) / days) : 0,
+    });
+    for (const r of list) out.push({ ...r, level: 1 });
+  }
+  return out;
+}

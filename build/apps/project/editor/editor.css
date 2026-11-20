@@ -171,3 +171,5 @@ table.wp-table { border-collapse: collapse; width: 100%; table-layout: fixed; }
   .wp-sel-bar, .wp-hit, .wp-grip { display: none; }
   * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
+.is-group td.name { font-weight: 600; background: var(--panel, rgba(0,0,0,.03)); }
+.wp-group-n { font-weight: 400; color: var(--ink3); margin-inline-start: 8px; font-size: 12px; }
