@@ -48,3 +48,17 @@ test("a month: Monday-first weeks, tasks on the working days they run, milestone
   assert.deepEqual(day("2026-02-28").tasks.map((t) => t.name), ["Open"], "a milestone shows even on a Saturday");
   assert.ok(!day("2026-02-03").tasks.some((t) => t.name === "Maybe"));
 });
+
+test("the Network Diagram puts each task in the column after its longest chain of links", async () => {
+  const { network, NODE } = await import("../apps/project/editor/views.js");
+  const d = plan();
+  d.links = [{ from: "b", to: "c", type: "FS", lag: 0 }, { from: "c", to: "a", type: "FS", lag: 0 }, { from: "b", to: "a", type: "FS", lag: 0 }];
+  const n = network(d, STANDARD.isWork);
+  const col = (id) => (n.nodes.find((x) => x.id === id).x - 16) / (NODE.w + NODE.gapX);
+  assert.deepEqual(["b", "c", "a", "m"].map(col), [0, 1, 2, 0]);
+  assert.equal(n.nodes.find((x) => x.id === "x"), undefined, "inactive tasks are left out");
+  assert.equal(n.nodes.find((x) => x.id === "p"), undefined, "summaries too");
+  assert.equal(n.edges.length, 3);
+  assert.deepEqual(n.edges[0].points[0], [16 + NODE.w, 16 + NODE.h / 2], "a link leaves from the right of its box");
+  assert.equal(n.nodes.find((x) => x.id === "a").n, 2, "boxes keep the task's row number");
+});

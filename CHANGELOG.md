@@ -1,5 +1,16 @@
 # Change log
 
+## 10.1.60
+
+### New features
+
+#### Project
+
+* Network Diagram: View › Network Diagram draws a box for each task, with its
+  dates, duration, ID and people, in columns by the chain of links before it,
+  and the links as arrows. Tasks on the critical path and the links between
+  them are outlined in red; clicking a box selects the task.
+
 ## 10.1.59
 
 ### New features
