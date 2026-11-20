@@ -1,5 +1,16 @@
 # Change log
 
+## 10.1.63
+
+### New features
+
+#### Project
+
+* Timeline: View › Timeline shows the whole plan at a glance, its top-level
+  tasks as bars across the months (stacked where they overlap, with a progress
+  line) and its milestones as diamonds with their dates, plus the status date.
+  Clicking a bar or a diamond selects the task.
+
 ## 10.1.62
 
 ### New features

@@ -20,7 +20,7 @@ import { outlineToDoc } from "../core/outline.js";
 import { workOf, unitsOf, TASK_TYPES } from "../core/tasktypes.js";
 import { costs, resourceSheet, formatMoney } from "../core/costs.js";
 import { earnedValue } from "../core/earnedvalue.js";
-import { BOARD_COLUMNS, board, progressFor, month, network, NODE, usage, FILTERS, filterTasks } from "./views.js";
+import { BOARD_COLUMNS, board, progressFor, month, network, NODE, usage, FILTERS, filterTasks, timeline } from "./views.js";
 import { askText, askForm } from "../../common/dialog.js";
 import { describe as describeRecurring, patternError } from "../core/recurring.js";
 import { decorateRibbon, ribbonStyles } from "../../common/ribbon.js";
@@ -59,6 +59,7 @@ const state = {
   net: false, // the Network Diagram (stage 5)
   tuse: false, // Task Usage (stage 5)
   ruse: false, // Resource Usage (stage 5)
+  tl: false, // the Timeline (stage 5)
   cal: false, // the Calendar view, and the month it shows
   calMonth: null, // [year, month index]
   ev: false, // the earned value table in place of the Gantt chart (stage 5)
@@ -108,6 +109,7 @@ const commands = {
   clearFilter: () => { state.filter = "all"; render(); },
   viewTaskUsage: () => showView("tuse"),
   viewResUsage: () => showView("ruse"),
+  viewTimeline: () => showView("tl"),
   aiPlan: () => aiPlan(),
   save: () => { download(state.fileName, packDocument(APP, serialize(state.model.doc)), "application/zip"); state.saved = state.model.undoStack.length; render(); },
   exportCsv: () => download(state.fileName.replace(/\.wsproj$/, "") + ".csv", toCsv(), "text/csv"),
@@ -403,7 +405,7 @@ function renderChart(rows) {
 
 /** One view at a time in the right-hand pane (null: the Gantt chart). */
 function showView(name) {
-  for (const k of ["workload", "sheet", "ev", "board", "cal", "net", "tuse", "ruse"]) state[k] = k === name;
+  for (const k of ["workload", "sheet", "ev", "board", "cal", "net", "tuse", "ruse", "tl"]) state[k] = k === name;
   if (name === "cal" && !state.calMonth) {
     const d = new Date((first() ? state.model.task(first()).start : state.model.doc.start) + "T00:00:00Z");
     state.calMonth = [d.getUTCFullYear(), d.getUTCMonth()];
@@ -452,6 +454,25 @@ function renderNet() {
   $("wp-chart").innerHTML = svg + "</svg>";
 }
 
+/** The Timeline: the plan at a glance; phases as bars, milestones as diamonds, the status date as a line. */
+function renderTimeline() {
+  const w = Math.max(360, $("wp-chart").clientWidth - 24);
+  const t = timeline(state.model.doc, calendar().isWork, w, state.model.doc.statusDate || null), sel = new Set(state.sel);
+  if (!t.height) { $("wp-chart").innerHTML = `<p class="wp-empty">Add tasks to see the timeline.</p>`; return; }
+  let svg = `<svg class="wp-tl" width="${w}" height="${t.height}" xmlns="${NS}"><rect class="wp-tl-bg" x="0" y="0" width="${w}" height="${t.height}" rx="8"/>`;
+  for (const k of t.ticks) svg += `<line class="wp-tl-tick" x1="${k.x}" x2="${k.x}" y1="8" y2="${t.height - 8}"/><text class="wp-tl-month" x="${k.x + 4}" y="20">${k.label}</text>`;
+  for (const b of t.bars) {
+    const y = t.laneTop + b.lane * (t.barH + 6), clip = Math.max(0, Math.floor((b.w - 12) / 7));
+    svg += `<g class="wp-tl-bar ${sel.has(b.id) ? "is-sel" : ""}" data-card="${b.id}"><rect x="${b.x}" y="${y}" width="${b.w}" height="${t.barH}" rx="5"/>` +
+      `<rect class="done" x="${b.x}" y="${y + t.barH - 4}" width="${(b.w * b.progress) / 100}" height="4" rx="2"/>` +
+      `<text x="${b.x + 6}" y="${y + 13}">${esc(b.name.length > clip ? b.name.slice(0, Math.max(0, clip - 1)) + (clip > 1 ? "…" : "") : b.name)}</text>` +
+      `<text class="d" x="${b.x + 6}" y="${y + 25}">${b.w > 140 ? fmt(b.start) + " – " + fmt(b.finish) : ""}</text><title>${esc(b.name)}: ${fmt(b.start)} – ${fmt(b.finish)}</title></g>`;
+  }
+  for (const m of t.milestones) svg += `<g class="wp-tl-ms ${sel.has(m.id) ? "is-sel" : ""}" data-card="${m.id}"><line x1="${m.x}" x2="${m.x}" y1="${m.y}" y2="${m.labelY - 10}"/><path d="M${m.x},${m.y - 7} l7,7 l-7,7 l-7,-7z"/><text x="${m.anchor === "end" ? m.x - 4 : m.x + 4}" y="${m.labelY}" text-anchor="${m.anchor}">${esc(m.name)} · ${fmt(m.date)}</text><title>${esc(m.name)}</title></g>`;
+  if (t.statusX !== null) svg += `<line class="wp-tl-status" x1="${t.statusX}" x2="${t.statusX}" y1="8" y2="${t.height - 8}"><title>Status date</title></line>`;
+  $("wp-chart").innerHTML = svg + "</svg>";
+}
+
 /** The Calendar: a month of working days with the tasks that run on each. */
 function renderCal() {
   const [y, mo] = state.calMonth;
@@ -474,7 +495,7 @@ $("wp-chart").addEventListener("click", (e) => {
     render(); return;
   }
   const card = e.target.closest("[data-card]");
-  if (card && (state.board || state.cal || state.net || state.tuse || state.ruse)) { state.sel = [card.dataset.card]; render(); }
+  if (card && (state.board || state.cal || state.net || state.tuse || state.ruse || state.tl)) { state.sel = [card.dataset.card]; render(); }
 });
 
 /** Earned value at the status date: planned, earned and actual value per task, the indexes, and totals. */
@@ -623,9 +644,9 @@ function draw() {
   $("wp-type").value = firstTyped?.type || "fixedUnits";
   $("wp-effort").checked = !!firstTyped?.effortDriven;
   $("wp-type").disabled = $("wp-effort").disabled = state.readOnly || !firstTyped;
-  const view = state.tuse ? "viewTaskUsage" : state.ruse ? "viewResUsage" : state.net ? "viewNet" : state.board ? "viewBoard" : state.cal ? "viewCal" : state.ev ? "viewEv" : state.sheet ? "viewSheet" : state.workload ? "viewWorkload" : "viewGantt";
+  const view = state.tl ? "viewTimeline" : state.tuse ? "viewTaskUsage" : state.ruse ? "viewResUsage" : state.net ? "viewNet" : state.board ? "viewBoard" : state.cal ? "viewCal" : state.ev ? "viewEv" : state.sheet ? "viewSheet" : state.workload ? "viewWorkload" : "viewGantt";
   for (const b of document.querySelectorAll('[data-cmd^="view"]')) b.setAttribute("aria-pressed", String(b.dataset.cmd === view));
-  if (state.tuse) renderUsage("task"); else if (state.ruse) renderUsage("resource"); else if (state.net) renderNet(); else if (state.board) renderBoard(); else if (state.cal) renderCal(); else if (state.ev) renderEv(); else if (state.sheet) renderSheet(); else if (state.workload) renderWorkload(); else renderChart(rows);
+  if (state.tl) renderTimeline(); else if (state.tuse) renderUsage("task"); else if (state.ruse) renderUsage("resource"); else if (state.net) renderNet(); else if (state.board) renderBoard(); else if (state.cal) renderCal(); else if (state.ev) renderEv(); else if (state.sheet) renderSheet(); else if (state.workload) renderWorkload(); else renderChart(rows);
   $("wp-title").textContent = state.fileName.replace(/\.wsproj$/, "") + (state.model.undoStack.length !== (state.saved || 0) ? " •" : ""); // • unsaved changes
   $("wp-mode").hidden = !state.readOnly;
   $("wp-mode-text").textContent = reasonText(state.licence || "no_license");

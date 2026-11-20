@@ -201,3 +201,44 @@ export function filterTasks(doc, key, ctx = {}) {
   });
   return keep;
 }
+
+/* ---- the Timeline ---- */
+
+/**
+ * The Timeline: the project from its first start to its last finish across `width` pixels, with its top-level tasks as
+ * bars (in lanes, so bars that overlap stack) and its milestones as diamonds beneath (labels in lanes so they do not
+ * collide), month ticks along the top and the status date. Inactive tasks are left out.
+ */
+export function timeline(doc, isWork = null, width = 1000, statusDate = null) {
+  const live = doc.tasks.filter((t) => !t.inactive);
+  if (!live.length) return { bars: [], milestones: [], ticks: [], width, height: 0 };
+  const s = Math.min(...live.map((t) => toDay(t.start))), f = Math.max(...live.map((t) => toDay(finishOf(t, isWork))));
+  const pad = 16, span = Math.max(1, f - s + 1), px = (width - 2 * pad) / span;
+  const x = (d) => pad + (d - s) * px;
+  const lanesEnd = [], bars = [];
+  for (const t of live.filter((t) => t.level === 0 && t.duration > 0)) {
+    const a = toDay(t.start), b = toDay(finishOf(t, isWork)) + 1;
+    let lane = lanesEnd.findIndex((e) => e <= a);
+    if (lane < 0) { lane = lanesEnd.length; lanesEnd.push(0); }
+    lanesEnd[lane] = b;
+    bars.push({ id: t.id, name: t.name, start: t.start, finish: finishOf(t, isWork), x: x(a), w: Math.max(4, (b - a) * px), lane, progress: t.progress || 0 });
+  }
+  const top = 34, barH = 30, msTop = top + Math.max(1, lanesEnd.length) * (barH + 6) + 14;
+  const labelEnd = [], milestones = [];
+  for (const t of live.filter((t) => t.duration === 0).sort((p, q) => p.start.localeCompare(q.start))) {
+    const mx = x(toDay(t.start)), w = 8 + (t.name.length + 15) * 6.2; // "name · Mon 2 Feb"
+    const end = mx + w > width - 4; // near the right edge the label runs leftwards
+    const from = end ? mx - w : mx;
+    let lane = labelEnd.findIndex((e) => e <= from - 6);
+    if (lane < 0) { lane = labelEnd.length; labelEnd.push(0); }
+    labelEnd[lane] = from + w;
+    milestones.push({ id: t.id, name: t.name, date: t.start, x: mx, y: msTop, labelY: msTop + 22 + lane * 16, anchor: end ? "end" : "start" });
+  }
+  const ticks = [];
+  for (let d = new Date(s * 86400000); toDay(d.toISOString().slice(0, 10)) <= f; d = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1))) {
+    const day = Math.max(s, toDay(d.toISOString().slice(0, 10)));
+    ticks.push({ x: x(day), label: d.toLocaleDateString("en", { month: "short", year: "numeric", timeZone: "UTC" }) });
+  }
+  const sd = statusDate && toDay(statusDate) >= s && toDay(statusDate) <= f ? x(toDay(statusDate)) : null;
+  return { start: fromDay(s), finish: fromDay(f), bars, milestones, ticks, width, height: msTop + 30 + Math.max(1, labelEnd.length) * 16, statusX: sd, laneTop: top, barH };
+}
