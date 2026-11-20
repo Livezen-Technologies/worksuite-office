@@ -1,5 +1,16 @@
 # Change log
 
+## 10.1.62
+
+### New features
+
+#### Project
+
+* Filters: View › Filter shows only incomplete, completed, critical, late or
+  active tasks, milestones, tasks past their deadline, or the tasks one person
+  is assigned to. The summaries above each task stay, so the outline still
+  reads; Clear filter shows every task again.
+
 ## 10.1.61
 
 ### New features

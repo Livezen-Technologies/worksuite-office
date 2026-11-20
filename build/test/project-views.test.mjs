@@ -82,3 +82,20 @@ test("usage: hours per week by person (with their tasks) and by task (with its p
   const t = usage(d, STANDARD.isWork, "task");
   assert.deepEqual(t.rows.map((x) => [x.name, x.total, x.children.map((c) => c.name).join("+")]), [["Wiring", 24, "Ravi"], ["Cameras", 24, "Ravi+Nimal"]]);
 });
+
+test("filterTasks: matching tasks and the summaries above them; people; all is no filter", async () => {
+  const { filterTasks } = await import("../apps/project/editor/views.js");
+  const d = newProject("P", "2026-02-02");
+  d.tasks = [
+    { id: "s", name: "Phase", level: 0, start: "2026-02-02", duration: 5, progress: 50 },
+    { id: "a", name: "Done", level: 1, start: "2026-02-02", duration: 2, progress: 100, owner: "Ravi" },
+    { id: "b", name: "Open", level: 1, start: "2026-02-04", duration: 3, progress: 0, owner: "Nimal" },
+    { id: "m", name: "Go", level: 0, start: "2026-02-09", duration: 0, progress: 0 },
+  ];
+  assert.equal(filterTasks(d, "all"), null);
+  assert.deepEqual([...filterTasks(d, "completed")], ["a", "s"]);
+  assert.deepEqual([...filterTasks(d, "incomplete")].sort(), ["b", "m", "s"]);
+  assert.deepEqual([...filterTasks(d, "milestones")], ["m"]);
+  assert.deepEqual([...filterTasks(d, "critical", { critical: new Set(["b"]) })], ["b", "s"]);
+  assert.deepEqual([...filterTasks(d, "person:Nimal")], ["b", "s"]);
+});
