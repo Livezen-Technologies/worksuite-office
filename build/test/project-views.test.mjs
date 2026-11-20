@@ -62,3 +62,23 @@ test("the Network Diagram puts each task in the column after its longest chain o
   assert.deepEqual(n.edges[0].points[0], [16 + NODE.w, 16 + NODE.h / 2], "a link leaves from the right of its box");
   assert.equal(n.nodes.find((x) => x.id === "a").n, 2, "boxes keep the task's row number");
 });
+
+test("usage: hours per week by person (with their tasks) and by task (with its people); over-allocated weeks flagged", async () => {
+  const { usage } = await import("../apps/project/editor/views.js");
+  const d = newProject("P", "2026-02-02");
+  d.tasks = [
+    { id: "a", name: "Wiring", level: 0, start: "2026-02-05", duration: 3, progress: 0, owner: "Ravi" }, // Thu Fri | Mon: 16h + 8h
+    { id: "b", name: "Cameras", level: 0, start: "2026-02-05", duration: 2, progress: 0, owner: "Ravi 50%, Nimal" }, // 8h Ravi, 16h Nimal
+    { id: "x", name: "Maybe", level: 0, start: "2026-02-05", duration: 2, progress: 0, owner: "Ravi", inactive: true },
+  ];
+  const r = usage(d, STANDARD.isWork, "resource");
+  assert.deepEqual(r.weeks, ["2026-02-02", "2026-02-09"]);
+  const ravi = r.rows.find((x) => x.name === "Ravi");
+  assert.equal(ravi.total, 32);
+  assert.deepEqual([...ravi.weeks], [["2026-02-02", 24], ["2026-02-09", 8]]);
+  assert.deepEqual([...ravi.over], ["2026-02-02"], "12 hours on Thursday and Friday");
+  assert.deepEqual(ravi.children.map((c) => [c.name, c.total]), [["Wiring", 24], ["Cameras", 8]]);
+  assert.equal(r.rows.find((x) => x.name === "Nimal").over.size, 0);
+  const t = usage(d, STANDARD.isWork, "task");
+  assert.deepEqual(t.rows.map((x) => [x.name, x.total, x.children.map((c) => c.name).join("+")]), [["Wiring", 24, "Ravi"], ["Cameras", 24, "Ravi+Nimal"]]);
+});
