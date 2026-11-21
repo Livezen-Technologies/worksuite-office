@@ -1,5 +1,16 @@
 # Change log
 
+## 10.1.67
+
+### New features
+
+#### Project
+
+* Custom fields in Project XML: custom fields are written as Microsoft
+  Project's Text, Number, Date and Flag fields (Text1, Text2, … in order),
+  named by their alias, with each task's values; reading a Project XML file
+  brings its Text, Number, Date and Flag fields in as custom fields.
+
 ## 10.1.66
 
 ### New features

@@ -66,6 +66,17 @@ const kids = (el, name) => el.children.filter((c) => local(c.name) === name);
 const kid = (el, name) => kids(el, name)[0];
 const val = (el, name) => { const k = el && kid(el, name); return k ? k.text.trim() : ""; };
 
+/* ---- custom fields ↔ Microsoft Project's Text, Number, Date and Flag fields (the PjField task constants) ---- */
+const seq = (from, n) => Array.from({ length: n }, (_, i) => from + i);
+export const FIELD_IDS = {
+  text: [188743731, 188743734, 188743737, 188743740, 188743743, ...seq(188743746, 1), ...seq(188743747, 4), ...seq(188743997, 20)], // Text1-30
+  number: [...seq(188743767, 5), ...seq(188743982, 15)], // Number1-20
+  date: seq(188743945, 10), // Date1-10
+  flag: [...seq(188743752, 10), ...seq(188743972, 10)], // Flag1-20
+};
+const FIELD_LABEL = { text: "Text", number: "Number", date: "Date", flag: "Flag" };
+const typeOfFieldId = (id) => Object.keys(FIELD_IDS).find((k) => FIELD_IDS[k].includes(id));
+
 /* ---- durations: PT24H0M0S (hours of work) ↔ working days at 8 hours ---- */
 export function durationDays(iso) {
   const m = /^P(?:(\d+(?:\.\d+)?)D)?T?(?:(\d+(?:\.\d+)?)H)?(?:(\d+(?:\.\d+)?)M)?(?:(\d+(?:\.\d+)?)S)?$/.exec(iso || "");
@@ -96,6 +107,16 @@ export function fromProjectXml(text) {
   const start = (val(top, "StartDate") || "").slice(0, 10) || new Date().toISOString().slice(0, 10);
   const doc = newProject(name, start);
   if (/^\d{4}-\d{2}-\d{2}/.test(val(top, "StatusDate"))) doc.statusDate = val(top, "StatusDate").slice(0, 10);
+  // custom fields: the project's ExtendedAttribute definitions, by FieldID, named by their alias
+  const fieldById = new Map();
+  const extEl = kid(top, "ExtendedAttributes");
+  for (const e of extEl ? kids(extEl, "ExtendedAttribute") : []) {
+    const id = Number(val(e, "FieldID")), type = typeOfFieldId(id);
+    if (!type || fieldById.has(id)) continue;
+    const f = { key: "f" + (fieldById.size + 1), name: val(e, "Alias") || val(e, "FieldName") || FIELD_LABEL[type] + (FIELD_IDS[type].indexOf(id) + 1), type };
+    fieldById.set(id, f);
+  }
+  if (fieldById.size) doc.fields = [...fieldById.values()];
   const tasksEl = kid(top, "Tasks");
   const taskEls = tasksEl ? kids(tasksEl, "Task") : [];
   const byUid = new Map();
@@ -160,6 +181,14 @@ export function fromProjectXml(text) {
     if (val(t, "ActualFinish") && task.actualStart) task.actualFinish = val(t, "ActualFinish").slice(0, 10);
     const con = CON_IN[val(t, "ConstraintType")];
     if (con && val(t, "ConstraintDate")) task.constraint = { type: con, date: val(t, "ConstraintDate").slice(0, 10) };
+    for (const e of kids(t, "ExtendedAttribute")) {
+      const f = fieldById.get(Number(val(e, "FieldID"))), raw = val(e, "Value");
+      if (!f || raw === "") continue;
+      const v = f.type === "number" ? Number(raw) : f.type === "flag" ? raw === "1" || /^true$/i.test(raw) : f.type === "date" ? raw.slice(0, 10) : raw;
+      if (f.type === "flag" && !v) continue;
+      if ((f.type === "number" && !Number.isFinite(v)) || (f.type === "date" && !/^\d{4}-\d{2}-\d{2}$/.test(v))) { problems.push(`task "${task.name}": ${f.name} "${raw}" was left out`); continue; }
+      task.custom = { ...(task.custom || {}), [f.key]: v };
+    }
     byUid.set(uid, task);
     doc.tasks.push(task);
   }
@@ -192,6 +221,14 @@ export function toProjectXml(doc, isWork = null) {
   const uid = new Map(doc.tasks.map((t, i) => [t.id, i + 1]));
   const resources = [...new Set([...doc.tasks.flatMap((t) => assignmentsOf(t).map((a) => a.name)), ...(doc.resources || []).map((r) => r.name)])];
   const rid = new Map(resources.map((r, i) => [r, i + 1]));
+  // custom fields take Microsoft Project's fields of their type in order (Text1, Text2, …); any past the last are left out
+  const slot = { text: 0, number: 0, date: 0, flag: 0 };
+  const outFields = (doc.fields || []).map((f) => ({ ...f, id: FIELD_IDS[f.type][slot[f.type]], n: ++slot[f.type] })).filter((f) => f.id);
+  const extXml = outFields.map((f) => `<ExtendedAttribute><FieldID>${f.id}</FieldID><FieldName>${FIELD_LABEL[f.type]}${f.n}</FieldName>${el("Alias", f.name)}</ExtendedAttribute>`).join("\n    ");
+  const custom = (t) => outFields.filter((f) => t.custom?.[f.key] !== undefined).map((f) => {
+    const v = t.custom[f.key];
+    return `<ExtendedAttribute><FieldID>${f.id}</FieldID>${el("Value", f.type === "flag" ? (v ? 1 : 0) : f.type === "date" ? `${v}T08:00:00` : v)}</ExtendedAttribute>`;
+  }).join("");
   const tasks = doc.tasks.map((t, i) => {
     const v = m.view(t.id);
     const links = doc.links.filter((l) => l.to === t.id).map((l) =>
@@ -206,7 +243,7 @@ export function toProjectXml(doc, isWork = null) {
       `<Milestone>${v.milestone ? 1 : 0}</Milestone><Summary>${v.summary ? 1 : 0}</Summary><PercentComplete>${v.progress}</PercentComplete>` +
       (t.actualStart ? `<ActualStart>${t.actualStart}T08:00:00</ActualStart>` : "") +
       (t.deadline ? `<Deadline>${t.deadline}T17:00:00</Deadline>` : "") + (t.inactive ? "<Active>0</Active>" : "") + (t.actualFinish ? `<ActualFinish>${t.actualFinish}T17:00:00</ActualFinish>` : "") +
-      `${con}${el("Notes", t.notes)}${links}</Task>`;
+      `${con}${el("Notes", t.notes)}${links}${custom(t)}</Task>`;
   }).join("\n    ");
   const sheet = new Map((doc.resources || []).map((r) => [r.name, r]));
   const resXml = resources.map((r) => {
@@ -225,7 +262,7 @@ export function toProjectXml(doc, isWork = null) {
   <StartDate>${doc.start}T08:00:00</StartDate>${doc.statusDate ? `\n  <StatusDate>${doc.statusDate}T17:00:00</StatusDate>` : ""}
   <MinutesPerDay>${HOURS_PER_DAY * 60}</MinutesPerDay>
   <MinutesPerWeek>${HOURS_PER_DAY * 60 * 5}</MinutesPerWeek>
-  <DaysPerMonth>20</DaysPerMonth>
+  <DaysPerMonth>20</DaysPerMonth>${extXml ? `\n  <ExtendedAttributes>\n    ${extXml}\n  </ExtendedAttributes>` : ""}
   <Tasks>
     ${tasks}
   </Tasks>
