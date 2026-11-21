@@ -138,3 +138,28 @@ test("groupRows: headings with their tasks; a task with two people is under both
   assert.deepEqual(groupRows(rows, d, "phase").filter((r) => r.group).map((r) => r.name), ["Phase A", "No phase"]);
   assert.equal(groupRows(rows, d, "status").find((r) => r.name === "Done").progress, 100);
 });
+
+test("overview: completion by duration, finish against the baseline, next milestones, people by work", async () => {
+  const { overview } = await import("../apps/project/editor/views.js");
+  const { ProjectModel } = await import("../apps/project/core/project.js");
+  const d = newProject("P", "2026-02-02");
+  d.tasks = [
+    { id: "s", name: "Phase", level: 0, start: "2026-02-02", duration: 6, progress: 0 },
+    { id: "a", name: "A", level: 1, start: "2026-02-02", duration: 2, progress: 100, owner: "Ravi" },
+    { id: "b", name: "B", level: 1, start: "2026-02-04", duration: 4, progress: 25, owner: "Nimal" },
+    { id: "m", name: "Gate", level: 0, start: "2026-02-10", duration: 0, progress: 0 },
+    { id: "x", name: "Maybe", level: 0, start: "2026-02-02", duration: 9, progress: 0, inactive: true },
+  ];
+  const m = new ProjectModel(d);
+  m.isWork = STANDARD.isWork;
+  m.saveBaseline("Baseline", "2026-02-01");
+  m.set("b", { duration: 6 });
+  const o = overview(m.doc, { isWork: STANDARD.isWork, from: "2026-02-05" });
+  assert.deepEqual([o.tasks, o.done, o.doing, o.todo], [3, 1, 1, 1]);
+  assert.equal(o.percent, Math.round((2 * 100 + 6 * 25) / 8));
+  assert.equal(o.finish, "2026-02-11");
+  assert.equal(o.baselineFinish, "2026-02-10");
+  assert.equal(o.slipDays, 1);
+  assert.deepEqual(o.milestones.map((x) => x.name), ["Gate"]);
+  assert.deepEqual(o.people.map((p) => p.name), ["Nimal", "Ravi"]);
+});

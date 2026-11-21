@@ -4,6 +4,7 @@
  */
 import { toDay, fromDay, finishOf } from "../core/project.js";
 import { assignmentsOf } from "../core/resources.js";
+import { costs, resourceSheet } from "../core/costs.js";
 
 export const BOARD_COLUMNS = [
   { key: "todo", title: "Not started" },
@@ -293,4 +294,36 @@ export function groupRows(rows, doc, by, ctx = {}) {
     for (const r of list) out.push({ ...r, level: 1 });
   }
   return out;
+}
+
+/* ---- the Project Overview report ---- */
+
+/**
+ * The Project Overview: the headline figures of the plan. Summaries and inactive tasks are not counted.
+ * { tasks, done, doing, todo, percent (by duration), start, finish, baselineFinish, slipDays (working-day-blind,
+ *   calendar days late against the baseline), cost, baselineCost, milestones: the next 5 not done from `from`,
+ *   people: [{ name, work, cost, tasks }] by work }.
+ */
+export function overview(doc, { isWork = null, from = null } = {}) {
+  const leaves = doc.tasks.filter((t, i) => !t.inactive && !(i + 1 < doc.tasks.length && doc.tasks[i + 1].level > t.level));
+  const work = leaves.filter((t) => t.duration > 0);
+  const count = (col) => leaves.filter((t) => columnOf(t) === col).length;
+  const days = work.reduce((s, t) => s + t.duration, 0);
+  const live = doc.tasks.filter((t) => !t.inactive);
+  const start = live.length ? live.reduce((m, t) => (t.start < m ? t.start : m), live[0].start) : doc.start;
+  const finish = live.length ? live.reduce((m, t) => { const f = finishOf(t, isWork); return f > m ? f : m; }, start) : doc.start;
+  const b = (doc.baselines || []).find((x) => x.name === "Baseline");
+  const bt = b ? live.map((t) => b.tasks[t.id]).filter(Boolean) : []; // inactive tasks count neither now nor then
+  const baselineFinish = bt.length ? bt.reduce((m, t) => (t.finish > m ? t.finish : m), bt[0].finish) : null;
+  const c = costs(doc);
+  const baselineCost = bt.some((t) => t.cost !== undefined) ? Math.round(leaves.reduce((s, t) => s + (b.tasks[t.id]?.cost || 0), 0) * 100) / 100 : null;
+  const milestones = leaves.filter((t) => t.duration === 0 && (t.progress || 0) < 100 && (!from || t.start >= from))
+    .sort((p, q) => p.start.localeCompare(q.start)).slice(0, 5).map((t) => ({ id: t.id, name: t.name, date: t.start, deadline: t.deadline }));
+  return {
+    tasks: leaves.length, done: count("done"), doing: count("doing"), todo: count("todo"),
+    percent: days ? Math.round(work.reduce((s, t) => s + t.duration * (t.progress || 0), 0) / days) : leaves.length && leaves.every((t) => t.progress >= 100) ? 100 : 0,
+    start, finish, baselineFinish, slipDays: baselineFinish ? toDay(finish) - toDay(baselineFinish) : null,
+    cost: c.total, baselineCost, milestones,
+    people: resourceSheet(doc).filter((p) => p.tasks).sort((p, q) => q.work - p.work || p.name.localeCompare(q.name)).map((p) => ({ name: p.name, work: p.work, cost: p.cost, tasks: p.tasks })),
+  };
 }
