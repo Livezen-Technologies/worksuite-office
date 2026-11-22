@@ -237,3 +237,23 @@ table.wp-table { border-collapse: collapse; width: 100%; table-layout: fixed; }
 .wp-table td.custom.is-formula { color: var(--ink2, var(--ink)); background: color-mix(in srgb, var(--accent, #2f6fde) 4%, transparent); }
 .wp-table td.custom.is-error { color: var(--today); }
 .wp-ind { font-size: 12px; }
+:root { --series-1: #2a78d6; --series-2: #eb6834; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --series-1: #3987e5; --series-2: #d95926; } }
+:root[data-theme="dark"] { --series-1: #3987e5; --series-2: #d95926; }
+.wp-burn { display: block; margin: 4px 0 8px; }
+.wp-burn .grid { stroke: var(--line); stroke-width: 1; }
+.wp-burn .ax { font-size: 11px; fill: var(--ink3); }
+.wp-burn .lab { font-size: 12px; fill: var(--ink2); }
+.wp-burn polyline { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.wp-burn polyline.s1 { stroke: var(--series-1); }
+.wp-burn polyline.s2 { stroke: var(--series-2); stroke-dasharray: 6 4; }
+.wp-burn .now { stroke: var(--ink3); stroke-dasharray: 3 3; }
+.wp-burn .act { fill: var(--ink); stroke: var(--card); stroke-width: 2; }
+.wp-burn .hit { fill: transparent; }
+.wp-burn .hit:hover { fill: color-mix(in srgb, var(--ink) 5%, transparent); }
+.wp-legend { display: flex; gap: 16px; font-size: 12px; color: var(--ink2); }
+.wp-legend i { display: inline-block; width: 14px; height: 3px; border-radius: 2px; vertical-align: middle; margin-inline-end: 6px; }
+.wp-legend i.s1 { background: var(--series-1); }
+.wp-legend i.s2 { background: repeating-linear-gradient(90deg, var(--series-2) 0 5px, transparent 5px 8px); }
+.wp-legend i.act { width: 9px; height: 9px; border-radius: 50%; background: var(--ink); }
+.wp-burn-table { font-size: 12px; color: var(--ink2); }

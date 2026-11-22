@@ -5,6 +5,7 @@
 import { toDay, fromDay, finishOf, workDays, snapshotOf } from "../core/project.js";
 import { assignmentsOf, maxUnitsOf, workload } from "../core/resources.js";
 import { costs, resourceSheet } from "../core/costs.js";
+import { workOf, unitsOf } from "../core/tasktypes.js";
 
 export const BOARD_COLUMNS = [
   { key: "todo", title: "Not started" },
@@ -364,3 +365,43 @@ export function teamPlanner(doc, isWork = null) {
   const named = [...lanes.values()].filter((l) => l.name).sort((a, b) => a.name.localeCompare(b.name));
   return { start: fromDay(s0), finish: fromDay(f0), days: f0 - s0 + 1, lanes: lanes.has("") ? [...named, lanes.get("")] : named };
 }
+
+/* ---- the Burndown report ---- */
+
+/**
+ * Burndown: the work (hours) left at the end of each week if the plan runs as scheduled, the same for a baseline, and
+ * the work actually left at the status date (by % complete). Each task's work is spread evenly over its working days.
+ * Returns { total, weeks: [{ date, planned, baseline (or null) }] (the first day, then each Sunday), actual: { date, remaining } | null }.
+ */
+export function burndown(doc, { isWork = null, baseline = "Baseline", statusDate = doc.statusDate || null } = {}) {
+  const leaves = doc.tasks.filter((t, i) => !t.inactive && t.duration > 0 && !(i + 1 < doc.tasks.length && doc.tasks[i + 1].level > t.level));
+  const hours = (t) => (unitsOf(t) > 0 ? workOf(t) : 0);
+  const total = leaves.reduce((s, t) => s + hours(t), 0);
+  if (!(total > 0)) return { total: 0, weeks: [], actual: null };
+  const b = snapshotOf(doc, baseline);
+  const planned = new Map(), based = new Map();
+  const spread = (map, days, h) => { if (!days.length) return; for (const d of days) map.set(d, (map.get(d) || 0) + h / days.length); };
+  let baseTotal = 0;
+  for (const t of leaves) {
+    spread(planned, workDays(t, isWork), hours(t));
+    const bt = b?.tasks[t.id];
+    if (bt) {
+      const bh = bt.work ?? hours(t), days = [];
+      for (let d = toDay(bt.start); d <= toDay(bt.finish); d++) if (!isWork || isWork(d)) days.push(d);
+      spread(based, days, bh); baseTotal += bh;
+    }
+  }
+  const all = [...planned.keys(), ...based.keys()];
+  const first = Math.min(...all), last = Math.max(...all);
+  const sunday = (d) => d + ((7 - new Date(d * 86400000).getUTCDay()) % 7);
+  const weeks = [{ date: fromDay(first), planned: round2(total), baseline: b ? round2(baseTotal) : null }]; // the start: nothing done yet
+  let doneP = 0, doneB = 0, d = first;
+  for (let end = sunday(first); ; end += 7) {
+    for (; d <= end; d++) { doneP += planned.get(d) || 0; doneB += based.get(d) || 0; }
+    weeks.push({ date: fromDay(end), planned: round2(Math.max(0, total - doneP)), baseline: b ? round2(Math.max(0, baseTotal - doneB)) : null });
+    if (end >= last) break;
+  }
+  const done = leaves.reduce((s, t) => s + (hours(t) * (t.progress || 0)) / 100, 0);
+  return { total: round2(total), weeks, actual: statusDate ? { date: statusDate, remaining: round2(total - done) } : null };
+}
+const round2 = (n) => Math.round(n * 100) / 100;
