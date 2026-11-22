@@ -15,6 +15,7 @@ import { parseTable, readTable, addTable } from "../core/fromtable.js";
 import { askText, askForm } from "../../common/dialog.js";
 import { laneMembers, lanePath, LANE_HEADER } from "../core/swimlane.js";
 import { parseDataValue, formatDataValue } from "../core/shapedata.js";
+import { graphicFor, graphicsError, dataLabels } from "../core/datagraphics.js";
 import { decorateRibbon, ribbonStyles } from "../../common/ribbon.js";
 import { aiDraft } from "../../common/aidraft.js";
 import { DiagramModel, newDiagram, parse, serialize, connectionPoints, pointOn, APP } from "../core/diagram.js";
@@ -83,6 +84,32 @@ const commands = {
     const size = Math.max(90, Math.floor(((v.orientation === "v" ? p.width : p.height) - 80) / names.length));
     run(() => { state.sel = state.model.addLanes(names, { orientation: v.orientation, x: 40, y: 40, length, size }, state.pageId); });
   },
+  dataGraphics: async () => {
+    if (state.readOnly) return;
+    const labels = dataLabels(page()), g = page().graphics || {};
+    if (!labels.length) { state.message = "Give some shapes shape data first (select a shape, then + Data in the panel)"; render(); return; }
+    const pick = [["", "(none)"], ...labels.map((l) => [l, l])];
+    const v = await askForm({
+      title: "Data graphics", ok: "Apply",
+      hint: "Show this page's shapes by their shape data. Rules: an icon name, then if, a comparison and a value, separated by semicolons; the first that holds wins. Icons: red, yellow, green, blue, flag, check, warn, cross, star.",
+      fields: [
+        { key: "field", label: "Colour by", type: "select", value: g.field || defaultField(labels), options: pick },
+        { key: "rules", label: "Rules", value: g.rules || 'red if = "Late"; yellow if = "At risk"; green' },
+        { key: "show", label: "Show as", type: "select", value: g.icon && g.fill === false ? "icon" : g.icon ? "both" : "fill", options: [["fill", "Fill colour"], ["icon", "Icon"], ["both", "Fill colour and icon"]] },
+        { key: "bar", label: "Data bar", type: "select", value: g.bar?.field || "", options: pick, hint: "optional: a bar under each shape with a number in this field" },
+        { key: "max", label: "Bar full at", type: "number", min: 0, value: g.bar?.max ?? 100 },
+      ],
+      check: (x) => graphicsError(build(x)),
+    });
+    if (v) run(() => state.model.setGraphics(build(v), state.pageId));
+    function build(x) {
+      const out = {};
+      if (x.field) Object.assign(out, { field: x.field, rules: x.rules.trim(), fill: x.show !== "icon", icon: x.show !== "fill" });
+      if (x.bar) out.bar = { field: x.bar, max: Number(x.max) };
+      return Object.keys(out).length ? out : null;
+    }
+  },
+  clearGraphics: () => run(() => state.model.setGraphics(null, state.pageId)),
   addLane: async () => {
     const lane = state.sel.map(byId).find((i) => i?.type === "lane");
     if (!lane) { state.message = "Select a lane: the new one goes at the end of its set"; render(); return; }
@@ -225,6 +252,11 @@ function textLines(text, x, cx, cy, size = 13) {
   const top = cy - ((lines.length - 1) * size * 1.25) / 2 + size * 0.35;
   return lines.map((l, i) => `<tspan x="${cx}" y="${top + i * size * 1.25}">${esc(l)}</tspan>`).join("");
 }
+/** The field data graphics colour by at first: one named like Status, else the first whose values are text. */
+function defaultField(labels) {
+  const textual = labels.filter((l) => page().items.some((i) => (i.data || []).some((d) => d.label === l && typeof d.value === "string" && d.value)));
+  return labels.find((l) => /status|state|stage/i.test(l)) || textual[0] || labels[0];
+}
 function laneSvg(s) {
   const v = s.lane?.orientation === "v", fill = s.style?.fill || "#ffffff", line = s.style?.line || "#64748b", head = s.style?.headerFill || "#e2e8f0";
   const lw = s.style?.lineWidth ?? 1.25, H = LANE_HEADER, size = s.style?.fontSize || 13;
@@ -236,13 +268,16 @@ function laneSvg(s) {
 }
 function shapeSvg(s) {
   if (s.type === "lane") return laneSvg(s);
-  const fill = s.style?.fill || FILLS[s.type] || "#dbeafe", line = s.style?.line || LINES[s.type] || "#2563eb";
+  const gfx = graphicFor(s, page().graphics);
+  const fill = gfx.fill || s.style?.fill || FILLS[s.type] || "#dbeafe", line = s.style?.line || LINES[s.type] || "#2563eb";
   const lw = s.style?.lineWidth ?? 1.5;
   const tf = `translate(${s.x} ${s.y})${s.rotate ? ` rotate(${s.rotate} ${s.w / 2} ${s.h / 2})` : ""}`;
   const shown = s.style?.showData && s.data?.length ? `<text class="shape-data" text-anchor="middle" style="font-size:10px">${s.data.map((d, i) => `<tspan x="${s.w / 2}" y="${s.h + 12 + i * 12}">${esc(d.label)}: ${esc(formatDataValue(d.value))}</tspan>`).join("")}</text>` : "";
   const tip = s.data?.length ? `<title>${esc([s.text, ...s.data.map((d) => `${d.label}: ${formatDataValue(d.value)}`)].filter(Boolean).join("\n"))}</title>` : "";
   return `<g data-id="${s.id}" transform="${tf}">${tip}<path class="shape-body" d="${shapePath(s.type, s.w, s.h, s.path)}" fill="${fill}" stroke="${line}" stroke-width="${lw}"/>` +
-    `<text class="shape-text" text-anchor="middle" style="font-size:${s.style?.fontSize || 13}px">${textLines(s.text, 0, s.w / 2, s.h / 2, s.style?.fontSize || 13)}</text>${shown}</g>`;
+    `<text class="shape-text" text-anchor="middle" style="font-size:${s.style?.fontSize || 13}px">${textLines(s.text, 0, s.w / 2, s.h / 2, s.style?.fontSize || 13)}</text>${shown}` +
+    (gfx.icon ? `<text class="data-icon" x="${s.w - 4}" y="14" text-anchor="end" style="font-size:13px">${gfx.icon}</text>` : "") +
+    (gfx.bar !== undefined ? `<rect class="data-bar-bg" x="6" y="${s.h - 9}" width="${s.w - 12}" height="5" rx="2.5" fill="#e5e7eb"/><rect class="data-bar" x="6" y="${s.h - 9}" width="${(s.w - 12) * gfx.bar}" height="5" rx="2.5" fill="#2a78d6"><title>${esc(gfx.barLabel)}</title></rect>` : "") + `</g>`;
 }
 function connectorSvg(c, interactive) {
   const pts = connectorPoints(c), selected = interactive && state.sel.includes(c.id);

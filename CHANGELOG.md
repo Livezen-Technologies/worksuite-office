@@ -1,5 +1,18 @@
 # Change log
 
+## 10.1.85
+
+### New features
+
+#### Diagram
+
+* Data graphics: Insert › Data Graphics shows a page's shapes by their shape
+  data. Rules in the words of Project's indicators, such as red if = "Late";
+  green, colour the shapes by one field, put a matching icon in their corner,
+  or both; a data bar under each shape shows a number field against a full
+  value. Shapes without the field keep their look. Remove graphics takes them
+  off. They are saved with the page and drawn in SVG and PNG exports.
+
 ## 10.1.84
 
 ### New features
