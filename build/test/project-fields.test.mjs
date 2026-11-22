@@ -234,3 +234,25 @@ test("interim plans: dates only, up to ten, compared like a baseline, kept apart
   assert.equal(m.doc.interims.length, 9);
   assert.throws(() => m.edit((d) => { d.baselines = [{ name: "Interim 2", saved: "2026-02-01", tasks: {} }]; }), /also a baseline's name/);
 });
+
+test("Project XML: interim plans as Start n / Finish n and task calendars as base calendars, out and back", async () => {
+  const { toProjectXml, fromProjectXml } = await import("../apps/project/core/projectxml.js");
+  const m = new ProjectModel(newProject("P", "2026-02-02"));
+  m.addTask({ name: "Pour", level: 0, start: "2026-02-02", duration: 3, progress: 0 });
+  m.addTask({ name: "Cure", level: 0, start: "2026-02-05", duration: 4, progress: 0, calendar: "7d" });
+  m.addTask({ name: "Site", level: 0, start: "2026-02-05", duration: 2, progress: 0, calendar: "6d" });
+  m.saveInterim("Interim 1", "2026-02-01");
+  m.saveInterim("Interim 6", "2026-02-01");
+  const xml = toProjectXml(m.doc);
+  assert.match(xml, /<FieldID>188743732<\/FieldID><FieldName>Start1<\/FieldName>/);
+  assert.match(xml, /<FieldID>188743963<\/FieldID><FieldName>Finish6<\/FieldName>/);
+  assert.match(xml, /<Name>Every day<\/Name><IsBaseCalendar>1<\/IsBaseCalendar>/);
+  assert.match(xml, /<Name>Cure<\/Name>[\s\S]*?<CalendarUID>2<\/CalendarUID>/);
+  const { doc, problems } = fromProjectXml(xml);
+  assert.deepEqual(problems, []);
+  assert.deepEqual(doc.tasks.map((t) => t.calendar), [undefined, "7d", "6d"]);
+  assert.deepEqual(doc.interims.map((p) => p.name), ["Interim 1", "Interim 6"]);
+  assert.deepEqual(Object.values(doc.interims[0].tasks)[0], { start: "2026-02-02", finish: "2026-02-04" });
+  const plain = toProjectXml(new ProjectModel(newProject("Q", "2026-02-02")).doc);
+  assert.doesNotMatch(plain, /<Calendars>|<ExtendedAttributes>/, "nothing extra when neither is used");
+});

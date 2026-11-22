@@ -1,5 +1,19 @@
 # Change log
 
+## 10.1.80
+
+### Fixes
+
+#### Project
+
+* Interim plans and task calendars now go to and come from Project XML.
+  Interim 1 to 10 are written as Microsoft Project's Start1–Finish1 to
+  Start10–Finish10 fields and read back from them. A task on the Every day or
+  Mon–Sat calendar is written with that calendar as a base calendar beside the
+  Standard one, and a task on such a calendar in a Microsoft Project file is
+  read onto it; any other task calendar is read as the project calendar, and
+  the import says so.
+
 ## 10.1.79
 
 ### New features
