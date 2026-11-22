@@ -18,6 +18,7 @@
  *         deadline: a date the task should finish by (it does not move the task; missing it is flagged);
  *         inactive: kept in the plan but not scheduled, rolled up, counted or linked (stage 5)   actual dates: when work really began and ended (#86)
  *   statusDate?: the date progress was last reported on (#86)      tasks are in outline order; a task is a summary when the next task is deeper
+ *   budget?: the project's budget, an amount (stage 5)
  *   Link: { from, to, type: "FS" | "SS" | "FF" | "SF", lag (days) }
  * Stage 2 counts calendar days; working calendars and automatic scheduling come in stage 3 (#83).
  */
@@ -164,6 +165,7 @@ export function validate(doc) {
     if (t.recurring !== undefined && patternError(t.recurring)) errs.push(`${at}: ${patternError(t.recurring)}`);
     if (t.actualStart && t.actualFinish && t.actualFinish < t.actualStart) errs.push(`${at}: actual finish is before actual start`);
     if (splitsError(t)) errs.push(`${at}: ${splitsError(t)}`);
+    if (t.fixedCostAccrual !== undefined && !["start", "prorated", "end"].includes(t.fixedCostAccrual)) errs.push(`${at}: fixed cost accrual must be start, prorated or end`);
     if (t.calendar !== undefined && !TASK_CALENDARS.some((c) => c.key === t.calendar)) errs.push(`${at}: calendar must be one of ${TASK_CALENDARS.map((c) => c.key).join(", ")}`);
     if (t.custom !== undefined) {
       if (!t.custom || typeof t.custom !== "object") errs.push(`${at}: custom values must be a set of fields`);
@@ -182,6 +184,7 @@ export function validate(doc) {
     if (!Number.isInteger(l.lag)) errs.push(`${at}: lag must be whole days`);
   });
   if (doc.statusDate !== undefined && !DATE.test(doc.statusDate)) errs.push("status date must be a date");
+  if (doc.budget !== undefined && !(Number.isFinite(doc.budget) && doc.budget > 0)) errs.push("the budget must be an amount more than 0");
   if (doc.resources !== undefined) {
     if (!Array.isArray(doc.resources)) errs.push("resources must be a list");
     else {
@@ -192,6 +195,7 @@ export function validate(doc) {
         names.add(r?.name);
         for (const k of ["rate", "costPerUse"]) if (r?.[k] !== undefined && !(Number.isFinite(r[k]) && r[k] >= 0)) errs.push(`resource ${i + 1}: ${k} must be 0 or more`);
         if (r?.maxUnits !== undefined && !(Number.isFinite(r.maxUnits) && r.maxUnits > 0 && r.maxUnits <= 100)) errs.push(`resource ${i + 1}: max units must be more than 0 (1 is one person full time)`);
+        if (r?.accrue !== undefined && !["start", "prorated", "end"].includes(r.accrue)) errs.push(`resource ${i + 1}: accrue must be start, prorated or end`);
         if (r?.type !== undefined && !["work", "material", "cost"].includes(r.type)) errs.push(`resource ${i + 1}: type must be work, material or cost`);
         if (r?.unit !== undefined && typeof r.unit !== "string") errs.push(`resource ${i + 1}: unit must be text`);
       });
@@ -345,12 +349,13 @@ export class ProjectModel {
       let r = d.resources.find((x) => x.name === name);
       if (!r) { r = { name }; d.resources.push(r); }
       for (const k of ["rate", "costPerUse"]) if (k in fields) { if (fields[k] === null || fields[k] === undefined || fields[k] === "") delete r[k]; else r[k] = Number(fields[k]); }
+      if ("accrue" in fields) { if (!fields.accrue || fields.accrue === "prorated") delete r.accrue; else r.accrue = fields.accrue; }
       if ("maxUnits" in fields) { const v = fields.maxUnits; if (v === null || v === undefined || v === "" || Number(v) === 1) delete r.maxUnits; else r.maxUnits = Number(v); }
       if ("type" in fields) { if (!fields.type || fields.type === "work") delete r.type; else r.type = fields.type; }
       if ("unit" in fields) { if (!String(fields.unit ?? "").trim()) delete r.unit; else r.unit = String(fields.unit).trim(); }
       if (r.type !== "material") delete r.unit;
       if (r.type) delete r.maxUnits; // materials and cost resources have no time to give
-      d.resources = d.resources.filter((x) => x.rate || x.costPerUse || x.type || x.maxUnits !== undefined);
+      d.resources = d.resources.filter((x) => x.rate || x.costPerUse || x.type || x.maxUnits !== undefined || x.accrue);
     });
   }
   /** Splits a task: work pauses for `days` working days after `after` days of work (a pause there already is replaced). */
@@ -390,6 +395,8 @@ export class ProjectModel {
     });
   }
   /** The status date progress is measured against; null clears it. */
+  /** The project's budget (an amount), or null to clear it. */
+  setBudget(amount) { return this.edit((d) => { if (amount === null || amount === undefined || amount === "" || !(Number(amount) > 0)) delete d.budget; else d.budget = Math.round(Number(amount) * 100) / 100; }); }
   setStatusDate(iso) { return this.edit((d) => { if (iso) d.statusDate = iso; else delete d.statusDate; }); }
 
   /** Indent: the task (and its subtasks) goes one level deeper, under the task above. */

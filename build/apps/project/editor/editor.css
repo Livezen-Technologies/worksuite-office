@@ -215,3 +215,5 @@ table.wp-table { border-collapse: collapse; width: 100%; table-layout: fixed; }
 .wp-split-mark { color: var(--ink3); }
 .wp-cal-mark { font-size: 10px; color: var(--ink3); border: 1px solid var(--line); border-radius: 3px; padding: 0 3px; }
 .wp-sheet input.pct { width: 64px; }
+.wp-over-budget { color: var(--today); font-weight: 600; }
+#wp-budget { width: 110px; }

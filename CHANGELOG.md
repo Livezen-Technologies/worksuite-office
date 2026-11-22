@@ -1,5 +1,20 @@
 # Change log
 
+## 10.1.74
+
+### New features
+
+#### Project
+
+* Budget: Project › Budget sets an amount for the whole project. The status
+  bar shows the cost against it and how far over it is, and the Project
+  Overview's cost tile measures against it as well as the baseline.
+* Cost accrual: the Resource Sheet's Accrue column says when a resource's cost
+  counts as spent: at the task's start, as its work is done (prorated, the
+  default) or at its end. Earned value's actual cost and planned value follow
+  it, and tasks' fixed costs accrue by their own setting. Both go to and come
+  from Project XML.
+
 ## 10.1.73
 
 ### New features

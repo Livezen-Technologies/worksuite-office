@@ -579,7 +579,7 @@ function renderReport() {
   let h = `<div class="wp-report"><h2>${esc(doc.name)} <span>Project Overview${doc.statusDate ? ` · status ${fmt(doc.statusDate)}` : ""}</span></h2><div class="wp-tiles">` +
     tile("Complete", `${o.percent}%`, `<span class="wp-meter"><i style="width:${o.percent}%"></i></span>`) +
     tile("Finish", fmt(o.finish), slip, o.slipDays > 0 ? "is-bad" : "") +
-    tile("Cost", formatMoney(o.cost), o.baselineCost === null ? "No baseline cost" : `${over ? "Over" : "Within"} the baseline of ${formatMoney(o.baselineCost)}`, over ? "is-bad" : "") +
+    tile("Cost", formatMoney(o.cost), [o.budget !== null ? `${o.cost > o.budget ? "Over" : "Within"} the budget of ${formatMoney(o.budget)}` : "", o.baselineCost === null ? "No baseline cost" : `${over ? "Over" : "Within"} the baseline of ${formatMoney(o.baselineCost)}`].filter(Boolean).join("<br>"), over || (o.budget !== null && o.cost > o.budget) ? "is-bad" : "") +
     tile("Tasks", String(o.tasks), `<span class="wp-stack"><i class="todo" style="width:${pct(o.todo)}%"></i><i class="doing" style="width:${pct(o.doing)}%"></i><i class="done" style="width:${pct(o.done)}%"></i></span><span class="wp-key"><i class="todo"></i>${o.todo} not started <i class="doing"></i>${o.doing} in progress <i class="done"></i>${o.done} done</span>`) +
     `</div><div class="wp-panels">`;
   h += `<section class="wp-panel"><h3>Milestones ahead</h3>${o.milestones.length ? `<ul>${o.milestones.map((m) => `<li data-card="${m.id}"><span>◆ ${esc(m.name)}</span><span class="${m.deadline && m.date > m.deadline ? "is-late" : ""}">${fmt(m.date)}</span></li>`).join("")}</ul>` : `<p class="wp-empty">No milestones ahead.</p>`}</section>`;
@@ -668,7 +668,7 @@ function renderSheet() {
   const ro = state.readOnly ? "disabled" : "";
   const num = (r, f, ph = "0.00") => `<input data-rate="${esc(r.name)}" data-field="${f}" type="number" min="0" step="0.01" value="${r[f] || ""}" placeholder="${ph}" ${ro}>`;
   const TYPES = [["work", "Work"], ["material", "Material"], ["cost", "Cost"]];
-  let h = `<table class="wp-load wp-sheet"><thead><tr><th>Resource</th><th>Type</th><th>Unit</th><th title="How much of their time the resource has: 100% one person full time, 50% half time, 300% a crew of three">Max units</th><th>Rate</th><th>Cost per use</th><th>Tasks</th><th>Work / quantity</th><th>Cost</th></tr></thead><tbody>`;
+  let h = `<table class="wp-load wp-sheet"><thead><tr><th>Resource</th><th>Type</th><th>Unit</th><th title="How much of their time the resource has: 100% one person full time, 50% half time, 300% a crew of three">Max units</th><th>Rate</th><th>Cost per use</th><th title="When the cost counts as spent: at the task's start, as work is done, or at its end">Accrue</th><th>Tasks</th><th>Work / quantity</th><th>Cost</th></tr></thead><tbody>`;
   for (const r of rows) {
     const per = r.type === "material" ? `per ${esc(r.unit || "unit")}` : r.type === "cost" ? "" : "per hour";
     h += `<tr><th>${esc(r.name)}</th><td><select data-rate="${esc(r.name)}" data-field="type" ${ro}>${TYPES.map(([v, l]) => `<option value="${v}" ${r.type === v ? "selected" : ""}>${l}</option>`).join("")}</select></td>` +
@@ -676,10 +676,11 @@ function renderSheet() {
       `<td>${r.type === "work" ? `<input class="pct" data-rate="${esc(r.name)}" data-field="maxUnits" type="number" min="1" step="5" value="${Math.round((r.maxUnits || 1) * 100)}" ${ro}> %` : ""}</td>` +
       `<td>${r.type === "cost" ? `<span class="wp-hint">typed on each task</span>` : `${num(r, "rate")} <span class="wp-hint">${per}</span>`}</td>` +
       `<td>${r.type === "cost" ? "" : num(r, "costPerUse")}</td>` +
+      `<td><select data-rate="${esc(r.name)}" data-field="accrue" ${ro}>${[["start", "Start"], ["prorated", "Prorated"], ["end", "End"]].map(([v, l]) => `<option value="${v}" ${r.accrue === v ? "selected" : ""}>${l}</option>`).join("")}</select></td>` +
       `<td>${r.tasks}</td><td>${r.type === "cost" ? "" : r.type === "material" ? `${r.work} ${esc(r.unit || "")}` : `${r.work} h`}</td><td class="money">${formatMoney(r.cost)}</td></tr>`;
   }
   const hours = Math.round(rows.filter((r) => r.type === "work").reduce((s, r) => s + r.work, 0) * 100) / 100;
-  $("wp-chart").innerHTML = h + `</tbody><tfoot><tr><th>Total</th><td></td><td></td><td></td><td></td><td></td><td></td><td>${hours} h</td><td class="money">${formatMoney(rows.reduce((s, r) => s + r.cost, 0))}</td></tr></tfoot></table>` +
+  $("wp-chart").innerHTML = h + `</tbody><tfoot><tr><th>Total</th><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td>${hours} h</td><td class="money">${formatMoney(rows.reduce((s, r) => s + r.cost, 0))}</td></tr></tfoot></table>` +
     `<p class="wp-hint wp-sheet-help">On a task's Owner, people take a share of their time (<b>Ravi 50%</b>); materials and cost resources take an amount in brackets (<b>Cement [20]</b>, <b>Permit fee [15000]</b>).</p>`;
 }
 $("wp-chart").addEventListener("change", (e) => {
@@ -693,7 +694,7 @@ $("wp-chart").addEventListener("change", (e) => {
     });
     return;
   }
-  if (input.dataset.field === "type" || input.dataset.field === "unit") { run(() => state.model.setResource(input.dataset.rate, { [input.dataset.field]: v })); return; }
+  if (input.dataset.field === "type" || input.dataset.field === "unit" || input.dataset.field === "accrue") { run(() => state.model.setResource(input.dataset.rate, { [input.dataset.field]: v })); return; }
   run(() => {
     if (v !== "" && !(Number(v) >= 0)) throw new Error("A rate is an amount, 0 or more");
     state.model.setResource(input.dataset.rate, { [input.dataset.field]: v === "" ? null : Math.round(Number(v) * 100) / 100 });
@@ -723,7 +724,9 @@ function costText() {
   const total = costs(state.model.doc).total;
   const ev = state.model.doc.statusDate ? earnedValue(state.model.doc, { isWork: calendar().isWork, baseline: state.baselineName }) : { error: true };
   const idx = !ev.error && ev.total.spi !== null ? ` · SPI ${ev.total.spi.toFixed(2)}${ev.total.cpi !== null ? ` · CPI ${ev.total.cpi.toFixed(2)}` : ""}` : "";
-  return total ? `<span title="SPI under 1: behind schedule. CPI under 1: over budget.">Cost: ${formatMoney(total)}${idx}</span>` : "";
+  const budget = state.model.doc.budget, overBudget = budget && total > budget;
+  const b = budget ? ` <span class="${overBudget ? "wp-over-budget" : ""}">of ${formatMoney(budget)}${overBudget ? `, ${formatMoney(total - budget)} over budget` : ""}</span>` : "";
+  return total || budget ? `<span title="SPI under 1: behind schedule. CPI under 1: over budget.">Cost: ${formatMoney(total)}${b}${idx}</span>` : "";
 }
 
 function deadlineText() {
@@ -815,6 +818,7 @@ function draw() {
   fillBaselines();
   renderGrid(rows);
   $("wp-status-date").value = state.model.doc.statusDate || "";
+  if (document.activeElement !== $("wp-budget")) $("wp-budget").value = state.model.doc.budget ?? "";
   const firstTyped = typedTargets()[0] ? state.model.task(typedTargets()[0]) : null;
   $("wp-type").value = firstTyped?.type || "fixedUnits";
   $("wp-effort").checked = !!firstTyped?.effortDriven;
@@ -869,6 +873,11 @@ $("wp-effort").addEventListener("change", (e) => run(() => {
   state.model.edit((d) => { for (const t of d.tasks) if (ids.includes(t.id)) t.effortDriven = e.target.checked || undefined; });
 }));
 $("wp-status-date").addEventListener("change", (e) => run(() => state.model.setStatusDate(e.target.value || null)));
+$("wp-budget").addEventListener("change", (e) => run(() => {
+  const v = e.target.value.replace(/,/g, "").trim();
+  if (v && !(Number(v) > 0)) throw new Error("The budget is an amount more than 0, or empty for none");
+  state.model.setBudget(v || null);
+}));
 $("wp-baseline").addEventListener("change", (e) => { state.showBaseline = e.target.checked; render(); });
 $("wp-baseline-name").addEventListener("change", (e) => { state.baselineName = e.target.value; state.showBaseline = true; render(); });
 $("wp-upgrade").addEventListener("click", () => (window.WorkSuiteProject.onUpgrade || openUpgrade)());

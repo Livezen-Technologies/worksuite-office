@@ -74,6 +74,8 @@ export const FIELD_IDS = {
   date: seq(188743945, 10), // Date1-10
   flag: [...seq(188743752, 10), ...seq(188743972, 10)], // Flag1-20
 };
+/** Microsoft Project's accrual codes: 1 at the start, 2 at the end, 3 prorated (its default, so not written). */
+const ACCRUE_OUT = { start: 1, end: 2, prorated: 3 };
 const FIELD_LABEL = { text: "Text", number: "Number", date: "Date", flag: "Flag" };
 const typeOfFieldId = (id) => Object.keys(FIELD_IDS).find((k) => FIELD_IDS[k].includes(id));
 
@@ -136,11 +138,13 @@ export function fromProjectXml(text) {
     const row = { name: val(r, "Name") };
     if (rtype) row.type = rtype;
     if (rtype === "material" && val(r, "MaterialLabel")) row.unit = val(r, "MaterialLabel");
+    const acc = { 1: "start", 2: "end" }[val(r, "AccrueAt")];
+    if (acc) row.accrue = acc;
     const maxU = Number(val(r, "MaxUnits"));
     if (!rtype && val(r, "MaxUnits") && maxU > 0 && maxU <= 100 && Math.abs(maxU - 1) > 1e-9) row.maxUnits = Math.round(maxU * 100) / 100;
     if (rate > 0) row.rate = Math.round(rate * perHour * 100) / 100;
     if (perUse > 0) row.costPerUse = Math.round(perUse * 100) / 100;
-    if ((row.rate || row.costPerUse || row.type || row.maxUnits) && !doc.resources.some((x) => x.name === row.name)) doc.resources.push(row);
+    if ((row.rate || row.costPerUse || row.type || row.maxUnits || row.accrue) && !doc.resources.some((x) => x.name === row.name)) doc.resources.push(row);
   }
   const owners = new Map();
   const asgEl = kid(top, "Assignments");
@@ -184,6 +188,8 @@ export function fromProjectXml(text) {
     const delay = Math.round(Number(val(t, "LevelingDelay") || 0) / (HOURS_PER_DAY * 600)); // tenths of minutes → working days
     if (delay > 0) task.levelDelay = delay;
     if (Number(val(t, "FixedCost")) > 0) task.fixedCost = Math.round(Number(val(t, "FixedCost")) * 100) / 100;
+    const fca = { 1: "start", 2: "end" }[val(t, "FixedCostAccrual")];
+    if (fca && task.fixedCost) task.fixedCostAccrual = fca;
     const workHours = hoursOf(val(t, "Work"));
     if (workHours !== null && !milestone && workHours > 0) task.work = workHours;
     if (val(t, "ActualFinish") && task.actualStart) task.actualFinish = val(t, "ActualFinish").slice(0, 10);
@@ -244,7 +250,7 @@ export function toProjectXml(doc, isWork = null) {
     const con = t.constraint && CON_OUT[t.constraint.type] !== undefined ? `<ConstraintType>${CON_OUT[t.constraint.type]}</ConstraintType><ConstraintDate>${t.constraint.date}T08:00:00</ConstraintDate>` : "<ConstraintType>0</ConstraintType>";
     const work = !v.summary && !v.milestone && t.work !== undefined ? `<Work>PT${t.work}H0M0S</Work>` : "";
     return `<Task><UID>${i + 1}</UID><ID>${i + 1}</ID>${el("Name", t.name)}<Type>${TASKTYPE_OUT[t.type || "fixedUnits"]}</Type><IsNull>0</IsNull>` +
-      `<EffortDriven>${t.effortDriven ? 1 : 0}</EffortDriven>${work}` + (t.fixedCost ? `<FixedCost>${t.fixedCost}</FixedCost>` : "") + `<Priority>${t.priority ?? 500}</Priority>` +
+      `<EffortDriven>${t.effortDriven ? 1 : 0}</EffortDriven>${work}` + (t.fixedCost ? `<FixedCost>${t.fixedCost}</FixedCost>` + (t.fixedCostAccrual && t.fixedCostAccrual !== "prorated" ? `<FixedCostAccrual>${ACCRUE_OUT[t.fixedCostAccrual]}</FixedCostAccrual>` : "") : "") + `<Priority>${t.priority ?? 500}</Priority>` +
       (t.levelDelay ? `<LevelingDelay>${t.levelDelay * HOURS_PER_DAY * 600}</LevelingDelay><LevelingDelayFormat>7</LevelingDelayFormat>` : "") +
       `<OutlineLevel>${t.level + 1}</OutlineLevel><Start>${v.start}T08:00:00</Start><Finish>${v.finish}T17:00:00</Finish>` +
       `<Duration>${daysDuration(v.duration)}</Duration><DurationFormat>7</DurationFormat>` +
@@ -257,7 +263,7 @@ export function toProjectXml(doc, isWork = null) {
   const resXml = resources.map((r) => {
     const s = sheet.get(r) || {};
     const type = s.type || (doc.tasks.some((t) => assignmentsOf(t).some((a) => a.name === r && a.amount !== undefined)) ? "material" : "work");
-    return `<Resource><UID>${rid.get(r)}</UID><ID>${rid.get(r)}</ID>${el("Name", r)}<Type>${{ work: 1, material: 0, cost: 2 }[type]}</Type>` + (type === "material" ? el("MaterialLabel", s.unit) : "") + (type === "work" && s.maxUnits ? `<MaxUnits>${s.maxUnits}</MaxUnits>` : "") +
+    return `<Resource><UID>${rid.get(r)}</UID><ID>${rid.get(r)}</ID>${el("Name", r)}<Type>${{ work: 1, material: 0, cost: 2 }[type]}</Type>` + (type === "material" ? el("MaterialLabel", s.unit) : "") + (type === "work" && s.maxUnits ? `<MaxUnits>${s.maxUnits}</MaxUnits>` : "") + (s.accrue && s.accrue !== "prorated" ? `<AccrueAt>${ACCRUE_OUT[s.accrue]}</AccrueAt>` : "") +
       (s.rate ? `<StandardRate>${s.rate}</StandardRate><StandardRateFormat>2</StandardRateFormat>` : "") + (s.costPerUse ? `<CostPerUse>${s.costPerUse}</CostPerUse>` : "") + `</Resource>`;
   }).join("\n    ");
   let a = 0;
