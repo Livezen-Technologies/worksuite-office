@@ -1,5 +1,19 @@
 # Change log
 
+## 10.1.89
+
+### New features
+
+#### Diagram
+
+* Containers: Insert › Container draws a titled box around the selected
+  shapes, behind them. A shape belongs to the container its centre is in, and
+  dragging a container takes its shapes along, nested containers included.
+* Callouts: Insert › Callout adds a note beside the selected shape with a
+  leader line to it; the line follows the shape when either moves. If the
+  shape is removed, the callout stays as a plain note.
+* Containers and callouts export to Visio, SVG and PNG.
+
 ## 10.1.88
 
 ### New features
