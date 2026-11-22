@@ -22,7 +22,7 @@ import { DiagramModel, newDiagram, parse, serialize, connectionPoints, pointOn, 
 import { checkEdit, reasonText, openUpgrade } from "../../common/licence.js";
 import { packDocument, unpackDocument } from "../../common/zip.js";
 import { fromVsdx, toVsdx } from "../core/vsdx.js";
-import { shapePath, LIBRARIES, OPEN_LIBRARIES, libraryShape, snap, alignGuides, route, midpoint, resizeBox } from "./geometry.js";
+import { shapePath, LIBRARIES, OPEN_LIBRARIES, libraryShape, snap, alignGuides, route, midpoint, resizeBox, lineJumps, jumpPath } from "./geometry.js";
 
 const $ = (id) => document.getElementById(id);
 const NS = "http://www.w3.org/2000/svg";
@@ -109,6 +109,7 @@ const commands = {
       return Object.keys(out).length ? out : null;
     }
   },
+  toggleJumps: () => run(() => state.model.edit((d) => { const pg = d.pages.find((x) => x.id === state.pageId); if (pg.jumps === false) delete pg.jumps; else pg.jumps = false; })),
   clearGraphics: () => run(() => state.model.setGraphics(null, state.pageId)),
   addLane: async () => {
     const lane = state.sel.map(byId).find((i) => i?.type === "lane");
@@ -279,9 +280,9 @@ function shapeSvg(s) {
     (gfx.icon ? `<text class="data-icon" x="${s.w - 4}" y="14" text-anchor="end" style="font-size:13px">${gfx.icon}</text>` : "") +
     (gfx.bar !== undefined ? `<rect class="data-bar-bg" x="6" y="${s.h - 9}" width="${s.w - 12}" height="5" rx="2.5" fill="#e5e7eb"/><rect class="data-bar" x="6" y="${s.h - 9}" width="${(s.w - 12) * gfx.bar}" height="5" rx="2.5" fill="#2a78d6"><title>${esc(gfx.barLabel)}</title></rect>` : "") + `</g>`;
 }
-function connectorSvg(c, interactive) {
+function connectorSvg(c, interactive, jumps = null) {
   const pts = connectorPoints(c), selected = interactive && state.sel.includes(c.id);
-  const d = c.route === "curved" ? `M${pts[0]} C${pts[1]} ${pts[2]} ${pts[3]}` : `M${pts.map((p) => p.join(" ")).join(" L")}`;
+  const d = c.route === "curved" ? `M${pts[0]} C${pts[1]} ${pts[2]} ${pts[3]}` : jumps ? jumpPath(pts, jumps) : `M${pts.map((p) => p.join(" ")).join(" L")}`;
   const ms = c.style?.arrowEnd !== false ? ` marker-end="url(#wd-arrow)"` : "";
   const mid = midpoint(c.route === "curved" ? [pts[0], pts[3]] : pts);
   return `<path class="conn${selected ? " is-sel" : ""}" d="${d}"${ms}/>` + (interactive ? `<path class="conn-hit" data-id="${c.id}" d="${d}"/>` : "") +
@@ -294,10 +295,14 @@ function pageSvg(interactive) {
     `<pattern id="wd-dots" width="${GRID * 2}" height="${GRID * 2}" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r="1" fill="var(--dot)"/></pattern></defs>`;
   if (interactive) out += `<rect class="bg" x="0" y="0" width="${p.width}" height="${p.height}" fill="${state.grid ? "url(#wd-dots)" : "transparent"}"/>`;
   else out += `<style>.shape-body{stroke-width:1.5}.shape-text{font-size:13px;fill:#1f2937}.conn{fill:none;stroke:#475569;stroke-width:1.5}.conn-text{font-size:12px;fill:#475569;paint-order:stroke;stroke:#fff;stroke-width:4px}.arrow-head{fill:#475569}</style><rect x="0" y="0" width="${p.width}" height="${p.height}" fill="#fff"/>`; // an exported file has no stylesheet
+  // line jumps (on unless the page turns them off): each crossing hops on the later connector
+  const conns = p.items.filter((it) => it.kind === "connector" && isVisible(it));
+  const jumps = p.jumps === false ? [] : lineJumps(conns.map((c) => (c.route === "curved" ? null : connectorPoints(c))));
+  const jumpOf = new Map(conns.map((c, i) => [c.id, jumps[i]]));
   for (const it of p.items) {
     if (!isVisible(it)) continue;
     if (it.kind === "shape") out += shapeSvg(it);
-    else if (it.kind === "connector") out += connectorSvg(it, interactive);
+    else if (it.kind === "connector") out += connectorSvg(it, interactive, jumpOf.get(it.id) || null);
   }
   if (interactive) out += overlaySvg();
   return out + "</svg>";
@@ -368,6 +373,7 @@ function renderPages() {
 
 let rendering = false;
 function render() {
+  if ($("wd-jumps")) $("wd-jumps").checked = page().jumps !== false;
   if (rendering) return;
   rendering = true;
   try {
@@ -550,6 +556,7 @@ $("wd-ribbon").addEventListener("click", (e) => {
   if (b.dataset.tool) { state.tool = b.dataset.tool; render(); }
 });
 $("wd-grid").addEventListener("change", (e) => { state.grid = e.target.checked; render(); });
+$("wd-jumps").addEventListener("change", (e) => { if ((page().jumps !== false) !== e.target.checked) commands.toggleJumps(); });
 $("wd-upgrade").addEventListener("click", () => (window.WorkSuiteDiagram.onUpgrade || openUpgrade)());
 $("wd-retry").addEventListener("click", () => applyLicence());
 /** Free viewing, Pro editing (#73): asks the local service at startup and on Try again. */

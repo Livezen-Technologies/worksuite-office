@@ -7,7 +7,7 @@
  * The document (schema version 1), saved as canonical JSON inside the .wsdiagram zip:
  *   { app: "worksuite.diagram", v: 1, name, pages: [Page] }
  *   Page:      { id, name, width, height, layers: [Layer], items: [Shape | Connector | Group], graphics? }   (items: back to front;
- *              graphics: data graphics, datagraphics.js)
+ *              graphics: data graphics, datagraphics.js; jumps: false to draw crossing connectors without hops)
  *   Layer:     { id, name, visible, locked }
  *   Shape:     { id, kind: "shape", type ("rect", "ellipse", "diamond", "terminator", …), layer, x, y, w, h,
  *                rotate (degrees), text, style: { fill, line, lineWidth, fontSize, … } }
@@ -67,6 +67,7 @@ export function validate(doc) {
     seen(page.id, at);
     if (!(page.width > 0 && page.height > 0)) errs.push(`${at}: bad size`);
     if (graphicsError(page.graphics)) errs.push(`${at}: ${graphicsError(page.graphics)}`);
+    if (page.jumps !== undefined && page.jumps !== false) errs.push(`${at}: jumps is false or left out`);
     if (!Array.isArray(page.layers) || !page.layers.length) { errs.push(`${at}: needs a layer`); continue; }
     const layers = new Set(page.layers.map((l) => (seen(l.id, `${at} layer`), l.id)));
     const shapes = new Map(), items = new Map();

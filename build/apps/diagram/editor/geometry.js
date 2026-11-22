@@ -210,3 +210,56 @@ export function resizeBox(box, handle, dx, dy, min = 10) {
   if (handle.includes("n")) { const nh = Math.max(min, h - dy); y += h - nh; h = nh; }
   return { x, y, w, h };
 }
+
+/* ---- line jumps: where two connectors cross, the later one hops over the earlier ---- */
+const segX = (p, q, r, s) => {
+  // the crossing point of segments pq and rs, strictly inside both (not at their ends), or null
+  const d = (q[0] - p[0]) * (s[1] - r[1]) - (q[1] - p[1]) * (s[0] - r[0]);
+  if (Math.abs(d) < 1e-9) return null;
+  const t = ((r[0] - p[0]) * (s[1] - r[1]) - (r[1] - p[1]) * (s[0] - r[0])) / d;
+  const u = ((r[0] - p[0]) * (q[1] - p[1]) - (r[1] - p[1]) * (q[0] - p[0])) / d;
+  const e = 1e-6;
+  return t > e && t < 1 - e && u > e && u < 1 - e ? { t, u, at: [p[0] + t * (q[0] - p[0]), p[1] + t * (q[1] - p[1])] } : null;
+};
+
+/**
+ * Jumps for a list of polylines (connectors' points, in drawing order): for each, per segment, the distances along the
+ * segment where it crosses an earlier polyline (a crossing is drawn once, as a hop on the later line). Curved
+ * connectors pass null and are neither hopped nor hopped over.
+ */
+export function lineJumps(lines, radius = 5) {
+  return lines.map((pts, i) => {
+    if (!pts) return null;
+    return pts.slice(1).map((q, k) => {
+      const p = pts[k], len = Math.hypot(q[0] - p[0], q[1] - p[1]), out = [];
+      for (let j = 0; j < i; j++) {
+        const other = lines[j];
+        if (!other) continue;
+        for (let m = 1; m < other.length; m++) {
+          const r = other[m - 1], s2 = other[m], len2 = Math.hypot(s2[0] - r[0], s2[1] - r[1]);
+          const x = segX(p, q, r, s2);
+          // room for the hop on both lines: not at a bend or an end of either
+          if (x && x.t * len > radius && (1 - x.t) * len > radius && x.u * len2 > radius && (1 - x.u) * len2 > radius) out.push(x.t * len);
+        }
+      }
+      return out.sort((a, b) => a - b).filter((v, n, a) => n === 0 || v - a[n - 1] > 2 * radius);
+    });
+  });
+}
+
+/** An SVG path for a polyline with hops (semicircles of `radius`) at its jumps. */
+export function jumpPath(pts, jumps, radius = 5) {
+  let d = `M${pts[0][0]} ${pts[0][1]}`;
+  pts.slice(1).forEach((q, k) => {
+    const p = pts[k], len = Math.hypot(q[0] - p[0], q[1] - p[1]) || 1, ux = (q[0] - p[0]) / len, uy = (q[1] - p[1]) / len;
+    for (const at of jumps?.[k] || []) {
+      const a = [p[0] + ux * (at - radius), p[1] + uy * (at - radius)], b = [p[0] + ux * (at + radius), p[1] + uy * (at + radius)];
+      const r3 = (n) => Math.round(n * 100) / 100;
+      // the hop bulges up on horizontal lines and to the left on vertical ones, like Visio's
+      const sweep = Math.abs(ux) >= Math.abs(uy) ? (ux > 0 ? 1 : 0) : (uy > 0 ? 1 : 0);
+      d += ` L${r3(a[0])} ${r3(a[1])} A${radius} ${radius} 0 0 ${sweep} ${r3(b[0])} ${r3(b[1])}`;
+    }
+    d += ` L${q[0]} ${q[1]}`;
+  });
+  return d;
+}
