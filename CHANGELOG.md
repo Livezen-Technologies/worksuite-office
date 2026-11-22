@@ -1,5 +1,18 @@
 # Change log
 
+## 10.1.78
+
+### New features
+
+#### Project
+
+* Interim plans: Project › Interim Plan saves each task's start and finish as
+  they are now, as Interim 1 to 10, lighter than a baseline. Compare with lists
+  them beside the baselines, so the Tracking Gantt, the variance in the status
+  bar and the Project Overview can measure the dates against one; earned value
+  still needs a baseline, as interim plans keep no costs. Clear baseline
+  removes interim plans too.
+
 ## 10.1.77
 
 ### New features

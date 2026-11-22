@@ -214,3 +214,23 @@ test("cost accrual and budget: spent cost and planned value by accrual; the budg
   assert.equal(m.doc.budget, undefined);
   assert.throws(() => m.edit((d) => { d.budget = -5; }), /budget must be an amount/);
 });
+
+test("interim plans: dates only, up to ten, compared like a baseline, kept apart from earned value", async () => {
+  const { earnedValue } = await import("../apps/project/core/earnedvalue.js");
+  const { overview } = await import("../apps/project/editor/views.js");
+  const m = new ProjectModel(newProject("P", "2026-02-02"));
+  m.addTask({ name: "A", level: 0, start: "2026-02-02", duration: 3, progress: 0 });
+  const id = m.tasks[0].id;
+  m.saveInterim("Interim 1", "2026-02-01");
+  assert.deepEqual(m.doc.interims[0].tasks[id], { start: "2026-02-02", finish: "2026-02-04" });
+  m.set(id, { duration: 5 });
+  assert.equal(m.variance(id, "Interim 1").finishSlip, 2);
+  assert.equal(overview(m.doc, { baseline: "Interim 1" }).slipDays, 2);
+  m.setStatusDate("2026-02-03");
+  assert.match(earnedValue(m.doc, { baseline: "Interim 1" }).error, /interim plan: it keeps dates, not costs/);
+  for (let i = 2; i <= 10; i++) m.saveInterim(`Interim ${i}`, "2026-02-01");
+  assert.throws(() => m.saveInterim("Interim 11"), /at most 10 interim plans/);
+  m.clearInterim("Interim 1");
+  assert.equal(m.doc.interims.length, 9);
+  assert.throws(() => m.edit((d) => { d.baselines = [{ name: "Interim 2", saved: "2026-02-01", tasks: {} }]; }), /also a baseline's name/);
+});
