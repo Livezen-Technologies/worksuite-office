@@ -70,6 +70,7 @@ const state = {
   ruse: false, // Resource Usage (stage 5)
   tl: false, // the Timeline (stage 5)
   report: false, // the Project Overview report (stage 5)
+  tracking: false, // the Tracking Gantt: each bar over its baseline, % complete, slipped bars marked (stage 5)
   cal: false, // the Calendar view, and the month it shows
   calMonth: null, // [year, month index]
   ev: false, // the earned value table in place of the Gantt chart (stage 5)
@@ -161,6 +162,7 @@ const commands = {
   viewResUsage: () => showView("ruse"),
   viewTimeline: () => showView("tl"),
   viewReport: () => showView("report"),
+  viewTracking: () => showView("tracking"),
   aiPlan: () => aiPlan(),
   save: () => { download(state.fileName, packDocument(APP, serialize(state.model.doc)), "application/zip"); state.saved = state.model.undoStack.length; render(); },
   exportCsv: () => download(state.fileName.replace(/\.wsproj$/, "") + ".csv", toCsv(), "text/csv"),
@@ -469,10 +471,12 @@ function renderChart(rows) {
       svg += `<rect class="wp-ms" x="${b.x - 6}" y="${b.y + 9}" width="12" height="12" transform="rotate(45 ${b.x} ${b.y + 15})"/><text class="wp-label" x="${b.x + 12}" y="${b.y + 19}">${esc(r.name)}</text>`;
     } else if (b.kind === "summary") {
       svg += `<path class="wp-sum" d="M${b.x} ${b.y + 10} h${b.w} v8 l-5 5 l-5 -5 H${b.x + 10} l-5 5 l-5 -5 Z"/>`;
+      if (state.tracking) svg += `<text class="wp-label" x="${b.x + b.w + 6}" y="${b.y + 19}">${r.progress}%</text>`;
     } else {
-      const base = state.showBaseline && state.model.baseline(state.baselineName)?.tasks[b.id];
-      if (base) svg += `<rect class="wp-base" x="${sc.x(base.start)}" y="${b.y + 23}" width="${Math.max(2, sc.x(base.finish) - sc.x(base.start) + sc.dayW)}" height="4" rx="2"/>`;
-      const crit = (critical.has(b.id) ? " is-crit" : "") + (r.inactive ? " is-inactive" : "");
+      const base = (state.showBaseline || state.tracking) && state.model.baseline(state.baselineName)?.tasks[b.id];
+      if (base) svg += `<rect class="wp-base${state.tracking ? " is-tracking" : ""}" x="${sc.x(base.start)}" y="${b.y + 23}" width="${Math.max(2, sc.x(base.finish) - sc.x(base.start) + sc.dayW)}" height="${state.tracking ? 5 : 4}" rx="2"><title>${esc(state.baselineName)}: ${fmt(base.start)} – ${fmt(base.finish)}</title></rect>`;
+      const slipped = state.tracking && base && r.finish > base.finish;
+      const crit = (critical.has(b.id) ? " is-crit" : "") + (r.inactive ? " is-inactive" : "") + (slipped ? " is-slipped" : "");
       const late = behind.get(b.id);
       if (late) svg += `<rect class="wp-behind" x="${b.x - 4}" y="${b.y + 4}" width="${b.w + 8}" height="22" rx="6"><title>${late.late ? "Late" : "Behind"}: ${late.progress}% done, ${late.expected}% expected by the status date</title></rect>`;
       if (over.has(b.id)) svg += `<rect class="wp-over" x="${b.x - 2}" y="${b.y + 6}" width="${b.w + 4}" height="18" rx="5"><title>Someone on this task has another task at the same time</title></rect>`;
@@ -494,7 +498,10 @@ function renderChart(rows) {
         svg += `<rect class="wp-bar${crit}" x="${b.x}" y="${b.y + 8}" width="${b.w}" height="14" rx="4"/>`;
         if (b.progress) svg += `<rect class="wp-bar-done${crit}" x="${b.x}" y="${b.y + 8}" width="${(b.w * b.progress) / 100}" height="14" rx="4"/>`;
       }
-      if (r.owner) svg += `<text class="wp-label" x="${b.x + b.w + 6}" y="${b.y + 19}">${esc(r.owner)}</text>`;
+      if (state.tracking) {
+        const v = base ? state.model.variance(b.id, state.baselineName) : null;
+        svg += `<text class="wp-label${slipped ? " is-slipped" : ""}" x="${b.x + b.w + 6}" y="${b.y + 19}">${r.progress}%${v && v.finishSlip > 0 ? ` · ${v.finishSlip} d late` : v && v.finishSlip < 0 ? ` · ${-v.finishSlip} d early` : ""}</text>`;
+      } else if (r.owner) svg += `<text class="wp-label" x="${b.x + b.w + 6}" y="${b.y + 19}">${esc(r.owner)}</text>`;
       svg += `<rect class="wp-hit" data-drag="move" data-id="${b.id}" x="${b.x}" y="${b.y + 4}" width="${Math.max(0, b.w - 6)}" height="22"/><rect class="wp-grip" data-drag="size" data-id="${b.id}" x="${b.x + b.w - 6}" y="${b.y + 4}" width="10" height="22"/>`;
     }
     if (r.deadline && !r.summary) {
@@ -517,7 +524,8 @@ function renderChart(rows) {
 
 /** One view at a time in the right-hand pane (null: the Gantt chart). */
 function showView(name) {
-  for (const k of ["workload", "sheet", "ev", "board", "cal", "net", "tuse", "ruse", "tl", "report"]) state[k] = k === name;
+  if (name === "tracking" && !state.model.baseline(state.baselineName)) state.note = "Set a baseline (Project › Set Baseline) to compare against: the Tracking Gantt draws it under each bar";
+  for (const k of ["workload", "sheet", "ev", "board", "cal", "net", "tuse", "ruse", "tl", "report", "tracking"]) state[k] = k === name;
   if (name === "cal" && !state.calMonth) {
     const d = new Date((first() ? state.model.task(first()).start : state.model.doc.start) + "T00:00:00Z");
     state.calMonth = [d.getUTCFullYear(), d.getUTCMonth()];
@@ -825,7 +833,7 @@ function draw() {
   $("wp-type").disabled = $("wp-effort").disabled = state.readOnly || !firstTyped;
   $("wp-task-cal").value = firstTyped?.calendar || "";
   $("wp-task-cal").disabled = state.readOnly || !firstTyped;
-  const view = state.report ? "viewReport" : state.tl ? "viewTimeline" : state.tuse ? "viewTaskUsage" : state.ruse ? "viewResUsage" : state.net ? "viewNet" : state.board ? "viewBoard" : state.cal ? "viewCal" : state.ev ? "viewEv" : state.sheet ? "viewSheet" : state.workload ? "viewWorkload" : "viewGantt";
+  const view = state.tracking ? "viewTracking" : state.report ? "viewReport" : state.tl ? "viewTimeline" : state.tuse ? "viewTaskUsage" : state.ruse ? "viewResUsage" : state.net ? "viewNet" : state.board ? "viewBoard" : state.cal ? "viewCal" : state.ev ? "viewEv" : state.sheet ? "viewSheet" : state.workload ? "viewWorkload" : "viewGantt";
   for (const b of document.querySelectorAll('[data-cmd^="view"]')) b.setAttribute("aria-pressed", String(b.dataset.cmd === view));
   if (state.report) renderReport(); else if (state.tl) renderTimeline(); else if (state.tuse) renderUsage("task"); else if (state.ruse) renderUsage("resource"); else if (state.net) renderNet(); else if (state.board) renderBoard(); else if (state.cal) renderCal(); else if (state.ev) renderEv(); else if (state.sheet) renderSheet(); else if (state.workload) renderWorkload(); else renderChart(rows);
   $("wp-title").textContent = state.fileName.replace(/\.wsproj$/, "") + (state.model.undoStack.length !== (state.saved || 0) ? " •" : ""); // • unsaved changes
