@@ -99,3 +99,4 @@ body { font: 13px/1.35 Inter, system-ui, -apple-system, "Segoe UI", sans-serif; 
 .wd-data-tools { display: flex; gap: 10px; align-items: center; margin-bottom: 8px; }
 .wd-data-tools .inline { display: flex; gap: 4px; align-items: center; font-size: 12px; }
 .shape-data { fill: var(--ink2, #52525b); }
+.wd-status .note { color: var(--ink2, #52525b); }

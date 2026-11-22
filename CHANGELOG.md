@@ -1,5 +1,19 @@
 # Change log
 
+## 10.1.87
+
+### New features
+
+#### Diagram
+
+* Link data: Insert › Link Data reads a CSV file or the first sheet of an Excel
+  workbook and matches its rows to the page's shapes by a key column, through
+  the shapes' data or else their text; each row's columns become that shape's
+  data, numbers and yes/no kept as such. Rows with no shape can be added as
+  new shapes. Refresh data applies a newer copy of the file the same way, and
+  the status bar says how many shapes changed. With Data Graphics the shapes
+  then show the data.
+
 ## 10.1.86
 
 ### New features

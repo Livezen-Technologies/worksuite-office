@@ -55,8 +55,8 @@
       <span class="rb-glabel">Cross-functional</span>
     </div>
     <div class="wd-group rb-group" data-tab="insert">
-      <button class="big" data-icon="table" data-cmd="dataGraphics" data-edit title="Colour shapes, add icons or bars by their shape data">Data Graphics</button>
-      <div class="rb-stack"><button data-icon="remove" data-cmd="clearGraphics" data-edit>Remove graphics</button></div>
+      <button class="big" data-icon="table" data-cmd="linkData" data-edit title="Bring a CSV or Excel table's rows into the shapes' data">Link Data</button><button class="big" data-icon="table" data-cmd="dataGraphics" data-edit title="Colour shapes, add icons or bars by their shape data">Data Graphics</button>
+      <div class="rb-stack"><button data-icon="redo" data-cmd="refreshData" data-edit title="Apply a newer copy of the linked table">Refresh data</button><button data-icon="remove" data-cmd="clearGraphics" data-edit>Remove graphics</button></div>
       <span class="rb-glabel">Data</span>
     </div>
     <div class="wd-group rb-group" data-tab="insert">
@@ -96,6 +96,7 @@
     <aside class="wd-props" id="wd-props" aria-label="Properties"></aside>
   </main>
   <footer class="wd-status" id="wd-status"></footer>
+  <input type="file" id="wd-data-file" accept=".csv,.tsv,.txt,.xlsx" hidden>
   <input type="file" id="wd-file" accept=".wsdiagram,.vsdx,.json" hidden>
 </div>
 <script type="module" src="editor.js"></script>
