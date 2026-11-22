@@ -1,5 +1,17 @@
 # Change log
 
+## 10.1.70
+
+### New features
+
+#### Project
+
+* Multiple baselines: Project › Set Baseline asks which baseline to save,
+  Baseline or Baseline 1 to 10 (each showing the day it was saved), and
+  Compare with picks the one the grey bars, the variance in the status bar,
+  earned value and the Project Overview measure against. Clear baseline
+  removes one.
+
 ## 10.1.69
 
 ### New features

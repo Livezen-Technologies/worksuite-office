@@ -163,3 +163,19 @@ test("overview: completion by duration, finish against the baseline, next milest
   assert.deepEqual(o.milestones.map((x) => x.name), ["Gate"]);
   assert.deepEqual(o.people.map((p) => p.name), ["Nimal", "Ravi"]);
 });
+
+test("overview: compares with the baseline asked for", async () => {
+  const { overview } = await import("../apps/project/editor/views.js");
+  const { ProjectModel } = await import("../apps/project/core/project.js");
+  const m = new ProjectModel(newProject("P", "2026-02-02"));
+  m.isWork = STANDARD.isWork;
+  m.addTask({ name: "A", level: 0, start: "2026-02-02", duration: 2, progress: 0 });
+  const id = m.tasks[0].id;
+  m.saveBaseline("Baseline 1", "2026-02-01");
+  m.set(id, { duration: 4 });
+  m.saveBaseline("Baseline", "2026-02-02");
+  m.set(id, { duration: 5 });
+  assert.equal(overview(m.doc, { isWork: STANDARD.isWork }).slipDays, 1);
+  assert.equal(overview(m.doc, { isWork: STANDARD.isWork, baseline: "Baseline 1" }).slipDays, 3);
+  assert.equal(overview(m.doc, { isWork: STANDARD.isWork, baseline: "Baseline 7" }).slipDays, null);
+});
