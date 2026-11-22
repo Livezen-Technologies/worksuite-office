@@ -88,3 +88,26 @@ export function parseDuration(text) {
   if (!m) return null;
   return Number(m[1]) * (m[2] && m[2].startsWith("w") ? 7 : 1);
 }
+
+/**
+ * The progress line (Microsoft Project's): from the status date down the chart, out to each task's progress point and
+ * back. A task in progress, or one that should have started, bends the line to the end of its done part: left of the
+ * status date when it is behind, right when ahead. Tasks not due yet, done tasks, summaries, milestones and group
+ * headings leave the line at the status date. Returns the polyline's points, or [] with no status date on the chart.
+ */
+export function progressLine(rows, barList, scale, statusDate) {
+  if (!statusDate) return [];
+  const sx = scale.x(statusDate) + scale.dayW; // the end of the status date
+  if (sx < 0 || sx > scale.width) return [];
+  const pts = [[sx, 0]];
+  barList.forEach((b) => {
+    const r = rows[b.row], mid = b.y + ROW_H / 2;
+    const counts = b.kind === "task" && !r.inactive && r.start <= statusDate && (r.progress || 0) < 100;
+    if (!counts) return;
+    const px = b.x + (b.w * (r.progress || 0)) / 100;
+    if (Math.abs(px - sx) < 0.5) return;
+    pts.push([sx, b.y + 4], [px, mid], [sx, b.y + ROW_H - 4]);
+  });
+  pts.push([sx, rows.length * ROW_H]);
+  return pts;
+}

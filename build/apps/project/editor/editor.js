@@ -28,7 +28,7 @@ import { decorateRibbon, ribbonStyles } from "../../common/ribbon.js";
 import { aiDraft } from "../../common/aidraft.js";
 import { checkEdit, reasonText, openUpgrade } from "../../common/licence.js";
 import { packDocument, unpackDocument, xlsx } from "../../common/zip.js";
-import { ROW_H, visibleRows, timescale, headers, bars, linkPath, dragStart, dragDuration, parseDuration } from "./gantt.js";
+import { ROW_H, visibleRows, timescale, headers, bars, linkPath, dragStart, dragDuration, parseDuration, progressLine } from "./gantt.js";
 
 const $ = (id) => document.getElementById(id);
 const NS = "http://www.w3.org/2000/svg";
@@ -59,6 +59,7 @@ const state = {
   cal: "standard",
   showBaseline: false,
   showCritical: false,
+  showProgressLine: false, // the progress line from the status date (stage 5)
   board: false, // the Task Board (stage 5)
   net: false, // the Network Diagram (stage 5)
   tuse: false, // Task Usage (stage 5)
@@ -441,6 +442,8 @@ function renderChart(rows) {
   if (state.model.doc.statusDate) {
     const sx = sc.x(state.model.doc.statusDate) + sc.dayW; // the end of the status date
     if (sx >= 0 && sx <= sc.width) svg += `<line class="wp-statusline" x1="${sx}" x2="${sx}" y1="0" y2="${h}"><title>Status date</title></line>`;
+    const pl = state.showProgressLine ? progressLine(rows, bs, sc, state.model.doc.statusDate) : [];
+    if (pl.length) svg += `<polyline class="wp-progressline" points="${pl.map((p) => p.join(",")).join(" ")}"><title>Progress line: left of the status date is behind, right is ahead</title></polyline>`;
   }
   const today = new Date().toISOString().slice(0, 10), tx = sc.x(today) + sc.dayW / 2;
   if (tx >= 0 && tx <= sc.width) svg += `<line class="wp-today" x1="${tx}" x2="${tx}" y1="0" y2="${h}"/>`;
@@ -753,6 +756,7 @@ $("wp-group").addEventListener("change", (e) => { state.group = e.target.value; 
 $("wp-filter").addEventListener("change", (e) => { state.filter = e.target.value; render(); });
 $("wp-cal").addEventListener("change", (e) => { state.cal = e.target.value; render(); });
 $("wp-critical").addEventListener("change", (e) => { state.showCritical = e.target.checked; render(); });
+$("wp-progressline").addEventListener("change", (e) => { if (e.target.checked && !state.model.doc.statusDate) { e.target.checked = false; state.message = "Set a status date first: the progress line starts there"; render(); return; } state.showProgressLine = e.target.checked; render(); });
 /* task type and effort driven: for the selected tasks (not summaries or milestones) */
 function typedTargets() { return selected().filter((id) => !state.model.isSummary(id) && state.model.task(id).duration > 0); }
 $("wp-type").addEventListener("change", (e) => run(() => {

@@ -86,3 +86,27 @@ test("typed durations: days, weeks, and nonsense refused", () => {
   assert.equal(parseDuration("five"), null);
   assert.equal(parseDuration("-3"), null);
 });
+
+test("progressLine: bends left to a task behind, right to one ahead; done, future and summary rows keep it straight", async () => {
+  const { progressLine } = await import("../apps/project/editor/gantt.js");
+  const rows = [
+    { id: "s", summary: true, start: "2026-02-02", finish: "2026-02-13", progress: 40 },
+    { id: "a", start: "2026-02-02", finish: "2026-02-11", progress: 20 }, // behind: 20% of 10 days by the 6th
+    { id: "b", start: "2026-02-02", finish: "2026-02-06", progress: 100 },
+    { id: "c", start: "2026-02-03", finish: "2026-02-04", progress: 50 }, // should be done: behind
+    { id: "d", start: "2026-02-04", finish: "2026-02-05", progress: 100 },
+    { id: "e", start: "2026-02-09", finish: "2026-02-13", progress: 0 }, // not due
+    { id: "f", start: "2026-02-02", finish: "2026-02-05", progress: 90 },
+  ];
+  const sc = timescale(rows, "week", "2026-02-02");
+  const bl = bars(rows, sc);
+  const pts = progressLine(rows, bl, sc, "2026-02-04");
+  const sx = sc.x("2026-02-04") + sc.dayW;
+  assert.deepEqual(pts[0], [sx, 0]);
+  assert.deepEqual(pts.at(-1), [sx, rows.length * ROW_H]);
+  const bends = pts.filter((p) => p[0] !== sx);
+  assert.equal(bends.length, 3, "a, c and f bend; s, b, d and e do not");
+  assert.ok(bends[0][0] < sx && bends[0][1] === ROW_H * 1.5, "a is behind");
+  assert.ok(bends[2][0] > sx, "f is ahead");
+  assert.deepEqual(progressLine(rows, bl, sc, null), []);
+});
