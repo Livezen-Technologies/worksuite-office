@@ -16,7 +16,7 @@
  *   ASAP (default) · SNET start no earlier than · MSO must start on · FNLT finish no later than (reported when missed)
  * Summary tasks are not scheduled themselves; they roll up their subtasks.
  */
-import { toDay, fromDay } from "./project.js";
+import { toDay, fromDay, splitDays } from "./project.js";
 
 /* ---- calendars ---- */
 
@@ -99,7 +99,7 @@ export function schedule(doc, cal = STANDARD) {
   if (order.length !== leaves.length) throw new Error("the links form a loop");
 
   const byId = new Map(tasks.map((t) => [t.id, t]));
-  const span = (t) => Math.max(0, t.duration - 1); // finish = start + span (a milestone: span 0)
+  const span = (t) => Math.max(0, t.duration - 1) + splitDays(t); // finish = start + span (a milestone: span 0; splits add their pauses)
   const projectStart = num.n(doc.start);
   const es = new Map(), ef = new Map();
 

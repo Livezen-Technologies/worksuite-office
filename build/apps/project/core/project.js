@@ -10,6 +10,7 @@
  *           owner?, notes?, actualStart?, actualFinish?, deadline?, inactive?, type?, work?, effortDriven?, fixedCost?,
  *           priority? (0-1000, default 500), levelDelay? (working days added by resource levelling),
  *           custom? ({ fieldKey: value } for the document's custom fields),
+ *           splits? ([{ after, days }]: pauses of `days` working days after `after` days of work),
  *           recurring? (on a summary: the pattern its occurrences were made from, recurring.js) }
  *   resources: [{ name, rate (per hour), costPerUse }]   the Resource Sheet, by the names in Owner (costs.js)
  *         type: fixedUnits (default) | fixedWork | fixedDuration; work: person-hours; see tasktypes.js
@@ -39,11 +40,60 @@ export const fromDay = (n) => new Date(n * DAY).toISOString().slice(0, 10);
 /** a task's finish: the last day it runs (a milestone finishes the day it starts) */
 /** With a working calendar (isWork(day) → bool) the duration counts working days, from the first working day. */
 export function finishOf(t, isWork = null) {
-  if (!isWork) return fromDay(toDay(t.start) + Math.max(0, t.duration - 1));
-  let d = toDay(t.start), left = Math.max(0, t.duration - 1), guard = 0;
+  const gaps = splitDays(t); // a split task's pauses lengthen its span, not its duration
+  if (!isWork) return fromDay(toDay(t.start) + Math.max(0, t.duration - 1) + gaps);
+  let d = toDay(t.start), left = Math.max(0, t.duration - 1) + gaps, guard = 0;
   while (!isWork(d)) { d++; if (++guard > 3660) throw new Error("the calendar has no working days"); }
   while (left > 0) { d++; if (isWork(d)) left--; if (++guard > 40000) throw new Error("the calendar has too few working days"); }
   return fromDay(d);
+}
+
+/* ---- split tasks (stage 5): work stops for a while and picks up again ---- */
+/**
+ * A task's pauses, valid ones only, in order: [{ after, days }], `after` working days of work then `days` working days
+ * of pause. The duration counts the work; the pauses push the finish out.
+ */
+export function splitsOf(t) {
+  if (!Array.isArray(t.splits) || !(t.duration > 1)) return [];
+  return t.splits.filter((x) => Number.isInteger(x?.after) && Number.isInteger(x?.days) && x.after >= 1 && x.after < t.duration && x.days >= 1)
+    .sort((a, b) => a.after - b.after).filter((x, i, a) => i === 0 || a[i - 1].after !== x.after);
+}
+/** The working days a split task is paused for, in all. */
+export const splitDays = (t) => splitsOf(t).reduce((n, x) => n + x.days, 0);
+/** What is wrong with a task's splits, or null. */
+export function splitsError(t) {
+  if (t.splits === undefined) return null;
+  if (!Array.isArray(t.splits) || !t.splits.length) return "splits must be a list of pauses";
+  if (!(t.duration > 1)) return "only a task of 2 days or more can be split";
+  const seen = new Set();
+  for (const x of t.splits) {
+    if (!Number.isInteger(x?.after) || x.after < 1 || x.after >= t.duration) return `a split comes after 1 to ${t.duration - 1} days of work`;
+    if (!Number.isInteger(x?.days) || x.days < 1) return "a split pauses for whole working days, 1 or more";
+    if (seen.has(x.after)) return `two splits after day ${x.after}`;
+    seen.add(x.after);
+  }
+  return null;
+}
+/** The days a task is worked (day numbers), its pauses and non-working days left out. */
+export function workDays(t, isWork = null) {
+  const out = [], pauses = new Map(splitsOf(t).map((x) => [x.after, x.days]));
+  let d = toDay(t.start), worked = 0, guard = 0;
+  while (worked < Math.max(1, t.duration)) {
+    if (!isWork || isWork(d)) {
+      out.push(d); worked++;
+      if (pauses.has(worked)) { let p = pauses.get(worked); while (p > 0) { d++; if (!isWork || isWork(d)) p--; if (++guard > 40000) break; } }
+    }
+    d++;
+    if (++guard > 40000) throw new Error("the calendar has too few working days");
+  }
+  return t.duration === 0 ? out.slice(0, 1) : out;
+}
+/** A task's pieces of work: [{ start, finish }] (one piece unless it is split). */
+export function segmentsOf(t, isWork = null) {
+  const days = workDays(t, isWork), out = [], pauseAfter = new Set(splitsOf(t).map((x) => x.after));
+  let from = days[0];
+  days.forEach((d, i) => { if (pauseAfter.has(i + 1) || i === days.length - 1) { out.push({ start: fromDay(from), finish: fromDay(d) }); from = days[i + 1]; } });
+  return out;
 }
 
 /* ---- WBS codes: 1, 1.1, 1.2, 2 … from the outline ---- */
@@ -97,6 +147,7 @@ export function validate(doc) {
     if (t.levelDelay !== undefined && !(Number.isInteger(t.levelDelay) && t.levelDelay >= 0)) errs.push(`${at}: levelling delay must be whole working days`);
     if (t.recurring !== undefined && patternError(t.recurring)) errs.push(`${at}: ${patternError(t.recurring)}`);
     if (t.actualStart && t.actualFinish && t.actualFinish < t.actualStart) errs.push(`${at}: actual finish is before actual start`);
+    if (splitsError(t)) errs.push(`${at}: ${splitsError(t)}`);
     if (t.custom !== undefined) {
       if (!t.custom || typeof t.custom !== "object") errs.push(`${at}: custom values must be a set of fields`);
       else for (const [k, v] of Object.entries(t.custom)) {
@@ -258,6 +309,8 @@ export class ProjectModel {
       const changed = "work" in fields ? "work" : "duration" in fields ? "duration" : "owner" in fields ? "units" : null;
       if (changed) recalc(before, t, changed);
       if (t.work === undefined) delete t.work;
+      // a shorter duration drops the pauses that no longer fall inside the work
+      if (t.splits !== undefined) { const ok = splitsOf(t); if (ok.length) t.splits = ok; else delete t.splits; }
       // progress keeps the actual dates (#86): work began on the planned start, and 100% ends it on the planned finish
       if (fields.progress !== undefined && !("actualStart" in fields) && !("actualFinish" in fields)) {
         if (t.progress > 0 && !t.actualStart) t.actualStart = t.start;
@@ -280,6 +333,16 @@ export class ProjectModel {
       d.resources = d.resources.filter((x) => x.rate || x.costPerUse || x.type);
     });
   }
+  /** Splits a task: work pauses for `days` working days after `after` days of work (a pause there already is replaced). */
+  split(id, after, days) {
+    return this.edit((d) => {
+      const t = d.tasks.find((x) => x.id === id);
+      if (!t) return;
+      t.splits = [...(t.splits || []).filter((x) => x.after !== after), { after, days }].sort((a, b) => a.after - b.after);
+    });
+  }
+  /** Joins a split task's pieces back together. */
+  unsplit(id) { return this.edit((d) => { const t = d.tasks.find((x) => x.id === id); if (t) delete t.splits; }); }
   /** Adds a custom field (a column) of a type; returns its key. */
   addField(name, type) {
     let key;

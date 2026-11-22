@@ -6,7 +6,7 @@
  * resource: an amount (20 bags; a cost of 20), not a share of anyone's time, so it carries no units and no workload. A person's workload on a day is the sum of their tasks'
  * shares that day (summaries and milestones do not count); more than 100% is over-allocated.
  */
-import { toDay, fromDay, finishOf } from "./project.js";
+import { toDay, fromDay, workDays } from "./project.js";
 
 /** A task's assignments: [{ name, units, amount? }], units 1 = full time, from "Nimal, Priya 50%, Cement [20]". */
 export function assignmentsOf(t) {
@@ -42,9 +42,7 @@ export function workload(doc, isWork = null) {
     if (t.duration <= 0 || t.inactive || isSummaryAt(doc.tasks, i)) return;
     const people = assignmentsOf(t).filter((a) => a.units > 0);
     if (!people.length) return;
-    const s = toDay(t.start), f = toDay(finishOf(t, isWork));
-    for (let d = s; d <= f; d++) {
-      if (isWork && !isWork(d)) continue;
+    for (const d of workDays(t, isWork)) { // a split task's pauses are not worked
       for (const a of people) {
         if (!out.has(a.name)) out.set(a.name, new Map());
         const days = out.get(a.name);

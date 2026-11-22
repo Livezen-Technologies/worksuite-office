@@ -1,5 +1,18 @@
 # Change log
 
+## 10.1.71
+
+### New features
+
+#### Project
+
+* Split tasks: Task › Split task pauses a task's work for some working days
+  after a number of days of work, and Join split takes the pauses out. The
+  duration stays the work; the pauses move the finish out, and the scheduler,
+  successors, workload and usage views all leave the pauses unworked. The
+  Gantt bar shows the pieces joined by a dotted line, and the Duration cell
+  marks a split task.
+
 ## 10.1.70
 
 ### New features

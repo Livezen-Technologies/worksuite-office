@@ -103,3 +103,32 @@ test("material and cost resources: amounts in brackets, costs by type, no hours 
   assert.equal(doc.resources.find((r) => r.name === "Permit fee").type, "cost");
   assert.equal(costs(doc).total, costs(m.doc).total);
 });
+
+test("split tasks: pauses push the finish out, keep the duration, are not worked, and follow the scheduler", async () => {
+  const { finishOf, segmentsOf, workDays, toDay } = await import("../apps/project/core/project.js");
+  const { schedule, STANDARD } = await import("../apps/project/core/schedule.js");
+  const { overallocations } = await import("../apps/project/core/resources.js");
+  const isWork = STANDARD.isWork;
+  const m = new ProjectModel(newProject("P", "2026-02-02"));
+  m.isWork = isWork;
+  m.addTask({ name: "Paint", level: 0, start: "2026-02-02", duration: 4, progress: 0, owner: "Ravi" }); // Mon-Thu
+  m.addTask({ name: "Other", level: 0, start: "2026-02-04", duration: 2, progress: 0, owner: "Ravi" }); // Wed-Thu
+  const [a, b] = m.tasks.map((t) => t.id);
+  assert.equal(overallocations(m.doc, isWork).length, 1);
+  m.split(a, 2, 2); // Mon Tue | pause Wed Thu | Fri Mon
+  const t = m.task(a);
+  assert.equal(t.duration, 4);
+  assert.equal(finishOf(t, isWork), "2026-02-09");
+  assert.deepEqual(segmentsOf(t, isWork), [{ start: "2026-02-02", finish: "2026-02-03" }, { start: "2026-02-06", finish: "2026-02-09" }]);
+  assert.equal(workDays(t, isWork).length, 4);
+  assert.deepEqual(overallocations(m.doc, isWork), [], "Ravi does Other during the pause");
+  m.link(a, b, "FS", 0);
+  const s = schedule(m.doc, STANDARD);
+  assert.equal(s.tasks[b].start, "2026-02-10", "the successor waits for the end of the last piece");
+  assert.throws(() => m.split(a, 4, 1), /after 1 to 3 days/);
+  m.set(a, { duration: 2 });
+  assert.equal(m.task(a).splits, undefined, "a pause past the new duration is dropped");
+  m.undo(); m.unsplit(a);
+  assert.equal(finishOf(m.task(a), isWork), "2026-02-05");
+  void toDay;
+});
