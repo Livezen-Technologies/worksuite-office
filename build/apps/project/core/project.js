@@ -33,6 +33,10 @@ export const SCHEMA_VERSION = 1;
 export const LINK_TYPES = ["FS", "SS", "FF", "SF"];
 /** Baselines kept per project (as many as professional planning tools keep). */
 export const MAX_BASELINES = 11;
+/** Interim plans kept per project: lighter snapshots of each task's start and finish (Interim 1 to 10). */
+export const MAX_INTERIMS = 10;
+/** A saved baseline or interim plan by name, or null. */
+export const snapshotOf = (doc, name) => (doc.baselines || []).find((b) => b.name === name) || (doc.interims || []).find((b) => b.name === name) || null;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const DAY = 86400000;
 
@@ -200,6 +204,17 @@ export function validate(doc) {
         if (r?.unit !== undefined && typeof r.unit !== "string") errs.push(`resource ${i + 1}: unit must be text`);
       });
     }
+  }
+  if (doc.interims !== undefined) {
+    if (!Array.isArray(doc.interims) || doc.interims.length > MAX_INTERIMS) errs.push(`interim plans must be a list of at most ${MAX_INTERIMS}`);
+    else doc.interims.forEach((b, i) => {
+      const at = `interim plan ${i + 1}`;
+      if (typeof b.name !== "string" || !b.name) errs.push(`${at}: no name`);
+      else if ((doc.baselines || []).some((x) => x.name === b.name)) errs.push(`${at}: ${b.name} is also a baseline's name`);
+      if (!DATE.test(b.saved || "")) errs.push(`${at}: saved must be a date`);
+      if (!b.tasks || typeof b.tasks !== "object") { errs.push(`${at}: no tasks`); return; }
+      for (const [id, v] of Object.entries(b.tasks)) if (!DATE.test(v.start || "") || !DATE.test(v.finish || "")) errs.push(`${at}: task ${id} is incomplete`);
+    });
   }
   if (doc.baselines !== undefined) {
     if (!Array.isArray(doc.baselines) || doc.baselines.length > MAX_BASELINES) errs.push(`baselines must be a list of at most ${MAX_BASELINES}`);
@@ -462,7 +477,18 @@ export class ProjectModel {
     });
   }
   clearBaseline(name) { return this.edit((d) => { d.baselines = (d.baselines || []).filter((b) => b.name !== name); if (!d.baselines.length) delete d.baselines; }); }
-  baseline(name) { return (this.doc.baselines || []).find((b) => b.name === name) || null; }
+  baseline(name) { return snapshotOf(this.doc, name); }
+  /** Saves an interim plan: each task's start and finish as they are now (no durations, work or costs). */
+  saveInterim(name = "Interim 1", saved = new Date().toISOString().slice(0, 10)) {
+    return this.edit((d) => {
+      const tasks = {};
+      for (const t of d.tasks) { const v = this.viewIn(d, t.id); tasks[t.id] = { start: v.start, finish: v.finish }; }
+      const list = (d.interims || []).filter((b) => b.name !== name);
+      if (list.length >= MAX_INTERIMS) throw new Error(`a project keeps at most ${MAX_INTERIMS} interim plans; clear one first`);
+      d.interims = [...list, { name, saved, tasks }];
+    });
+  }
+  clearInterim(name) { return this.edit((d) => { d.interims = (d.interims || []).filter((b) => b.name !== name); if (!d.interims.length) delete d.interims; }); }
 
   /**
    * Plan against actual for a task: the baseline's dates and the slip in days (positive: later than planned).

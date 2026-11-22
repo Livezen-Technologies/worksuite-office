@@ -2,7 +2,7 @@
  * WorkSuite Project: the Task Board and Calendar views (roadmap stage 5). Pure functions, no DOM, so the tests
  * cover them; editor.js draws what they return.
  */
-import { toDay, fromDay, finishOf, workDays } from "../core/project.js";
+import { toDay, fromDay, finishOf, workDays, snapshotOf } from "../core/project.js";
 import { assignmentsOf, maxUnitsOf, workload } from "../core/resources.js";
 import { costs, resourceSheet } from "../core/costs.js";
 
@@ -313,7 +313,7 @@ export function overview(doc, { isWork = null, from = null, baseline = "Baseline
   const live = doc.tasks.filter((t) => !t.inactive);
   const start = live.length ? live.reduce((m, t) => (t.start < m ? t.start : m), live[0].start) : doc.start;
   const finish = live.length ? live.reduce((m, t) => { const f = finishOf(t, isWork); return f > m ? f : m; }, start) : doc.start;
-  const b = (doc.baselines || []).find((x) => x.name === baseline);
+  const b = snapshotOf(doc, baseline);
   const bt = b ? live.map((t) => b.tasks[t.id]).filter(Boolean) : []; // inactive tasks count neither now nor then
   const baselineFinish = bt.length ? bt.reduce((m, t) => (t.finish > m ? t.finish : m), bt[0].finish) : null;
   const c = costs(doc);

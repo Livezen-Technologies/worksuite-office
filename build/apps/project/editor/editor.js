@@ -76,6 +76,8 @@ const cols = () => [...COLS, ...(state.model.doc.fields || []).map((f) => ({ key
 
 /** Microsoft Project's baseline names: Baseline, then Baseline 1 to 10. */
 const BASELINE_NAMES = ["Baseline", ...Array.from({ length: 10 }, (_, i) => `Baseline ${i + 1}`)];
+/** Interim plans: Interim 1 to 10, as Microsoft Project's Start1-Finish1 to Start10-Finish10. */
+const INTERIM_NAMES = Array.from({ length: 10 }, (_, i) => `Interim ${i + 1}`);
 
 const calendar = () => (state.cal === "lk" ? SRI_LANKA : STANDARD);
 const state = {
@@ -262,15 +264,26 @@ const commands = {
       state.note = `${v.name} saved: the grey bars show the plan as it is now`;
     });
   },
+  saveInterim: async () => {
+    if (state.readOnly) return;
+    const saved = new Map((state.model.doc.interims || []).map((b) => [b.name, b.saved]));
+    const v = await askForm({
+      title: "Save interim plan", ok: "Save",
+      hint: "An interim plan keeps each task's start and finish as they are now, to see how the dates move between baselines. Saving over one replaces it.",
+      fields: [{ key: "name", label: "Save as", type: "select", value: INTERIM_NAMES.find((n) => !saved.has(n)) || INTERIM_NAMES[0], options: INTERIM_NAMES.map((n) => [n, saved.has(n) ? `${n} (saved ${fmt(saved.get(n))})` : n]) }],
+    });
+    if (!v) return;
+    run(() => { state.model.saveInterim(v.name); state.note = `${v.name} saved: choose it in Compare with to see the dates against it`; });
+  },
   clearBaseline: async () => {
     if (state.readOnly) return;
-    const list = state.model.doc.baselines || [];
-    if (!list.length) { state.message = "No baseline is saved yet"; render(); return; }
+    const list = [...(state.model.doc.baselines || []), ...(state.model.doc.interims || [])];
+    if (!list.length) { state.message = "No baseline or interim plan is saved yet"; render(); return; }
     const v = await askForm({
       title: "Clear baseline", ok: "Clear", hint: "The plan itself does not change. Undo brings the baseline back.",
       fields: [{ key: "name", label: "Baseline", type: "select", value: list.some((b) => b.name === state.baselineName) ? state.baselineName : list[0].name, options: list.map((b) => [b.name, `${b.name} (saved ${fmt(b.saved)})`]) }],
     });
-    if (v) run(() => state.model.clearBaseline(v.name));
+    if (v) run(() => ((state.model.doc.interims || []).some((b) => b.name === v.name) ? state.model.clearInterim(v.name) : state.model.clearBaseline(v.name)));
   },
   today: () => { const sc = timescale(shownRows(), state.zoom, state.model.doc.start); $("wp-chart").scrollLeft = Math.max(0, sc.x(new Date().toISOString().slice(0, 10)) - 120); },
 };
@@ -865,9 +878,9 @@ function shownRows() {
 const taskIds = (rows) => rows.filter((r) => !r.group).map((r) => r.id);
 /** The Compare-with box: the saved baselines; the one in use falls back to the first saved when it is cleared. */
 function fillBaselines() {
-  const list = state.model.doc.baselines || [], sel = $("wp-baseline-name");
+  const list = [...(state.model.doc.baselines || []), ...(state.model.doc.interims || [])], sel = $("wp-baseline-name");
   if (list.length && !list.some((b) => b.name === state.baselineName)) state.baselineName = list.some((b) => b.name === "Baseline") ? "Baseline" : list[0].name;
-  const html = list.length ? BASELINE_NAMES.filter((n) => list.some((b) => b.name === n)).map((n) => `<option value="${esc(n)}">${esc(n)}</option>`).join("") : `<option value="">None saved</option>`;
+  const html = list.length ? [...BASELINE_NAMES, ...INTERIM_NAMES].filter((n) => list.some((b) => b.name === n)).map((n) => `<option value="${esc(n)}">${esc(n)}</option>`).join("") : `<option value="">None saved</option>`;
   if (sel.dataset.html !== html) { sel.innerHTML = html; sel.dataset.html = html; }
   sel.value = list.length ? state.baselineName : "";
   sel.disabled = !list.length;

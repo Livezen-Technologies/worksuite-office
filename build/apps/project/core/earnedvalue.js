@@ -40,6 +40,7 @@ function figures(bac, pv, ev, ac) {
 export function earnedValue(doc, { statusDate = doc.statusDate, baseline = "Baseline", isWork = null } = {}) {
   if (!statusDate) return { error: "Set a status date (Project › Status date) to measure earned value." };
   const b = (doc.baselines || []).find((x) => x.name === baseline);
+  if (!b && (doc.interims || []).some((x) => x.name === baseline)) return { error: `${baseline} is an interim plan: it keeps dates, not costs. Compare with a baseline to measure earned value.` };
   if (!b) return { error: "Save a baseline (Project › Set Baseline) to measure earned value against." };
   if (!Object.values(b.tasks).some((t) => t.cost !== undefined)) return { error: "This baseline was saved before costs were kept. Set the baseline again to include them." };
   const rows = [];
