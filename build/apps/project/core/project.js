@@ -191,6 +191,7 @@ export function validate(doc) {
         else if (names.has(r.name)) errs.push(`resource ${i + 1}: ${r.name} is listed twice`);
         names.add(r?.name);
         for (const k of ["rate", "costPerUse"]) if (r?.[k] !== undefined && !(Number.isFinite(r[k]) && r[k] >= 0)) errs.push(`resource ${i + 1}: ${k} must be 0 or more`);
+        if (r?.maxUnits !== undefined && !(Number.isFinite(r.maxUnits) && r.maxUnits > 0 && r.maxUnits <= 100)) errs.push(`resource ${i + 1}: max units must be more than 0 (1 is one person full time)`);
         if (r?.type !== undefined && !["work", "material", "cost"].includes(r.type)) errs.push(`resource ${i + 1}: type must be work, material or cost`);
         if (r?.unit !== undefined && typeof r.unit !== "string") errs.push(`resource ${i + 1}: unit must be text`);
       });
@@ -344,10 +345,12 @@ export class ProjectModel {
       let r = d.resources.find((x) => x.name === name);
       if (!r) { r = { name }; d.resources.push(r); }
       for (const k of ["rate", "costPerUse"]) if (k in fields) { if (fields[k] === null || fields[k] === undefined || fields[k] === "") delete r[k]; else r[k] = Number(fields[k]); }
+      if ("maxUnits" in fields) { const v = fields.maxUnits; if (v === null || v === undefined || v === "" || Number(v) === 1) delete r.maxUnits; else r.maxUnits = Number(v); }
       if ("type" in fields) { if (!fields.type || fields.type === "work") delete r.type; else r.type = fields.type; }
       if ("unit" in fields) { if (!String(fields.unit ?? "").trim()) delete r.unit; else r.unit = String(fields.unit).trim(); }
       if (r.type !== "material") delete r.unit;
-      d.resources = d.resources.filter((x) => x.rate || x.costPerUse || x.type);
+      if (r.type) delete r.maxUnits; // materials and cost resources have no time to give
+      d.resources = d.resources.filter((x) => x.rate || x.costPerUse || x.type || x.maxUnits !== undefined);
     });
   }
   /** Splits a task: work pauses for `days` working days after `after` days of work (a pause there already is replaced). */

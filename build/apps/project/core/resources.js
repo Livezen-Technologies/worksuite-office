@@ -56,30 +56,37 @@ export function workload(doc, isWork = null) {
 
 const load = (list) => list.reduce((s, x) => s + x.units, 0);
 
+/** A resource's availability (Max units): 1 is one person full time, 0.5 half time, 3 a crew of three; 1 when not set. */
+export function maxUnitsOf(doc, name) {
+  const r = (doc.resources || []).find((x) => x.name === name);
+  return r && Number.isFinite(r.maxUnits) && r.maxUnits > 0 ? r.maxUnits : 1;
+}
+
 /**
- * Over-allocations: one entry per person and run of consecutive days above 100%,
- * { name, from, to (ISO dates), days, peak (units), tasks: [ids] }, sorted by date then name.
+ * Over-allocations: one entry per person and run of consecutive days above their availability (Max units, 100% when
+ * not set), { name, from, to (ISO dates), days, peak (units), max, tasks: [ids] }, sorted by date then name.
  */
 export function overallocations(doc, isWork = null) {
   const out = [];
   for (const [name, days] of workload(doc, isWork)) {
-    const over = [...days].filter(([, list]) => load(list) > 1 + EPS).sort((a, b) => a[0] - b[0]);
+    const max = maxUnitsOf(doc, name);
+    const over = [...days].filter(([, list]) => load(list) > max + EPS).sort((a, b) => a[0] - b[0]);
     let run = null;
     for (const [d, list] of over) {
       // consecutive: no working day between this and the run's last day
       let gap = false;
       if (run) for (let x = run.last + 1; x < d; x++) if (!isWork || isWork(x)) { gap = true; break; }
-      if (!run || gap) { if (run) out.push(close(run)); run = { name, first: d, last: d, days: 0, peak: 0, tasks: new Set() }; }
+      if (!run || gap) { if (run) out.push(close(run)); run = { name, max, first: d, last: d, days: 0, peak: 0, tasks: new Set() }; }
       run.last = d; run.days++; run.peak = Math.max(run.peak, load(list)); list.forEach((x) => run.tasks.add(x.id));
     }
     if (run) out.push(close(run));
   }
   return out.sort((a, b) => a.from.localeCompare(b.from) || a.name.localeCompare(b.name));
 }
-const close = (r) => ({ name: r.name, from: fromDay(r.first), to: fromDay(r.last), days: r.days, peak: round(r.peak), tasks: [...r.tasks] });
+const close = (r) => ({ name: r.name, from: fromDay(r.first), to: fromDay(r.last), days: r.days, peak: round(r.peak), max: r.max, tasks: [...r.tasks] });
 const round = (x) => Math.round(x * 100) / 100;
 
-/** Weekly totals for the workload view: [{ name, weeks: [{ start (Monday ISO), days (person-days), peak (units) }] }]. */
+/** Weekly totals for the workload view: [{ name, max (availability), weeks: [{ start (Monday ISO), days (person-days), peak (units) }] }]. */
 export function weeklyLoad(doc, isWork = null) {
   const rows = [];
   for (const [name, days] of [...workload(doc, isWork)].sort((a, b) => a[0].localeCompare(b[0]))) {
@@ -90,7 +97,7 @@ export function weeklyLoad(doc, isWork = null) {
       w.days = round(w.days + load(list)); w.peak = round(Math.max(w.peak, load(list)));
       weeks.set(mon, w);
     }
-    rows.push({ name, weeks: [...weeks].sort((a, b) => a[0] - b[0]).map(([, w]) => w) });
+    rows.push({ name, max: maxUnitsOf(doc, name), weeks: [...weeks].sort((a, b) => a[0] - b[0]).map(([, w]) => w) });
   }
   return rows;
 }

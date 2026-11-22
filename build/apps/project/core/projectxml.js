@@ -136,9 +136,11 @@ export function fromProjectXml(text) {
     const row = { name: val(r, "Name") };
     if (rtype) row.type = rtype;
     if (rtype === "material" && val(r, "MaterialLabel")) row.unit = val(r, "MaterialLabel");
+    const maxU = Number(val(r, "MaxUnits"));
+    if (!rtype && val(r, "MaxUnits") && maxU > 0 && maxU <= 100 && Math.abs(maxU - 1) > 1e-9) row.maxUnits = Math.round(maxU * 100) / 100;
     if (rate > 0) row.rate = Math.round(rate * perHour * 100) / 100;
     if (perUse > 0) row.costPerUse = Math.round(perUse * 100) / 100;
-    if ((row.rate || row.costPerUse || row.type) && !doc.resources.some((x) => x.name === row.name)) doc.resources.push(row);
+    if ((row.rate || row.costPerUse || row.type || row.maxUnits) && !doc.resources.some((x) => x.name === row.name)) doc.resources.push(row);
   }
   const owners = new Map();
   const asgEl = kid(top, "Assignments");
@@ -255,7 +257,7 @@ export function toProjectXml(doc, isWork = null) {
   const resXml = resources.map((r) => {
     const s = sheet.get(r) || {};
     const type = s.type || (doc.tasks.some((t) => assignmentsOf(t).some((a) => a.name === r && a.amount !== undefined)) ? "material" : "work");
-    return `<Resource><UID>${rid.get(r)}</UID><ID>${rid.get(r)}</ID>${el("Name", r)}<Type>${{ work: 1, material: 0, cost: 2 }[type]}</Type>` + (type === "material" ? el("MaterialLabel", s.unit) : "") +
+    return `<Resource><UID>${rid.get(r)}</UID><ID>${rid.get(r)}</ID>${el("Name", r)}<Type>${{ work: 1, material: 0, cost: 2 }[type]}</Type>` + (type === "material" ? el("MaterialLabel", s.unit) : "") + (type === "work" && s.maxUnits ? `<MaxUnits>${s.maxUnits}</MaxUnits>` : "") +
       (s.rate ? `<StandardRate>${s.rate}</StandardRate><StandardRateFormat>2</StandardRateFormat>` : "") + (s.costPerUse ? `<CostPerUse>${s.costPerUse}</CostPerUse>` : "") + `</Resource>`;
   }).join("\n    ");
   let a = 0;
