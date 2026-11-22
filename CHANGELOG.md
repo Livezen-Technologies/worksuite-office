@@ -1,5 +1,17 @@
 # Change log
 
+## 10.1.86
+
+### New features
+
+#### Diagram
+
+* Line jumps: where two straight or elbow connectors cross, the one drawn
+  later hops over the other with a small arc, so each line can be followed.
+  There is no hop at a bend or an end of either line. View › Line jumps turns
+  them off for the page (and Undo turns them back on); SVG and PNG exports
+  draw them too.
+
 ## 10.1.85
 
 ### New features

@@ -83,3 +83,17 @@ test("the floor plan, UML, BPMN and cloud libraries: own types, closed outlines,
     assert.ok(pathToGeometry(d, s.w, s.h).length >= 1, s.type);
   }
 });
+
+test("line jumps: a crossing hops on the later line only, not near ends, curved lines left alone", async () => {
+  const { lineJumps, jumpPath } = await import("../apps/diagram/editor/geometry.js");
+  const h = [[0, 50], [100, 50]], v = [[50, 0], [50, 100]], touch = [[100, 50], [100, 100]], near = [[3, 0], [3, 100]];
+  const j = lineJumps([h, v, null, touch, near]);
+  assert.deepEqual(j[0], [[]], "the first line keeps straight");
+  assert.deepEqual(j[1], [[50]], "the vertical line hops the horizontal at 50");
+  assert.equal(j[2], null);
+  assert.deepEqual(j[3], [[]], "meeting at an end is not a crossing");
+  assert.deepEqual(j[4], [[]], "too close to the other line's end to hop");
+  assert.equal(jumpPath(v, j[1]), "M50 0 L50 45 A5 5 0 0 1 50 55 L50 100");
+  const elbow = [[0, 20], [60, 20], [60, 80], [120, 80]], cross = [[30, 0], [30, 100]];
+  assert.deepEqual(lineJumps([elbow, cross])[1], [[20]]);
+});
