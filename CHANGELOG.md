@@ -1,5 +1,17 @@
 # Change log
 
+## 10.1.68
+
+### New features
+
+#### Project
+
+* Progress line: Project › Progress line draws a red line down the Gantt chart
+  from the status date, bending out to the end of each started or overdue
+  task's done part: a peak to the left of the status date is a task behind,
+  to the right a task ahead. Done tasks, tasks not due yet and summaries keep
+  the line straight.
+
 ## 10.1.67
 
 ### New features

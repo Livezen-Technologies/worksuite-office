@@ -206,3 +206,4 @@ table.wp-table { border-collapse: collapse; width: 100%; table-layout: fixed; }
 .wp-bars td { padding: 4px 0; display: flex; align-items: center; gap: 8px; }
 .wp-bars .bar { display: inline-block; height: 12px; border-radius: 0 3px 3px 0; background: var(--accent, #2f6fde); min-width: 2px; }
 .wp-bars .v { color: var(--ink3); white-space: nowrap; }
+.wp-progressline { fill: none; stroke: #c62828; stroke-width: 1.6; stroke-linejoin: round; pointer-events: stroke; }
