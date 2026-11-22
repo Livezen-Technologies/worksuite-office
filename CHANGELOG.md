@@ -1,5 +1,17 @@
 # Change log
 
+## 10.1.79
+
+### New features
+
+#### Project
+
+* Burndown report: View › Burndown charts the hours of work left at the end of
+  each week if the plan runs as scheduled, the same for the baseline or interim
+  plan chosen in Compare with, and the work actually left at the status date by
+  percent complete. Hovering a week shows its figures, and the chart can be
+  shown as a table.
+
 ## 10.1.78
 
 ### New features

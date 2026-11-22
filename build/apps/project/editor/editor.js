@@ -20,7 +20,7 @@ import { outlineToDoc } from "../core/outline.js";
 import { workOf, unitsOf, TASK_TYPES } from "../core/tasktypes.js";
 import { costs, resourceSheet, formatMoney } from "../core/costs.js";
 import { earnedValue } from "../core/earnedvalue.js";
-import { BOARD_COLUMNS, board, progressFor, month, network, NODE, usage, FILTERS, filterTasks, timeline, GROUPS, groupRows, overview, teamPlanner } from "./views.js";
+import { BOARD_COLUMNS, board, progressFor, month, network, NODE, usage, FILTERS, filterTasks, timeline, GROUPS, groupRows, overview, teamPlanner, burndown } from "./views.js";
 import { askText, askForm } from "../../common/dialog.js";
 import { FIELD_TYPES, parseValue, formatValue, fieldValue, fieldIcon, fieldError, FORMULA_FIELDS } from "../core/fields.js";
 import { describe as describeRecurring, patternError } from "../core/recurring.js";
@@ -93,6 +93,7 @@ const state = {
   tl: false, // the Timeline (stage 5)
   report: false, // the Project Overview report (stage 5)
   team: false, // the Team Planner (stage 5)
+  burn: false, // the Burndown report (stage 5)
   tracking: false, // the Tracking Gantt: each bar over its baseline, % complete, slipped bars marked (stage 5)
   cal: false, // the Calendar view, and the month it shows
   calMonth: null, // [year, month index]
@@ -201,6 +202,7 @@ const commands = {
   viewReport: () => showView("report"),
   viewTracking: () => showView("tracking"),
   viewTeam: () => showView("team"),
+  viewBurn: () => showView("burn"),
   aiPlan: () => aiPlan(),
   save: () => { download(state.fileName, packDocument(APP, serialize(state.model.doc)), "application/zip"); state.saved = state.model.undoStack.length; render(); },
   exportCsv: () => download(state.fileName.replace(/\.wsproj$/, "") + ".csv", toCsv(), "text/csv"),
@@ -580,7 +582,7 @@ function renderChart(rows) {
 /** One view at a time in the right-hand pane (null: the Gantt chart). */
 function showView(name) {
   if (name === "tracking" && !state.model.baseline(state.baselineName)) state.note = "Set a baseline (Project › Set Baseline) to compare against: the Tracking Gantt draws it under each bar";
-  for (const k of ["workload", "sheet", "ev", "board", "cal", "net", "tuse", "ruse", "tl", "report", "tracking", "team"]) state[k] = k === name;
+  for (const k of ["workload", "sheet", "ev", "board", "cal", "net", "tuse", "ruse", "tl", "report", "tracking", "team", "burn"]) state[k] = k === name;
   if (name === "cal" && !state.calMonth) {
     const d = new Date((first() ? state.model.task(first()).start : state.model.doc.start) + "T00:00:00Z");
     state.calMonth = [d.getUTCFullYear(), d.getUTCMonth()];
@@ -607,6 +609,44 @@ $("wp-chart").addEventListener("drop", (e) => {
   const t = state.model.task(id);
   run(() => { state.model.set(id, { progress: progressFor(col.dataset.col, t) }); state.sel = [id]; });
 });
+
+/** The Burndown report: work left each week as planned and as baselined, and the work actually left at the status date. */
+function renderBurn() {
+  const doc = state.model.doc, r = burndown(doc, { isWork: calendar().isWork, baseline: state.baselineName });
+  if (!r.weeks.length) { $("wp-chart").innerHTML = `<p class="wp-empty">Assign people to tasks to see the work burn down: the chart counts their hours.</p>`; return; }
+  const W = Math.max(480, Math.min(900, $("wp-chart").clientWidth - 40)), H = 280, L = 56, R = 110, T = 16, B = 34;
+  const n = r.weeks.length, top = Math.max(r.total, ...r.weeks.map((w) => Math.max(w.planned, w.baseline ?? 0))) || 1;
+  const step = 10 ** Math.floor(Math.log10(top / 4)), tick = [1, 2, 5, 10].map((k) => k * step).find((k) => top / k <= 5);
+  const ymax = Math.ceil(top / tick) * tick;
+  const x = (i) => L + (n === 1 ? (W - L - R) / 2 : (i * (W - L - R)) / (n - 1)), y = (v) => T + (H - T - B) * (1 - v / ymax);
+  const short = (iso) => new Date(iso + "T00:00:00Z").toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
+  const hasBase = r.weeks.some((w) => w.baseline !== null);
+  let svg = `<svg class="wp-burn" width="${W}" height="${H}" xmlns="${NS}" role="img" aria-label="Burndown: work left per week">`;
+  for (let v = 0; v <= ymax; v += tick) svg += `<line class="grid" x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}"/><text class="ax" x="${L - 8}" y="${y(v) + 4}" text-anchor="end">${v} h</text>`;
+  const every = Math.ceil(n / 8);
+  r.weeks.forEach((w, i) => { if (i % every === 0 || i === n - 1) svg += `<text class="ax" x="${x(i)}" y="${H - 12}" text-anchor="middle">${short(w.date)}</text>`; });
+  const line = (key, cls) => `<polyline class="${cls}" points="${r.weeks.map((w, i) => `${x(i)},${y(w[key])}`).join(" ")}"/>`;
+  svg += line("planned", "s1");
+  if (hasBase) svg += line("baseline", "s2"); // dashed, on top: both show where they run together
+  // direct labels at the line ends, nudged apart when they would overlap
+  const lp = y(r.weeks[n - 1].planned), lb = hasBase ? y(r.weeks[n - 1].baseline) : null;
+  const [yp, yb] = lb !== null && Math.abs(lp - lb) < 14 ? (lp <= lb ? [lp - 7, lb + 7] : [lp + 7, lb - 7]) : [lp, lb];
+  svg += `<text class="lab" x="${x(n - 1) + 8}" y="${yp + 4}">Planned</text>`;
+  if (hasBase) svg += `<text class="lab" x="${x(n - 1) + 8}" y="${yb + 4}">${esc(state.baselineName)}</text>`;
+  if (r.actual) {
+    const days = (iso) => toDay(iso), d0 = days(r.weeks[0].date) - 7, dN = days(r.weeks[n - 1].date);
+    const ax = n === 1 ? x(0) : L + ((days(r.actual.date) - days(r.weeks[0].date)) / (dN - days(r.weeks[0].date))) * (W - L - R);
+    if (days(r.actual.date) > d0 && ax <= W - R) svg += `<line class="now" x1="${ax}" x2="${ax}" y1="${T}" y2="${H - B}"/><circle class="act" cx="${ax}" cy="${y(r.actual.remaining)}" r="5"><title>Actual at ${short(r.actual.date)}: ${r.actual.remaining} h left</title></circle><text class="lab" x="${ax + 8}" y="${y(r.actual.remaining) - 8}">Actual ${r.actual.remaining} h</text>`;
+  }
+  // hover: a band per week with its numbers
+  r.weeks.forEach((w, i) => { const half = n === 1 ? 40 : (W - L - R) / (n - 1) / 2; svg += `<rect class="hit" x="${x(i) - half}" y="${T}" width="${half * 2}" height="${H - T - B}"><title>${i === 0 ? "Start" : "Week ending"} ${short(w.date)}
+Planned: ${w.planned} h left${w.baseline !== null ? `
+${state.baselineName}: ${w.baseline} h left` : ""}</title></rect>`; });
+  svg += "</svg>";
+  const legend = `<div class="wp-legend"><span><i class="s1"></i>Planned</span>${hasBase ? `<span><i class="s2"></i>${esc(state.baselineName)}</span>` : ""}${r.actual ? `<span><i class="act"></i>Actual at the status date</span>` : ""}</div>`;
+  const table = `<details class="wp-burn-table"><summary>Show as a table</summary><table class="wp-load"><thead><tr><th>Week ending</th><th>Planned left</th>${hasBase ? `<th>${esc(state.baselineName)} left</th>` : ""}</tr></thead><tbody>${r.weeks.map((w) => `<tr><th>${short(w.date)}</th><td>${w.planned} h</td>${hasBase ? `<td>${w.baseline} h</td>` : ""}</tr>`).join("")}</tbody></table></details>`;
+  $("wp-chart").innerHTML = `<div class="wp-report"><h2>${esc(doc.name)} <span>Burndown · ${r.total} h of work${hasBase ? "" : " · set a baseline to compare"}</span></h2>${legend}${svg}${table}</div>`;
+}
 
 /** The Team Planner: each person's tasks across the dates; drag a task to another person to hand it over. */
 function renderTeam() {
@@ -920,9 +960,9 @@ function draw() {
   $("wp-type").disabled = $("wp-effort").disabled = state.readOnly || !firstTyped;
   $("wp-task-cal").value = firstTyped?.calendar || "";
   $("wp-task-cal").disabled = state.readOnly || !firstTyped;
-  const view = state.team ? "viewTeam" : state.tracking ? "viewTracking" : state.report ? "viewReport" : state.tl ? "viewTimeline" : state.tuse ? "viewTaskUsage" : state.ruse ? "viewResUsage" : state.net ? "viewNet" : state.board ? "viewBoard" : state.cal ? "viewCal" : state.ev ? "viewEv" : state.sheet ? "viewSheet" : state.workload ? "viewWorkload" : "viewGantt";
+  const view = state.burn ? "viewBurn" : state.team ? "viewTeam" : state.tracking ? "viewTracking" : state.report ? "viewReport" : state.tl ? "viewTimeline" : state.tuse ? "viewTaskUsage" : state.ruse ? "viewResUsage" : state.net ? "viewNet" : state.board ? "viewBoard" : state.cal ? "viewCal" : state.ev ? "viewEv" : state.sheet ? "viewSheet" : state.workload ? "viewWorkload" : "viewGantt";
   for (const b of document.querySelectorAll('[data-cmd^="view"]')) b.setAttribute("aria-pressed", String(b.dataset.cmd === view));
-  if (state.team) renderTeam(); else if (state.report) renderReport(); else if (state.tl) renderTimeline(); else if (state.tuse) renderUsage("task"); else if (state.ruse) renderUsage("resource"); else if (state.net) renderNet(); else if (state.board) renderBoard(); else if (state.cal) renderCal(); else if (state.ev) renderEv(); else if (state.sheet) renderSheet(); else if (state.workload) renderWorkload(); else renderChart(rows);
+  if (state.burn) renderBurn(); else if (state.team) renderTeam(); else if (state.report) renderReport(); else if (state.tl) renderTimeline(); else if (state.tuse) renderUsage("task"); else if (state.ruse) renderUsage("resource"); else if (state.net) renderNet(); else if (state.board) renderBoard(); else if (state.cal) renderCal(); else if (state.ev) renderEv(); else if (state.sheet) renderSheet(); else if (state.workload) renderWorkload(); else renderChart(rows);
   $("wp-title").textContent = state.fileName.replace(/\.wsproj$/, "") + (state.model.undoStack.length !== (state.saved || 0) ? " •" : ""); // • unsaved changes
   $("wp-mode").hidden = !state.readOnly;
   $("wp-mode-text").textContent = reasonText(state.licence || "no_license");

@@ -200,3 +200,21 @@ test("teamPlanner: a lane per person with stacked rows, an unassigned lane, over
   assert.equal(reassign(undefined, "", "Priya"), "Priya");
   assert.equal(reassign("Priya", "Priya", ""), undefined);
 });
+
+test("burndown: planned and baseline work left at each week's end, and the actual at the status date", async () => {
+  const { burndown } = await import("../apps/project/editor/views.js");
+  const { ProjectModel } = await import("../apps/project/core/project.js");
+  const m = new ProjectModel(newProject("P", "2026-02-02"));
+  m.isWork = STANDARD.isWork;
+  m.addTask({ name: "A", level: 0, start: "2026-02-02", duration: 5, progress: 0, owner: "Ravi" }); // 40 h, week 1
+  m.addTask({ name: "B", level: 0, start: "2026-02-09", duration: 5, progress: 0, owner: "Nimal" }); // 40 h, week 2
+  m.saveBaseline("Baseline", "2026-02-01");
+  m.set(m.tasks[1].id, { start: "2026-02-16" }); // B slips a week
+  m.set(m.tasks[0].id, { progress: 50 });
+  m.setStatusDate("2026-02-04");
+  const r = burndown(m.doc, { isWork: STANDARD.isWork });
+  assert.equal(r.total, 80);
+  assert.deepEqual(r.weeks.map((w) => [w.date, w.planned, w.baseline]), [["2026-02-02", 80, 80], ["2026-02-08", 40, 40], ["2026-02-15", 40, 0], ["2026-02-22", 0, 0]]);
+  assert.deepEqual(r.actual, { date: "2026-02-04", remaining: 60 });
+  assert.deepEqual(burndown(newProject("E", "2026-02-02")).weeks, []);
+});
