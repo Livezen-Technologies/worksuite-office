@@ -15,12 +15,12 @@ import { schedule, applySchedule, applyLevelling, clearLevelling, criticalPath, 
 import { level, unlevelledStart } from "../core/levelling.js";
 import { overallocations, weeklyLoad } from "../core/resources.js";
 import { behindSchedule, pastDeadline } from "../core/progress.js";
-import { assignmentsOf } from "../core/resources.js";
+import { assignmentsOf, reassign } from "../core/resources.js";
 import { outlineToDoc } from "../core/outline.js";
 import { workOf, unitsOf, TASK_TYPES } from "../core/tasktypes.js";
 import { costs, resourceSheet, formatMoney } from "../core/costs.js";
 import { earnedValue } from "../core/earnedvalue.js";
-import { BOARD_COLUMNS, board, progressFor, month, network, NODE, usage, FILTERS, filterTasks, timeline, GROUPS, groupRows, overview } from "./views.js";
+import { BOARD_COLUMNS, board, progressFor, month, network, NODE, usage, FILTERS, filterTasks, timeline, GROUPS, groupRows, overview, teamPlanner } from "./views.js";
 import { askText, askForm } from "../../common/dialog.js";
 import { FIELD_TYPES, parseValue, formatValue } from "../core/fields.js";
 import { describe as describeRecurring, patternError } from "../core/recurring.js";
@@ -70,6 +70,7 @@ const state = {
   ruse: false, // Resource Usage (stage 5)
   tl: false, // the Timeline (stage 5)
   report: false, // the Project Overview report (stage 5)
+  team: false, // the Team Planner (stage 5)
   tracking: false, // the Tracking Gantt: each bar over its baseline, % complete, slipped bars marked (stage 5)
   cal: false, // the Calendar view, and the month it shows
   calMonth: null, // [year, month index]
@@ -163,6 +164,7 @@ const commands = {
   viewTimeline: () => showView("tl"),
   viewReport: () => showView("report"),
   viewTracking: () => showView("tracking"),
+  viewTeam: () => showView("team"),
   aiPlan: () => aiPlan(),
   save: () => { download(state.fileName, packDocument(APP, serialize(state.model.doc)), "application/zip"); state.saved = state.model.undoStack.length; render(); },
   exportCsv: () => download(state.fileName.replace(/\.wsproj$/, "") + ".csv", toCsv(), "text/csv"),
@@ -525,7 +527,7 @@ function renderChart(rows) {
 /** One view at a time in the right-hand pane (null: the Gantt chart). */
 function showView(name) {
   if (name === "tracking" && !state.model.baseline(state.baselineName)) state.note = "Set a baseline (Project › Set Baseline) to compare against: the Tracking Gantt draws it under each bar";
-  for (const k of ["workload", "sheet", "ev", "board", "cal", "net", "tuse", "ruse", "tl", "report", "tracking"]) state[k] = k === name;
+  for (const k of ["workload", "sheet", "ev", "board", "cal", "net", "tuse", "ruse", "tl", "report", "tracking", "team"]) state[k] = k === name;
   if (name === "cal" && !state.calMonth) {
     const d = new Date((first() ? state.model.task(first()).start : state.model.doc.start) + "T00:00:00Z");
     state.calMonth = [d.getUTCFullYear(), d.getUTCMonth()];
@@ -551,6 +553,38 @@ $("wp-chart").addEventListener("drop", (e) => {
   e.preventDefault();
   const t = state.model.task(id);
   run(() => { state.model.set(id, { progress: progressFor(col.dataset.col, t) }); state.sel = [id]; });
+});
+
+/** The Team Planner: each person's tasks across the dates; drag a task to another person to hand it over. */
+function renderTeam() {
+  const p = teamPlanner(state.model.doc, calendar().isWork);
+  if (!p.lanes.length) { $("wp-chart").innerHTML = `<p class="wp-empty">Add tasks to plan who does what.</p>`; return; }
+  const DW = 26, RH = 26, LW = 150, s0 = toDay(p.start), sel = new Set(state.sel), drag = state.readOnly ? "" : 'draggable="true"';
+  const wd = calendar().isWork;
+  let head = "";
+  for (let i = 0; i < p.days; i++) {
+    const d = s0 + i, date = new Date(d * 86400000);
+    if (date.getUTCDay() === 1 || i === 0) head += `<span class="wk" style="left:${LW + i * DW}px">${date.toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" })}</span>`;
+  }
+  let h = `<div class="wp-team" style="width:${LW + p.days * DW + 8}px"><div class="wp-team-head">${head}</div>`;
+  for (const l of p.lanes) {
+    const days = Array.from({ length: p.days }, (_, i) => (wd && !wd(s0 + i) ? `<i class="off" style="left:${i * DW}px;width:${DW}px"></i>` : "")).join("") +
+      l.over.map((i) => `<i class="over" style="left:${i * DW}px;width:${DW}px" title="More work than ${esc(l.name)} has time for"></i>`).join("");
+    h += `<div class="wp-lane" data-person="${esc(l.name)}" style="height:${l.rows * RH + 8}px"><b style="width:${LW}px">${l.name ? esc(l.name) : "<em>Unassigned</em>"}${l.over.length ? ' <span class="wp-warn">!</span>' : ""}</b><div class="track" style="left:${LW}px">${days}` +
+      l.items.map((it) => `<span class="wp-chip ${sel.has(it.id) ? "is-sel" : ""}" data-card="${it.id}" data-from="${esc(l.name)}" ${drag} style="left:${it.s * DW + 1}px;top:${it.row * RH + 4}px;width:${(it.f - it.s + 1) * DW - 3}px" title="${esc(it.name)}${it.units && it.units !== 1 ? ` (${Math.round(it.units * 100)}%)` : ""}">${esc(it.name)}</span>`).join("") + `</div></div>`;
+  }
+  $("wp-chart").innerHTML = h + `</div><p class="wp-hint wp-team-help">Drag a task onto another person to hand it over, or onto Unassigned to take someone off it.</p>`;
+}
+$("wp-chart").addEventListener("dragstart", (e) => { const c = e.target.closest("[data-from]"); if (c && state.team) e.dataTransfer.setData("text/x-ws-from", c.dataset.from); });
+$("wp-chart").addEventListener("dragover", (e) => { const l = e.target.closest("[data-person]"); if (l && state.team) { e.preventDefault(); l.classList.add("is-over"); } });
+$("wp-chart").addEventListener("dragleave", (e) => { const l = e.target.closest("[data-person]"); if (l) l.classList.remove("is-over"); });
+$("wp-chart").addEventListener("drop", (e) => {
+  const l = e.target.closest("[data-person]"), id = e.dataTransfer.getData("text/x-ws-task");
+  if (!l || !id || !state.team) return;
+  e.preventDefault();
+  const from = e.dataTransfer.getData("text/x-ws-from"), to = l.dataset.person;
+  if (from === to) { render(); return; }
+  run(() => { state.model.set(id, { owner: reassign(state.model.task(id).owner, from, to) }); state.sel = [id]; });
 });
 
 /** The Network Diagram: a box per task, in columns by its links; critical tasks outlined in red. */
@@ -638,7 +672,7 @@ $("wp-chart").addEventListener("click", (e) => {
     render(); return;
   }
   const card = e.target.closest("[data-card]");
-  if (card && (state.board || state.cal || state.net || state.tuse || state.ruse || state.tl || state.report)) { state.sel = [card.dataset.card]; render(); }
+  if (card && (state.board || state.cal || state.net || state.tuse || state.ruse || state.tl || state.report || state.team)) { state.sel = [card.dataset.card]; render(); }
 });
 
 /** Earned value at the status date: planned, earned and actual value per task, the indexes, and totals. */
@@ -833,9 +867,9 @@ function draw() {
   $("wp-type").disabled = $("wp-effort").disabled = state.readOnly || !firstTyped;
   $("wp-task-cal").value = firstTyped?.calendar || "";
   $("wp-task-cal").disabled = state.readOnly || !firstTyped;
-  const view = state.tracking ? "viewTracking" : state.report ? "viewReport" : state.tl ? "viewTimeline" : state.tuse ? "viewTaskUsage" : state.ruse ? "viewResUsage" : state.net ? "viewNet" : state.board ? "viewBoard" : state.cal ? "viewCal" : state.ev ? "viewEv" : state.sheet ? "viewSheet" : state.workload ? "viewWorkload" : "viewGantt";
+  const view = state.team ? "viewTeam" : state.tracking ? "viewTracking" : state.report ? "viewReport" : state.tl ? "viewTimeline" : state.tuse ? "viewTaskUsage" : state.ruse ? "viewResUsage" : state.net ? "viewNet" : state.board ? "viewBoard" : state.cal ? "viewCal" : state.ev ? "viewEv" : state.sheet ? "viewSheet" : state.workload ? "viewWorkload" : "viewGantt";
   for (const b of document.querySelectorAll('[data-cmd^="view"]')) b.setAttribute("aria-pressed", String(b.dataset.cmd === view));
-  if (state.report) renderReport(); else if (state.tl) renderTimeline(); else if (state.tuse) renderUsage("task"); else if (state.ruse) renderUsage("resource"); else if (state.net) renderNet(); else if (state.board) renderBoard(); else if (state.cal) renderCal(); else if (state.ev) renderEv(); else if (state.sheet) renderSheet(); else if (state.workload) renderWorkload(); else renderChart(rows);
+  if (state.team) renderTeam(); else if (state.report) renderReport(); else if (state.tl) renderTimeline(); else if (state.tuse) renderUsage("task"); else if (state.ruse) renderUsage("resource"); else if (state.net) renderNet(); else if (state.board) renderBoard(); else if (state.cal) renderCal(); else if (state.ev) renderEv(); else if (state.sheet) renderSheet(); else if (state.workload) renderWorkload(); else renderChart(rows);
   $("wp-title").textContent = state.fileName.replace(/\.wsproj$/, "") + (state.model.undoStack.length !== (state.saved || 0) ? " •" : ""); // • unsaved changes
   $("wp-mode").hidden = !state.readOnly;
   $("wp-mode-text").textContent = reasonText(state.licence || "no_license");
