@@ -1,5 +1,17 @@
 # Change log
 
+## 10.1.82
+
+### New features
+
+#### Project
+
+* Print to scale: File › Print / PDF opens a Print dialog: A4 landscape or
+  portrait; the chart fitted to one or more pages wide, or printed at a scale
+  across as many pages as it needs, each page taking up where the last one
+  stopped; and an optional date range to print part of the timeline. The task
+  list prints first, then the chart.
+
 ## 10.1.81
 
 ### New features

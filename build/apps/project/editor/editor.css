@@ -159,13 +159,15 @@ table.wp-table { border-collapse: collapse; width: 100%; table-layout: fixed; }
 
 /* print and "Save as PDF": the task table full width, then the whole chart scaled to the page width */
 @media print {
-  @page { size: A4 landscape; margin: 10mm; }
   .wp-tabs, .wp-ribbon, .wp-status, .wp-split { display: none !important; }
   html, body, .wp-app { height: auto; background: #fff; }
   .wp-main { display: block; height: auto; }
   .wp-grid { width: 100%; max-width: none; overflow: visible; }
   .wp-table th { position: static; }
-  .wp-chart { overflow: visible; zoom: var(--print-zoom, 1); break-before: page; break-inside: avoid; }
+  .wp-main .wp-chart { display: none; } /* the chart prints from its page slices (#wp-print-pages) */
+  #wp-print-pages { display: block; }
+  .wp-print-page { overflow: hidden; break-before: page; break-inside: avoid; }
+  .wp-print-slice { overflow: hidden; }
   .wp-scale { position: relative; }
   .wp-table tr.is-sel td { background: none; }
   .wp-sel-bar, .wp-hit, .wp-grip { display: none; }
@@ -257,3 +259,4 @@ table.wp-table { border-collapse: collapse; width: 100%; table-layout: fixed; }
 .wp-legend i.s2 { background: repeating-linear-gradient(90deg, var(--series-2) 0 5px, transparent 5px 8px); }
 .wp-legend i.act { width: 9px; height: 9px; border-radius: 50%; background: var(--ink); }
 .wp-burn-table { font-size: 12px; color: var(--ink2); }
+@media screen { #wp-print-pages { display: none; } }
