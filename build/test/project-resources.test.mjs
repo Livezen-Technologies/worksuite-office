@@ -32,11 +32,11 @@ test("workload skips summaries and milestones and counts working days", () => {
 
 test("over-allocations are runs of days with more than one task", () => {
   const o = overallocations(doc(), STANDARD.isWork);
-  assert.deepEqual(o, [{ name: "Nimal", from: "2026-01-07", to: "2026-01-07", days: 1, peak: 2, tasks: ["a", "b"] }]);
+  assert.deepEqual(o, [{ name: "Nimal", from: "2026-01-07", to: "2026-01-07", days: 1, peak: 2, max: 1, tasks: ["a", "b"] }]);
   const d = doc(); d.tasks[2].duration = 4; // B Wed-Mon now overlaps C on Fri and Mon, across the weekend
   const o2 = overallocations(d, STANDARD.isWork);
   assert.equal(o2.length, 2);
-  assert.deepEqual(o2[1], { name: "Nimal", from: "2026-01-09", to: "2026-01-12", days: 2, peak: 2, tasks: ["b", "c"] });
+  assert.deepEqual(o2[1], { name: "Nimal", from: "2026-01-09", to: "2026-01-12", days: 2, peak: 2, max: 1, tasks: ["b", "c"] });
 });
 
 test("weekly load sums task-days per week with the peak day", () => {

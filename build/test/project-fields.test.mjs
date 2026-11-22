@@ -162,3 +162,23 @@ test("task calendars: every day and Mon-Sat tasks finish by their own days; the 
   assert.equal(schedule(m.doc, STANDARD).finish, "2026-02-09");
   assert.throws(() => m.edit((d) => { d.tasks[0].calendar = "24h"; }), /calendar must be one of/);
 });
+
+test("max units: a part-timer is over-allocated sooner, a crew of three later; levelling and Project XML follow", async () => {
+  const { overallocations, weeklyLoad, maxUnitsOf } = await import("../apps/project/core/resources.js");
+  const { toProjectXml, fromProjectXml } = await import("../apps/project/core/projectxml.js");
+  const { usage } = await import("../apps/project/editor/views.js");
+  const m = new ProjectModel(newProject("P", "2026-02-02"));
+  m.addTask({ name: "A", level: 0, start: "2026-02-02", duration: 2, progress: 0, owner: "Priya 75%, Crew 200%" });
+  assert.equal(overallocations(m.doc).length, 1, "the crew at 200% is over one person");
+  m.setResource("Crew", { maxUnits: 3 }).setResource("Priya", { maxUnits: 0.5 });
+  assert.deepEqual(overallocations(m.doc).map((o) => [o.name, o.peak, o.max]), [["Priya", 0.75, 0.5]]);
+  assert.equal(weeklyLoad(m.doc).find((r) => r.name === "Crew").max, 3);
+  assert.deepEqual([...usage(m.doc, null, "resource").rows.find((r) => r.name === "Priya").over].length, 1);
+  assert.equal(usage(m.doc, null, "resource").rows.find((r) => r.name === "Crew").over.size, 0);
+  m.setResource("Priya", { maxUnits: 1 });
+  assert.equal(maxUnitsOf(m.doc, "Priya"), 1);
+  assert.equal(m.doc.resources.find((r) => r.name === "Priya"), undefined, "100% is the default: no row kept");
+  const { doc } = fromProjectXml(toProjectXml(m.doc));
+  assert.equal(maxUnitsOf(doc, "Crew"), 3);
+  assert.throws(() => m.setResource("Crew", { maxUnits: -1 }), /max units must be more than 0/);
+});

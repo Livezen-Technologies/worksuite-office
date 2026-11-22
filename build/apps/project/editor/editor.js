@@ -668,23 +668,31 @@ function renderSheet() {
   const ro = state.readOnly ? "disabled" : "";
   const num = (r, f, ph = "0.00") => `<input data-rate="${esc(r.name)}" data-field="${f}" type="number" min="0" step="0.01" value="${r[f] || ""}" placeholder="${ph}" ${ro}>`;
   const TYPES = [["work", "Work"], ["material", "Material"], ["cost", "Cost"]];
-  let h = `<table class="wp-load wp-sheet"><thead><tr><th>Resource</th><th>Type</th><th>Unit</th><th>Rate</th><th>Cost per use</th><th>Tasks</th><th>Work / quantity</th><th>Cost</th></tr></thead><tbody>`;
+  let h = `<table class="wp-load wp-sheet"><thead><tr><th>Resource</th><th>Type</th><th>Unit</th><th title="How much of their time the resource has: 100% one person full time, 50% half time, 300% a crew of three">Max units</th><th>Rate</th><th>Cost per use</th><th>Tasks</th><th>Work / quantity</th><th>Cost</th></tr></thead><tbody>`;
   for (const r of rows) {
     const per = r.type === "material" ? `per ${esc(r.unit || "unit")}` : r.type === "cost" ? "" : "per hour";
     h += `<tr><th>${esc(r.name)}</th><td><select data-rate="${esc(r.name)}" data-field="type" ${ro}>${TYPES.map(([v, l]) => `<option value="${v}" ${r.type === v ? "selected" : ""}>${l}</option>`).join("")}</select></td>` +
       `<td>${r.type === "material" ? `<input class="unit" data-rate="${esc(r.name)}" data-field="unit" value="${esc(r.unit)}" placeholder="bags" ${ro}>` : ""}</td>` +
+      `<td>${r.type === "work" ? `<input class="pct" data-rate="${esc(r.name)}" data-field="maxUnits" type="number" min="1" step="5" value="${Math.round((r.maxUnits || 1) * 100)}" ${ro}> %` : ""}</td>` +
       `<td>${r.type === "cost" ? `<span class="wp-hint">typed on each task</span>` : `${num(r, "rate")} <span class="wp-hint">${per}</span>`}</td>` +
       `<td>${r.type === "cost" ? "" : num(r, "costPerUse")}</td>` +
       `<td>${r.tasks}</td><td>${r.type === "cost" ? "" : r.type === "material" ? `${r.work} ${esc(r.unit || "")}` : `${r.work} h`}</td><td class="money">${formatMoney(r.cost)}</td></tr>`;
   }
   const hours = Math.round(rows.filter((r) => r.type === "work").reduce((s, r) => s + r.work, 0) * 100) / 100;
-  $("wp-chart").innerHTML = h + `</tbody><tfoot><tr><th>Total</th><td></td><td></td><td></td><td></td><td></td><td>${hours} h</td><td class="money">${formatMoney(rows.reduce((s, r) => s + r.cost, 0))}</td></tr></tfoot></table>` +
+  $("wp-chart").innerHTML = h + `</tbody><tfoot><tr><th>Total</th><td></td><td></td><td></td><td></td><td></td><td></td><td>${hours} h</td><td class="money">${formatMoney(rows.reduce((s, r) => s + r.cost, 0))}</td></tr></tfoot></table>` +
     `<p class="wp-hint wp-sheet-help">On a task's Owner, people take a share of their time (<b>Ravi 50%</b>); materials and cost resources take an amount in brackets (<b>Cement [20]</b>, <b>Permit fee [15000]</b>).</p>`;
 }
 $("wp-chart").addEventListener("change", (e) => {
   const input = e.target.closest("[data-rate]");
   if (!input) return;
   const v = input.value.trim();
+  if (input.dataset.field === "maxUnits") {
+    run(() => {
+      if (!(Number(v) > 0 && Number(v) <= 10000)) throw new Error("Max units is a percentage: 100% is one person full time");
+      state.model.setResource(input.dataset.rate, { maxUnits: Math.round(Number(v)) / 100 });
+    });
+    return;
+  }
   if (input.dataset.field === "type" || input.dataset.field === "unit") { run(() => state.model.setResource(input.dataset.rate, { [input.dataset.field]: v })); return; }
   run(() => {
     if (v !== "" && !(Number(v) >= 0)) throw new Error("A rate is an amount, 0 or more");
@@ -701,10 +709,11 @@ function renderWorkload() {
   let h = `<table class="wp-load"><thead><tr><th>Person</th>${weeks.map((w) => `<th>${short(w)}</th>`).join("")}</tr></thead><tbody>`;
   for (const r of rows) {
     const by = new Map(r.weeks.map((w) => [w.start, w]));
-    const hasOver = r.weeks.some((w) => w.peak > 1);
-    h += `<tr><th>${esc(r.name)}${hasOver ? ' <span class="wp-warn" title="Over-allocated">!</span>' : ""}</th>${weeks.map((w) => {
+    const hasOver = r.weeks.some((w) => w.peak > r.max + 1e-9);
+    h += `<tr><th>${esc(r.name)}${r.max !== 1 ? ` <span class="wp-hint">${Math.round(r.max * 100)}%</span>` : ""}${hasOver ? ' <span class="wp-warn" title="Over-allocated">!</span>' : ""}</th>${weeks.map((w) => {
       const c = by.get(w);
-      return c ? `<td class="${c.peak > 1 ? "is-over" : ""}" title="${c.days} person-day${c.days === 1 ? "" : "s"}${c.peak > 1 ? `, up to ${Math.round(c.peak * 100)}% on one day` : ""}">${c.days}d</td>` : "<td></td>";
+      const over = c && c.peak > r.max + 1e-9;
+      return c ? `<td class="${over ? "is-over" : ""}" title="${c.days} person-day${c.days === 1 ? "" : "s"}${over ? `, up to ${Math.round(c.peak * 100)}% on one day, with ${Math.round(r.max * 100)}% available` : ""}">${c.days}d</td>` : "<td></td>";
     }).join("")}</tr>`;
   }
   $("wp-chart").innerHTML = h + "</tbody></table>";

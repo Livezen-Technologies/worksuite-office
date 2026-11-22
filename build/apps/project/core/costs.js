@@ -16,7 +16,7 @@ const money = (n) => Math.round(n * 100) / 100;
 /** A person's sheet row, or a blank one. */
 export function resourceOf(doc, name) {
   const r = (doc.resources || []).find((x) => x.name === name);
-  return { name, type: r?.type || "work", unit: r?.unit || "", rate: r?.rate || 0, costPerUse: r?.costPerUse || 0 };
+  return { name, type: r?.type || "work", unit: r?.unit || "", rate: r?.rate || 0, costPerUse: r?.costPerUse || 0, maxUnits: r?.maxUnits || 1 };
 }
 
 /** What one assignment costs: hours × rate for people, amount × rate for materials, the amount for a cost resource. */

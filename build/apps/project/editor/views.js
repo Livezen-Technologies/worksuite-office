@@ -3,7 +3,7 @@
  * cover them; editor.js draws what they return.
  */
 import { toDay, fromDay, finishOf, workDays } from "../core/project.js";
-import { assignmentsOf } from "../core/resources.js";
+import { assignmentsOf, maxUnitsOf } from "../core/resources.js";
 import { costs, resourceSheet } from "../core/costs.js";
 
 export const BOARD_COLUMNS = [
@@ -155,7 +155,8 @@ export function usage(doc, isWork = null, by = "resource", hoursPerDay = 8) {
     taskRows.push(row);
   });
   for (const p of people.values()) {
-    for (const [d, h] of p.daily) if (h > hoursPerDay + 1e-6) p.over.add(fromDay(monday(d)));
+    const cap = hoursPerDay * maxUnitsOf(doc, p.name); // a part-timer's day is shorter, a crew's longer
+    for (const [d, h] of p.daily) if (h > cap + 1e-6) p.over.add(fromDay(monday(d)));
     delete p.daily;
   }
   const rows = by === "task" ? taskRows : [...people.values()].sort((a, b) => a.name.localeCompare(b.name));
