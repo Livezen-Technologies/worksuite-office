@@ -22,10 +22,13 @@ export function visibleRows(model, collapsed = new Set()) {
 }
 
 /** The timescale: from the Monday on or before the earliest start to a week past the latest finish. */
-export function timescale(rows, zoom = "week", fallbackStart = "2026-01-05") {
+export function timescale(rows, zoom = "week", fallbackStart = "2026-01-05", range = null) {
   const dayW = ZOOMS[zoom] || ZOOMS.week;
   let s = rows.length ? Math.min(...rows.map((r) => toDay(r.start))) : toDay(fallbackStart);
   let e = rows.length ? Math.max(...rows.map((r) => toDay(r.finish))) : s + 28;
+  // a date range (printing part of the plan): the scale shows only those dates
+  if (range?.from) s = toDay(range.from);
+  if (range?.to) e = Math.max(s, toDay(range.to));
   s -= (new Date(s * 86400000).getUTCDay() + 6) % 7; // back to Monday
   e += 7 + (6 - ((new Date(e * 86400000).getUTCDay() + 6) % 7));
   return { start: s, end: e, dayW, width: (e - s + 1) * dayW, x: (iso) => (toDay(iso) - s) * dayW };
@@ -110,4 +113,23 @@ export function progressLine(rows, barList, scale, statusDate) {
   });
   pts.push([sx, rows.length * ROW_H]);
   return pts;
+}
+
+/** A4's printable width in CSS pixels, less 10 mm margins: 277 mm landscape, 190 mm portrait, at 96 px to the inch. */
+export const PAGE_W = { landscape: 1046, portrait: 718 };
+
+/**
+ * How the chart goes on paper: { zoom, pages, pageW }. "fit" shrinks it to `pages` pages wide (1 by default) and
+ * never enlarges it; "scale" prints it at `scale` percent across as many pages as it takes.
+ */
+export function printLayout(width, { orientation = "landscape", fit = "fit", pages = 1, scale = 100 } = {}) {
+  const pageW = PAGE_W[orientation] || PAGE_W.landscape;
+  if (!(width > 0)) return { zoom: 1, pages: 1, pageW };
+  if (fit === "scale") {
+    const zoom = Math.max(0.1, Math.min(4, (Number(scale) || 100) / 100));
+    return { zoom, pages: Math.max(1, Math.ceil((width * zoom) / pageW - 1e-9)), pageW };
+  }
+  const n = Math.max(1, Math.min(20, Math.round(Number(pages) || 1)));
+  const zoom = Math.min(1, (n * pageW) / width);
+  return { zoom, pages: Math.max(1, Math.ceil((width * zoom) / pageW - 1e-9)), pageW };
 }

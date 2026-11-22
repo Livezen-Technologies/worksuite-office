@@ -110,3 +110,16 @@ test("progressLine: bends left to a task behind, right to one ahead; done, futur
   assert.ok(bends[2][0] > sx, "f is ahead");
   assert.deepEqual(progressLine(rows, bl, sc, null), []);
 });
+
+test("printLayout: fit to N pages wide never enlarges; a scale runs across as many pages as it needs; timescale range", async () => {
+  const { printLayout, PAGE_W } = await import("../apps/project/editor/gantt.js");
+  assert.deepEqual(printLayout(800), { zoom: 1, pages: 1, pageW: PAGE_W.landscape });
+  const f = printLayout(3000);
+  assert.equal(f.pages, 1); assert.ok(Math.abs(f.zoom - 1046 / 3000) < 1e-9);
+  const two = printLayout(3000, { pages: 2 });
+  assert.equal(two.pages, 2); assert.ok(Math.abs(two.zoom - 2092 / 3000) < 1e-9);
+  assert.deepEqual(printLayout(3000, { fit: "scale", scale: 100 }), { zoom: 1, pages: 3, pageW: 1046 });
+  assert.equal(printLayout(3000, { fit: "scale", scale: 50, orientation: "portrait" }).pages, 3, "1500 px over 718 px pages");
+  const sc = timescale([{ start: "2026-02-02", finish: "2026-03-27" }], "week", "2026-02-02", { from: "2026-02-16", to: "2026-02-27" });
+  assert.equal(sc.x("2026-02-16"), 0, "the range starts the scale");
+});

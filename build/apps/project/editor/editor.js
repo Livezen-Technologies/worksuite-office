@@ -28,7 +28,7 @@ import { decorateRibbon, ribbonStyles } from "../../common/ribbon.js";
 import { aiDraft } from "../../common/aidraft.js";
 import { checkEdit, reasonText, openUpgrade } from "../../common/licence.js";
 import { packDocument, unpackDocument, xlsx } from "../../common/zip.js";
-import { ROW_H, visibleRows, timescale, headers, bars, linkPath, dragStart, dragDuration, parseDuration, progressLine } from "./gantt.js";
+import { ROW_H, visibleRows, timescale, headers, bars, linkPath, dragStart, dragDuration, parseDuration, progressLine, printLayout } from "./gantt.js";
 
 const $ = (id) => document.getElementById(id);
 const NS = "http://www.w3.org/2000/svg";
@@ -209,7 +209,26 @@ const commands = {
   exportCsv: () => download(state.fileName.replace(/\.wsproj$/, "") + ".csv", toCsv(), "text/csv"),
   exportXml: () => download(state.fileName.replace(/\.wsproj$/, "") + ".xml", toProjectXml(state.model.doc, calendar().isWork), "application/xml"),
   exportXlsx: () => download(state.fileName.replace(/\.wsproj$/, "") + ".xlsx", xlsx(tableRows(), state.model.doc.name), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
-  print: () => { fitForPrint(); window.print(); },
+  print: async () => {
+    const v = await askForm({
+      title: "Print", ok: "Print",
+      hint: "The task list prints first, then the chart. Choose Save as PDF in the print window for a PDF.",
+      fields: [
+        { key: "orientation", label: "Paper", type: "select", value: "landscape", options: [["landscape", "A4 landscape"], ["portrait", "A4 portrait"]] },
+        { key: "fit", label: "Chart", type: "select", value: "fit", options: [["fit", "Fit to pages wide"], ["scale", "Print at a scale"]] },
+        { key: "pages", label: "Pages wide", type: "number", min: 1, max: 20, value: 1, hint: "with Fit: how many pages across the chart may take" },
+        { key: "scale", label: "Scale %", type: "number", min: 10, max: 400, value: 100, hint: "with Scale: the chart's size; it runs across as many pages as it needs" },
+        { key: "from", label: "From", type: "date", value: "", hint: "optional: print only part of the timeline" },
+        { key: "to", label: "To", type: "date", value: "" },
+      ],
+      check: (x) => (x.from && x.to && x.to < x.from ? "To is before From" : null),
+    });
+    if (!v) return;
+    state.print = { orientation: v.orientation, fit: v.fit, pages: v.pages || 1, scale: v.scale || 100, range: v.from || v.to ? { from: v.from || null, to: v.to || null } : null };
+    render();
+    preparePrint();
+    window.print();
+  },
   addTask: () => run(() => { const id = state.model.addTask({ start: startForNew() }, first() || null); state.sel = [id]; startEdit(id, "name"); }),
   addRecurring: () => addRecurring(),
   addMilestone: () => run(() => { const id = state.model.addMilestone({ start: startForNew() }, first() || null); state.sel = [id]; }),
@@ -502,7 +521,7 @@ function commitEdit(value) {
 
 /* ---- chart ---- */
 function renderChart(rows) {
-  const sc = timescale(rows, state.zoom, state.model.doc.start);
+  const sc = timescale(rows, state.zoom, state.model.doc.start, state.print?.range || null);
   const hd = headers(sc, state.zoom);
   const bs = bars(rows, sc);
   const byId = new Map(bs.map((b) => [b.id, b]));
@@ -1160,17 +1179,33 @@ function load(input, name = "Project.wsproj") {
   render();
 }
 
-/* printing: the chart is scaled so the whole timeline fits the page width (A4 landscape less margins) */
-function fitForPrint() {
+/*
+ * printing: the chart goes on paper as the Print dialog chose (printLayout): shrunk to fit N pages wide, or at a scale.
+ * Wider than one page, it is cut into page-wide slices, one per page. Without the dialog (the browser's own Print),
+ * it fits one page wide in landscape.
+ */
+function preparePrint() {
+  const opts = state.print || {};
   const svg = $("wp-chart").querySelector("svg");
-  const width = svg ? Number(svg.getAttribute("width")) : 0;
-  $("wp-chart").style.setProperty("--print-zoom", width ? String(Math.min(1, 1046 / width)) : "1");
   // on paper the chart is as tall as its tasks, not the window; the next redraw restores the screen size
   if (svg) svg.setAttribute("height", String(shownRows().length * ROW_H + 8));
+  const width = svg ? Number(svg.getAttribute("width")) : 0;
+  const lay = printLayout(width, opts);
+  let page = document.getElementById("wp-page-style");
+  if (!page) { page = document.createElement("style"); page.id = "wp-page-style"; document.head.append(page); }
+  page.textContent = `@page { size: A4 ${opts.orientation === "portrait" ? "portrait" : "landscape"}; margin: 10mm; }`;
+  let out = document.getElementById("wp-print-pages");
+  if (!out) { out = document.createElement("div"); out.id = "wp-print-pages"; document.body.append(out); }
+  const html = $("wp-chart").innerHTML, viewW = lay.pageW / lay.zoom; // a page's width in chart pixels
+  out.innerHTML = Array.from({ length: lay.pages }, (_, k) =>
+    `<div class="wp-print-page" style="width:${lay.pageW}px"><div class="wp-chart wp-print-slice" style="zoom:${lay.zoom};width:${viewW}px"><div style="margin-left:${-k * viewW}px">${html}</div></div></div>`).join("");
 }
-window.addEventListener("beforeprint", fitForPrint);
-window.addEventListener("afterprint", () => render());
-matchMedia("print").addEventListener?.("change", (e) => e.matches && fitForPrint());
+function endPrint() {
+  document.getElementById("wp-print-pages")?.replaceChildren();
+  if (state.print) { state.print = null; render(); } else render();
+}
+window.addEventListener("beforeprint", () => { if (!document.getElementById("wp-print-pages")?.childElementCount) preparePrint(); });
+window.addEventListener("afterprint", endPrint);
 
 /* the shell's handle (#72): load a file, read it back, free viewing without Pro (#73) */
 window.WorkSuiteProject = {
