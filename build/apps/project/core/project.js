@@ -309,6 +309,44 @@ export class ProjectModel {
     return id;
   }
   /**
+   * Inserts another project (a document) as a summary task at the end, named after it, with its tasks one level under
+   * it, its links, and the Resource Sheet rows and custom fields this project does not have yet (fields are matched by
+   * name; a field of the same name but another type is added as a new field). Its baselines, interim plans, budget and
+   * status date stay behind. Returns the summary's id; one undo step.
+   */
+  insertProject(other, name = other.name || "Inserted project") {
+    validate(other);
+    const sum = "t" + ++this.seq;
+    const ids = new Map(other.tasks.map((t) => [t.id, "t" + ++this.seq]));
+    this.edit((d) => {
+      // custom fields: reuse ours by name and type, add the rest under new keys
+      const keyOf = new Map();
+      for (const f of other.fields || []) {
+        const mine = (d.fields || []).find((x) => x.name.toLowerCase() === f.name.toLowerCase() && x.type === f.type);
+        if (mine) { keyOf.set(f.key, mine.key); continue; }
+        d.fields = d.fields || [];
+        const key = nextFieldKey(d.fields);
+        let label = f.name;
+        for (let n = 2; d.fields.some((x) => x.name.toLowerCase() === label.toLowerCase()); n++) label = `${f.name} (${n})`;
+        d.fields.push({ ...f, key, name: label });
+        keyOf.set(f.key, key);
+      }
+      const start = other.tasks.length ? other.tasks.reduce((m, t) => (t.start < m ? t.start : m), other.tasks[0].start) : other.start;
+      d.tasks.push({ id: sum, name: String(name).trim() || "Inserted project", level: 0, start, duration: 1, progress: 0 });
+      for (const t of other.tasks) {
+        const copy = { ...structuredClone(t), id: ids.get(t.id), level: t.level + 1 };
+        if (copy.custom) copy.custom = Object.fromEntries(Object.entries(copy.custom).filter(([k]) => keyOf.has(k)).map(([k, v]) => [keyOf.get(k), v]));
+        d.tasks.push(copy);
+      }
+      for (const l of other.links) d.links.push({ ...l, from: ids.get(l.from), to: ids.get(l.to) });
+      for (const r of other.resources || []) {
+        d.resources = d.resources || [];
+        if (!d.resources.some((x) => x.name === r.name)) d.resources.push({ ...r });
+      }
+    });
+    return sum;
+  }
+  /**
    * A recurring task: a summary named `name`, keeping `pattern`, with one subtask per occurrence from `start`
    * (recurring.js). `fields` go on every occurrence (duration, owner…). Returns the summary's id; one undo step.
    */
