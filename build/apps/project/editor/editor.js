@@ -9,7 +9,7 @@
  * The page stands alone until the native shell hosts it (#72): it saves and opens through the browser, and
  * window.WorkSuiteProject lets the shell load a file, read it back and switch read-only mode (free viewing, #73).
  */
-import { ProjectModel, newProject, parse, serialize, finishOf, wbsCodes, APP, segmentsOf, splitsOf, toDay } from "../core/project.js";
+import { ProjectModel, newProject, parse, serialize, finishOf, wbsCodes, APP, segmentsOf, splitsOf, toDay, taskIsWork, TASK_CALENDARS } from "../core/project.js";
 import { fromProjectXml, toProjectXml, isMpp, MPP_HELP } from "../core/projectxml.js";
 import { schedule, applySchedule, applyLevelling, clearLevelling, criticalPath, STANDARD, SRI_LANKA } from "../core/schedule.js";
 import { level, unlevelledStart } from "../core/levelling.js";
@@ -377,8 +377,8 @@ function renderGrid(rows) {
         return `<td class="name" style="padding-inline-start:${8 + r.level * 16}px">${tw}${esc(r.name)}${rec}</td>`;
       }
       if (c.key === "duration") {
-        const sp = splitsOf(r);
-        return `<td${sp.length ? ` title="Split: ${sp.map((x) => `after ${x.after} d, paused ${x.days} d`).join("; ")}"` : ""}>${r.milestone ? "0 d" : `${r.duration} d`}${sp.length ? ' <span class="wp-split-mark">⋯</span>' : ""}</td>`;
+        const sp = splitsOf(r), tc = TASK_CALENDARS.find((x) => x.key === r.calendar);
+        return `<td${sp.length ? ` title="Split: ${sp.map((x) => `after ${x.after} d, paused ${x.days} d`).join("; ")}"` : ""}>${r.milestone ? "0 d" : `${r.duration} d`}${sp.length ? ' <span class="wp-split-mark">⋯</span>' : ""}${tc ? ` <span class="wp-cal-mark" title="Task calendar: ${tc.title}">${r.calendar}</span>` : ""}</td>`;
       }
       if (c.key === "priority") return `<td class="${r.levelDelay ? "is-levelled" : ""}" title="${r.levelDelay ? `Delayed ${r.levelDelay} working day${r.levelDelay === 1 ? "" : "s"} by levelling` : ""}">${r.summary ? "" : r.priority ?? 500}</td>`;
       if (c.key === "cost") return `<td class="money">${cost.get(r.id) ? formatMoney(cost.get(r.id)) : ""}</td>`;
@@ -480,7 +480,7 @@ function renderChart(rows) {
       if (segs && segs.length > 1) {
         // a split task: its pieces of work, joined by a dotted line across each pause; progress fills the work in order
         let doneDays = Math.round((r.duration * (r.progress || 0)) / 100);
-        const wd = calendar().isWork;
+        const wd = taskIsWork(r, calendar().isWork);
         segs.forEach((g, k) => {
           const x = sc.x(g.start), w = sc.x(g.finish) - x + sc.dayW;
           if (k) svg += `<line class="wp-split-gap" x1="${sc.x(segs[k - 1].finish) + sc.dayW}" x2="${x}" y1="${b.y + 15}" y2="${b.y + 15}"/>`;
@@ -810,6 +810,8 @@ function draw() {
   $("wp-type").value = firstTyped?.type || "fixedUnits";
   $("wp-effort").checked = !!firstTyped?.effortDriven;
   $("wp-type").disabled = $("wp-effort").disabled = state.readOnly || !firstTyped;
+  $("wp-task-cal").value = firstTyped?.calendar || "";
+  $("wp-task-cal").disabled = state.readOnly || !firstTyped;
   const view = state.report ? "viewReport" : state.tl ? "viewTimeline" : state.tuse ? "viewTaskUsage" : state.ruse ? "viewResUsage" : state.net ? "viewNet" : state.board ? "viewBoard" : state.cal ? "viewCal" : state.ev ? "viewEv" : state.sheet ? "viewSheet" : state.workload ? "viewWorkload" : "viewGantt";
   for (const b of document.querySelectorAll('[data-cmd^="view"]')) b.setAttribute("aria-pressed", String(b.dataset.cmd === view));
   if (state.report) renderReport(); else if (state.tl) renderTimeline(); else if (state.tuse) renderUsage("task"); else if (state.ruse) renderUsage("resource"); else if (state.net) renderNet(); else if (state.board) renderBoard(); else if (state.cal) renderCal(); else if (state.ev) renderEv(); else if (state.sheet) renderSheet(); else if (state.workload) renderWorkload(); else renderChart(rows);
@@ -841,6 +843,12 @@ $("wp-critical").addEventListener("change", (e) => { state.showCritical = e.targ
 $("wp-progressline").addEventListener("change", (e) => { if (e.target.checked && !state.model.doc.statusDate) { e.target.checked = false; state.message = "Set a status date first: the progress line starts there"; render(); return; } state.showProgressLine = e.target.checked; render(); });
 /* task type and effort driven: for the selected tasks (not summaries or milestones) */
 function typedTargets() { return selected().filter((id) => !state.model.isSummary(id) && state.model.task(id).duration > 0); }
+$("wp-task-cal").addEventListener("change", (e) => run(() => {
+  const ids = typedTargets();
+  if (!ids.length) throw new Error("Select tasks to set their calendar");
+  state.model.edit((d) => { for (const t of d.tasks) if (ids.includes(t.id)) { if (e.target.value) t.calendar = e.target.value; else delete t.calendar; } });
+  state.note = e.target.value ? `On the ${TASK_CALENDARS.find((c) => c.key === e.target.value).title} calendar: choose Auto Schedule to move the tasks after them` : "On the project calendar again";
+}));
 $("wp-type").addEventListener("change", (e) => run(() => {
   const ids = typedTargets();
   if (!ids.length) throw new Error("Select tasks to set their type");

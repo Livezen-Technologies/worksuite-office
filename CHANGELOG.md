@@ -1,5 +1,17 @@
 # Change log
 
+## 10.1.72
+
+### New features
+
+#### Project
+
+* Task calendars: Task › Calendar sets the days a task works, apart from the
+  project calendar: Every day (such as concrete curing or a machine left
+  running) or Mon–Sat (the project's days and Saturdays). The task's finish,
+  the tasks linked after it, the project finish, workload and usage all count
+  its own days, and the Duration cell marks it.
+
 ## 10.1.71
 
 ### New features

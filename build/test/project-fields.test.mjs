@@ -132,3 +132,33 @@ test("split tasks: pauses push the finish out, keep the duration, are not worked
   assert.equal(finishOf(m.task(a), isWork), "2026-02-05");
   void toDay;
 });
+
+test("task calendars: every day and Mon-Sat tasks finish by their own days; the scheduler and successors follow", async () => {
+  const { finishOf, workDays } = await import("../apps/project/core/project.js");
+  const { schedule, STANDARD } = await import("../apps/project/core/schedule.js");
+  const isWork = STANDARD.isWork;
+  const cure = { start: "2026-02-05", duration: 4, calendar: "7d" }; // Thu Fri Sat Sun
+  assert.equal(finishOf(cure, isWork), "2026-02-08");
+  assert.equal(finishOf({ ...cure, calendar: "6d" }, isWork), "2026-02-09", "Thu Fri Sat Mon");
+  assert.equal(finishOf({ ...cure, calendar: undefined }, isWork), "2026-02-10");
+  assert.equal(workDays(cure, isWork).length, 4);
+  const m = new ProjectModel(newProject("P", "2026-02-02"));
+  m.isWork = isWork;
+  m.addTask({ name: "Pour", level: 0, start: "2026-02-02", duration: 4, progress: 0 }); // Mon-Thu
+  m.addTask({ name: "Cure", level: 0, start: "2026-02-02", duration: 4, progress: 0 });
+  m.addTask({ name: "Strip", level: 0, start: "2026-02-02", duration: 1, progress: 0 });
+  const [a, b, c] = m.tasks.map((t) => t.id);
+  m.link(a, b, "FS", 0).link(b, c, "FS", 0);
+  m.edit((d) => { d.tasks[1].calendar = "7d"; });
+  const s = schedule(m.doc, STANDARD);
+  assert.deepEqual([s.tasks[b].start, s.tasks[b].finish], ["2026-02-06", "2026-02-09"], "Fri Sat Sun Mon");
+  assert.equal(s.tasks[c].start, "2026-02-10");
+  m.edit((d) => { d.tasks[1].start = "2026-02-06"; d.tasks[2].start = "2026-02-02"; });
+  const s2 = schedule(m.doc, STANDARD);
+  m.edit((d) => { d.tasks[1].start = "2026-02-05"; });
+  assert.equal(schedule(m.doc, STANDARD).tasks[c].start, s2.tasks[c].start, "links decide, not the stored start");
+  m.edit((d) => { d.tasks[2].duration = 0; d.tasks[1].duration = 2; }); // Cure Fri Sat → Strip (milestone) on Mon
+  assert.equal(schedule(m.doc, STANDARD).tasks[c].start, "2026-02-09");
+  assert.equal(schedule(m.doc, STANDARD).finish, "2026-02-09");
+  assert.throws(() => m.edit((d) => { d.tasks[0].calendar = "24h"; }), /calendar must be one of/);
+});

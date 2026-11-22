@@ -10,6 +10,7 @@
  *           owner?, notes?, actualStart?, actualFinish?, deadline?, inactive?, type?, work?, effortDriven?, fixedCost?,
  *           priority? (0-1000, default 500), levelDelay? (working days added by resource levelling),
  *           custom? ({ fieldKey: value } for the document's custom fields),
+ *           calendar? ("7d" every day, "6d" the project's days and Saturdays; default the project calendar),
  *           splits? ([{ after, days }]: pauses of `days` working days after `after` days of work),
  *           recurring? (on a summary: the pattern its occurrences were made from, recurring.js) }
  *   resources: [{ name, rate (per hour), costPerUse }]   the Resource Sheet, by the names in Owner (costs.js)
@@ -40,12 +41,26 @@ export const fromDay = (n) => new Date(n * DAY).toISOString().slice(0, 10);
 /** a task's finish: the last day it runs (a milestone finishes the day it starts) */
 /** With a working calendar (isWork(day) → bool) the duration counts working days, from the first working day. */
 export function finishOf(t, isWork = null) {
+  isWork = taskIsWork(t, isWork);
   const gaps = splitDays(t); // a split task's pauses lengthen its span, not its duration
   if (!isWork) return fromDay(toDay(t.start) + Math.max(0, t.duration - 1) + gaps);
   let d = toDay(t.start), left = Math.max(0, t.duration - 1) + gaps, guard = 0;
   while (!isWork(d)) { d++; if (++guard > 3660) throw new Error("the calendar has no working days"); }
   while (left > 0) { d++; if (isWork(d)) left--; if (++guard > 40000) throw new Error("the calendar has too few working days"); }
   return fromDay(d);
+}
+
+/* ---- task calendars (stage 5): a task can work other days than the project ---- */
+/** The task calendars: every day (curing, a machine running round the clock), or the project's days plus Saturdays. */
+export const TASK_CALENDARS = [
+  { key: "7d", title: "Every day" },
+  { key: "6d", title: "Mon–Sat" },
+];
+/** The working days a task counts: its own calendar's, else the project's (isWork; null is every day). */
+export function taskIsWork(t, isWork = null) {
+  if (t.calendar === "7d") return null;
+  if (t.calendar === "6d") return isWork ? (d) => isWork(d) || new Date(d * 86400000).getUTCDay() === 6 : null;
+  return isWork;
 }
 
 /* ---- split tasks (stage 5): work stops for a while and picks up again ---- */
@@ -76,6 +91,7 @@ export function splitsError(t) {
 }
 /** The days a task is worked (day numbers), its pauses and non-working days left out. */
 export function workDays(t, isWork = null) {
+  isWork = taskIsWork(t, isWork);
   const out = [], pauses = new Map(splitsOf(t).map((x) => [x.after, x.days]));
   let d = toDay(t.start), worked = 0, guard = 0;
   while (worked < Math.max(1, t.duration)) {
@@ -148,6 +164,7 @@ export function validate(doc) {
     if (t.recurring !== undefined && patternError(t.recurring)) errs.push(`${at}: ${patternError(t.recurring)}`);
     if (t.actualStart && t.actualFinish && t.actualFinish < t.actualStart) errs.push(`${at}: actual finish is before actual start`);
     if (splitsError(t)) errs.push(`${at}: ${splitsError(t)}`);
+    if (t.calendar !== undefined && !TASK_CALENDARS.some((c) => c.key === t.calendar)) errs.push(`${at}: calendar must be one of ${TASK_CALENDARS.map((c) => c.key).join(", ")}`);
     if (t.custom !== undefined) {
       if (!t.custom || typeof t.custom !== "object") errs.push(`${at}: custom values must be a set of fields`);
       else for (const [k, v] of Object.entries(t.custom)) {

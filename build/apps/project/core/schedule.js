@@ -16,7 +16,7 @@
  *   ASAP (default) · SNET start no earlier than · MSO must start on · FNLT finish no later than (reported when missed)
  * Summary tasks are not scheduled themselves; they roll up their subtasks.
  */
-import { toDay, fromDay, splitDays } from "./project.js";
+import { toDay, fromDay, splitDays, finishOf } from "./project.js";
 
 /* ---- calendars ---- */
 
@@ -101,7 +101,13 @@ export function schedule(doc, cal = STANDARD) {
   const byId = new Map(tasks.map((t) => [t.id, t]));
   const span = (t) => Math.max(0, t.duration - 1) + splitDays(t); // finish = start + span (a milestone: span 0; splits add their pauses)
   const projectStart = num.n(doc.start);
-  const es = new Map(), ef = new Map();
+  const es = new Map(), ef = new Map(), spans = new Map(), ownFinish = new Map();
+  // a task on its own calendar: its finish in the project's working days, from the start the links give it
+  const ownSpan = (t, s) => {
+    const f = finishOf({ ...t, start: num.date(s) }, cal.isWork);
+    ownFinish.set(t.id, f);
+    return Math.max(0, num.n(f) - (cal.isWork(toDay(f)) ? 0 : 1) - s); // a finish on a day off counts as the working day before
+  };
 
   // forward pass
   for (const id of order) {
@@ -122,14 +128,16 @@ export function schedule(doc, cal = STANDARD) {
       if (must < s) problems.push(`"${t.name}" must start on ${c.date}, earlier than its links allow`);
       s = must;
     }
-    es.set(id, s); ef.set(id, s + d);
+    const span2 = t.calendar ? ownSpan(t, s) : d;
+    spans.set(id, span2);
+    es.set(id, s); ef.set(id, s + span2);
   }
   const finishN = leaves.length ? Math.max(...leaves.map((t) => ef.get(t.id))) : projectStart;
 
   // backward pass
   const ls = new Map(), lf = new Map();
   for (const id of [...order].reverse()) {
-    const t = byId.get(id), d = span(t);
+    const t = byId.get(id), d = spans.get(id);
     let f = finishN;
     for (const l of succs.get(id)) {
       const s2 = ls.get(l.to), f2 = lf.get(l.to), milestone = t.duration === 0;
@@ -151,7 +159,7 @@ export function schedule(doc, cal = STANDARD) {
   const out = {};
   for (const t of leaves) {
     const slack = ls.get(t.id) - es.get(t.id);
-    out[t.id] = { start: num.date(es.get(t.id)), finish: num.date(ef.get(t.id)), lateStart: num.date(Math.max(0, ls.get(t.id))), lateFinish: num.date(Math.max(0, lf.get(t.id))), slack, critical: slack <= 0, summary: false };
+    out[t.id] = { start: num.date(es.get(t.id)), finish: ownFinish.get(t.id) || num.date(ef.get(t.id)), lateStart: num.date(Math.max(0, ls.get(t.id))), lateFinish: num.date(Math.max(0, lf.get(t.id))), slack, critical: slack <= 0, summary: false };
   }
   // summaries span their subtasks
   tasks.forEach((t, i) => {
@@ -163,7 +171,9 @@ export function schedule(doc, cal = STANDARD) {
     const start = kids.map((k) => k.start).sort()[0], finish = kids.map((k) => k.finish).sort().at(-1);
     out[t.id] = { start, finish, lateStart: start, lateFinish: finish, slack: Math.min(...kids.map((k) => k.slack)), critical: kids.some((k) => k.critical), summary: true };
   });
-  return { tasks: out, finish: num.date(finishN), problems };
+  // a task on its own calendar can finish on a day off, after the project's last working day
+  const lastOwn = [...ownFinish.values()].sort().at(-1), finish = lastOwn && lastOwn > num.date(finishN) ? lastOwn : num.date(finishN);
+  return { tasks: out, finish, problems };
 }
 
 /** The critical path: leaf task ids with no slack, in start order. */
