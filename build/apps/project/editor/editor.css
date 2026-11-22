@@ -220,3 +220,17 @@ table.wp-table { border-collapse: collapse; width: 100%; table-layout: fixed; }
 .wp-base.is-tracking { fill: var(--ink3); opacity: .8; }
 .wp-bar.is-slipped { fill: #f0a020; }
 .wp-label.is-slipped { fill: #b26a00; }
+.wp-team { position: relative; padding: 0 0 8px; font-size: 12px; }
+.wp-team-head { position: sticky; top: 0; height: 24px; background: var(--card); border-bottom: 1px solid var(--line); z-index: 2; }
+.wp-team-head .wk { position: absolute; top: 5px; color: var(--ink3); white-space: nowrap; }
+.wp-lane { position: relative; border-bottom: 1px solid var(--line); }
+.wp-lane > b { position: sticky; left: 0; display: block; height: 100%; padding: 6px 8px; font-weight: 600; background: var(--card); border-right: 1px solid var(--line); z-index: 1; box-sizing: border-box; }
+.wp-lane > b em { font-weight: 400; color: var(--ink3); }
+.wp-lane .track { position: absolute; top: 0; right: 0; bottom: 0; }
+.wp-lane .track i { position: absolute; top: 0; bottom: 0; }
+.wp-lane .track i.off { background: var(--weekend, rgba(0,0,0,.035)); }
+.wp-lane .track i.over { background: color-mix(in srgb, #c62828 14%, transparent); }
+.wp-lane.is-over { outline: 2px dashed var(--accent, #2f6fde); outline-offset: -2px; }
+.wp-chip { position: absolute; height: 20px; line-height: 20px; padding: 0 6px; border-radius: 4px; background: color-mix(in srgb, var(--accent, #2f6fde) 22%, var(--card)); border: 1px solid var(--accent, #2f6fde); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; cursor: grab; box-sizing: border-box; }
+.wp-chip.is-sel { box-shadow: 0 0 0 2px var(--accent, #2f6fde); }
+.wp-team-help { margin: 8px 12px; }

@@ -3,7 +3,7 @@
  * cover them; editor.js draws what they return.
  */
 import { toDay, fromDay, finishOf, workDays } from "../core/project.js";
-import { assignmentsOf, maxUnitsOf } from "../core/resources.js";
+import { assignmentsOf, maxUnitsOf, workload } from "../core/resources.js";
 import { costs, resourceSheet } from "../core/costs.js";
 
 export const BOARD_COLUMNS = [
@@ -327,4 +327,40 @@ export function overview(doc, { isWork = null, from = null, baseline = "Baseline
     cost: c.total, baselineCost, budget: doc.budget ?? null, milestones,
     people: resourceSheet(doc).filter((p) => p.tasks).sort((p, q) => q.work - p.work || p.name.localeCompare(q.name)).map((p) => ({ name: p.name, work: p.work, cost: p.cost, tasks: p.tasks })),
   };
+}
+
+/* ---- the Team Planner ---- */
+
+/**
+ * The Team Planner: a lane per person (and one for tasks no one is on), each with that person's tasks placed by date;
+ * tasks that overlap stack in rows. Summaries, milestones, inactive tasks and materials are left out. Days a person has
+ * more work than their availability are listed in `over` (day numbers).
+ * Returns { start, finish (ISO), days: number of days, lanes: [{ name, rows, items: [{ id, name, s, f, row, units }], over }] }.
+ */
+export function teamPlanner(doc, isWork = null) {
+  const leaves = doc.tasks.filter((t, i) => !t.inactive && t.duration > 0 && !(i + 1 < doc.tasks.length && doc.tasks[i + 1].level > t.level));
+  if (!leaves.length) return { start: doc.start, finish: doc.start, days: 0, lanes: [] };
+  const span = leaves.map((t) => ({ t, s: toDay(t.start), f: toDay(finishOf(t, isWork)) }));
+  const s0 = Math.min(...span.map((x) => x.s)), f0 = Math.max(...span.map((x) => x.f));
+  const lanes = new Map();
+  const lane = (name) => { if (!lanes.has(name)) lanes.set(name, { name, items: [], rows: 0, over: [] }); return lanes.get(name); };
+  for (const { t, s, f } of span) {
+    const people = assignmentsOf(t).filter((a) => a.units > 0);
+    if (!people.length) lane("").items.push({ id: t.id, name: t.name, s: s - s0, f: f - s0, units: 0 });
+    for (const a of people) lane(a.name).items.push({ id: t.id, name: t.name, s: s - s0, f: f - s0, units: a.units });
+  }
+  const load = workload(doc, isWork);
+  for (const l of lanes.values()) {
+    l.items.sort((a, b) => a.s - b.s || b.f - a.f);
+    const ends = [];
+    for (const it of l.items) { let r = ends.findIndex((e) => e < it.s); if (r < 0) { r = ends.length; ends.push(0); } ends[r] = it.f; it.row = r; }
+    l.rows = Math.max(1, ends.length);
+    if (l.name) {
+      const max = maxUnitsOf(doc, l.name);
+      for (const [d, list] of load.get(l.name) || []) if (list.reduce((n, x) => n + x.units, 0) > max + 1e-9) l.over.push(d - s0);
+      l.over.sort((a, b) => a - b);
+    }
+  }
+  const named = [...lanes.values()].filter((l) => l.name).sort((a, b) => a.name.localeCompare(b.name));
+  return { start: fromDay(s0), finish: fromDay(f0), days: f0 - s0 + 1, lanes: lanes.has("") ? [...named, lanes.get("")] : named };
 }

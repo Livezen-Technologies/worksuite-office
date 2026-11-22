@@ -179,3 +179,24 @@ test("overview: compares with the baseline asked for", async () => {
   assert.equal(overview(m.doc, { isWork: STANDARD.isWork, baseline: "Baseline 1" }).slipDays, 3);
   assert.equal(overview(m.doc, { isWork: STANDARD.isWork, baseline: "Baseline 7" }).slipDays, null);
 });
+
+test("teamPlanner: a lane per person with stacked rows, an unassigned lane, over-allocated days; reassign swaps people", async () => {
+  const { teamPlanner } = await import("../apps/project/editor/views.js");
+  const { reassign } = await import("../apps/project/core/resources.js");
+  const d = newProject("P", "2026-02-02");
+  d.tasks = [
+    { id: "s", name: "Phase", level: 0, start: "2026-02-02", duration: 5, progress: 0 },
+    { id: "a", name: "A", level: 1, start: "2026-02-02", duration: 3, progress: 0, owner: "Ravi" },
+    { id: "b", name: "B", level: 1, start: "2026-02-03", duration: 2, progress: 0, owner: "Ravi 50%, Cement [4]" },
+    { id: "c", name: "C", level: 1, start: "2026-02-05", duration: 1, progress: 0 },
+    { id: "m", name: "Go", level: 0, start: "2026-02-06", duration: 0, progress: 0, owner: "Ravi" },
+  ];
+  const p = teamPlanner(d, STANDARD.isWork);
+  assert.deepEqual(p.lanes.map((l) => [l.name, l.rows, l.items.map((i) => `${i.id}${i.row}`).join(" ")]), [["Ravi", 2, "a0 b1"], ["", 1, "c0"]]);
+  assert.deepEqual(p.lanes[0].over, [1, 2], "Tue and Wed at 150%");
+  assert.equal(p.start, "2026-02-02");
+  assert.equal(reassign("Ravi 50%, Cement [4]", "Ravi", "Nimal"), "Nimal 50%, Cement [4]");
+  assert.equal(reassign("Ravi, Nimal", "Ravi", "Nimal"), "Nimal");
+  assert.equal(reassign(undefined, "", "Priya"), "Priya");
+  assert.equal(reassign("Priya", "Priya", ""), undefined);
+});

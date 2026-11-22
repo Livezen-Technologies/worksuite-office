@@ -1,5 +1,17 @@
 # Change log
 
+## 10.1.76
+
+### New features
+
+#### Project
+
+* Team Planner: View › Team Planner shows a row for each person with their
+  tasks across the dates (tasks that overlap stack), and a row for tasks no one
+  is on. Days a person has more work than their availability are shaded red.
+  Dragging a task onto another person hands it over, keeping its share of
+  time; dragging it onto Unassigned takes the person off it.
+
 ## 10.1.75
 
 ### New features

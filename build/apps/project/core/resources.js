@@ -101,3 +101,18 @@ export function weeklyLoad(doc, isWork = null) {
   }
   return rows;
 }
+
+/**
+ * Owner text with `from` swapped for `to` (the Team Planner's drag): `to` takes `from`'s share; if `to` is already on
+ * the task, `from` simply leaves. From "" (no one) adds `to` full time; to "" takes `from` off.
+ */
+export function reassign(owner, from, to) {
+  const list = assignmentsOf({ owner });
+  if (from === to) return owner || undefined;
+  const i = from ? list.findIndex((a) => a.name === from && a.amount === undefined) : -1;
+  if (from && i < 0) return owner || undefined;
+  const share = i >= 0 ? list[i].units : 1;
+  const out = list.filter((_, k) => k !== i);
+  if (to && !out.some((a) => a.name === to && a.amount === undefined)) out.splice(i >= 0 ? i : out.length, 0, { name: to, units: share });
+  return out.length ? ownerText(out) : undefined;
+}
