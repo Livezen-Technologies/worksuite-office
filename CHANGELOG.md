@@ -10,7 +10,7 @@
   of their time each work resource has: 100% one person full time, 50% half
   time, 300% a crew of three. Over-allocation warnings, the Workload and
   Resource Usage views and resource levelling all measure against it, and it
-  goes to and comes from Project XML as MaxUnits.
+  goes to and comes from Project XML.
 
 ## 10.1.72
 
