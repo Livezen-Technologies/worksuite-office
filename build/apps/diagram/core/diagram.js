@@ -6,7 +6,8 @@
  *
  * The document (schema version 1), saved as canonical JSON inside the .wsdiagram zip:
  *   { app: "worksuite.diagram", v: 1, name, pages: [Page] }
- *   Page:      { id, name, width, height, layers: [Layer], items: [Shape | Connector | Group] }   (items: back to front)
+ *   Page:      { id, name, width, height, layers: [Layer], items: [Shape | Connector | Group], graphics? }   (items: back to front;
+ *              graphics: data graphics, datagraphics.js)
  *   Layer:     { id, name, visible, locked }
  *   Shape:     { id, kind: "shape", type ("rect", "ellipse", "diamond", "terminator", …), layer, x, y, w, h,
  *                rotate (degrees), text, style: { fill, line, lineWidth, fontSize, … } }
@@ -20,6 +21,7 @@
 
 import { makeLanes, nextLane } from "./swimlane.js";
 import { dataError } from "./shapedata.js";
+import { graphicsError } from "./datagraphics.js";
 
 export const APP = "worksuite.diagram";
 export const SCHEMA_VERSION = 1;
@@ -64,6 +66,7 @@ export function validate(doc) {
     const at = `page ${pi + 1}`;
     seen(page.id, at);
     if (!(page.width > 0 && page.height > 0)) errs.push(`${at}: bad size`);
+    if (graphicsError(page.graphics)) errs.push(`${at}: ${graphicsError(page.graphics)}`);
     if (!Array.isArray(page.layers) || !page.layers.length) { errs.push(`${at}: needs a layer`); continue; }
     const layers = new Set(page.layers.map((l) => (seen(l.id, `${at} layer`), l.id)));
     const shapes = new Map(), items = new Map();
@@ -178,6 +181,10 @@ export class DiagramModel {
       page.items.push(shape);
     });
     return id;
+  }
+  /** Sets a page's data graphics (datagraphics.js); null removes them. */
+  setGraphics(graphics, pageId = this.page().id) {
+    this.edit((d) => { const p = d.pages.find((x) => x.id === pageId); if (graphics) p.graphics = graphics; else delete p.graphics; });
   }
   /** Sets a shape's data (shapedata.js); an empty list removes it. */
   setData(id, data, pageId = this.page().id) {
