@@ -217,3 +217,6 @@ table.wp-table { border-collapse: collapse; width: 100%; table-layout: fixed; }
 .wp-sheet input.pct { width: 64px; }
 .wp-over-budget { color: var(--today); font-weight: 600; }
 #wp-budget { width: 110px; }
+.wp-base.is-tracking { fill: var(--ink3); opacity: .8; }
+.wp-bar.is-slipped { fill: #f0a020; }
+.wp-label.is-slipped { fill: #b26a00; }

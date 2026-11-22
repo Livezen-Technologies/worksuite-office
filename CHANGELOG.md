@@ -1,5 +1,16 @@
 # Change log
 
+## 10.1.75
+
+### New features
+
+#### Project
+
+* Tracking Gantt: View › Tracking Gantt draws each task's bar over its bar in
+  the baseline chosen in Compare with, labels it with its percent complete and
+  how many days late or early it will finish, and colours a bar that finishes
+  later than in the baseline amber. Summaries show their percent complete.
+
 ## 10.1.74
 
 ### New features
