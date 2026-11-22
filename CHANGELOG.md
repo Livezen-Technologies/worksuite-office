@@ -1,5 +1,18 @@
 # Change log
 
+## 10.1.83
+
+### New features
+
+#### Diagram
+
+* Swimlanes: Insert › Swimlanes draws a cross-functional flowchart's lanes,
+  one per team or role, across the page or down it, each with its title in a
+  header band, behind the other shapes. A shape belongs to the lane its centre
+  is in, so dragging a lane takes its shapes with it. Add lane puts another
+  lane at the end of the set. Lanes export to Visio, SVG and PNG with their
+  headers.
+
 ## 10.1.82
 
 ### New features

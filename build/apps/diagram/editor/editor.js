@@ -12,7 +12,8 @@
  */
 import { autoLayout, applyLayout } from "../core/layout.js";
 import { parseTable, readTable, addTable } from "../core/fromtable.js";
-import { askText } from "../../common/dialog.js";
+import { askText, askForm } from "../../common/dialog.js";
+import { laneMembers, lanePath, LANE_HEADER } from "../core/swimlane.js";
 import { decorateRibbon, ribbonStyles } from "../../common/ribbon.js";
 import { aiDraft } from "../../common/aidraft.js";
 import { DiagramModel, newDiagram, parse, serialize, connectionPoints, pointOn, APP } from "../core/diagram.js";
@@ -25,8 +26,8 @@ const $ = (id) => document.getElementById(id);
 const NS = "http://www.w3.org/2000/svg";
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 const GRID = 10;
-const FILLS = { room: "#fafaf9", wall: "#52525b", door: "#ffffff", window: "#e0f2fe", stairs: "#f5f5f4", table: "#fef3c7", desk: "#fef3c7", sofa: "#e7e5e4", class: "#fffbeb", actor: "#ffffff", usecase: "#ecfccb", component: "#e0e7ff", note: "#fef9c3", package: "#f5f5f4", event: "#dcfce7", endevent: "#fee2e2", task: "#dbeafe", gateway: "#fef3c7", pool: "#ffffff", vm: "#e0f2fe", container: "#dbeafe", function: "#ffedd5", queue: "#f3e8ff", loadbalancer: "#dcfce7", bucket: "#fee2e2", rect: "#dbeafe", rounded: "#dbeafe", diamond: "#fef3c7", terminator: "#e0f2fe", data: "#ede9fe", document: "#f5f5f4", database: "#dcfce7", manual: "#ffedd5", subprocess: "#dbeafe", ellipse: "#fce7f3", triangle: "#fef9c3", hexagon: "#e0e7ff", person: "#e2e8f0", server: "#e2e8f0", cloud: "#f1f5f9" };
-const LINES = { room: "#57534e", wall: "#27272a", door: "#57534e", window: "#0284c7", stairs: "#78716c", table: "#a16207", desk: "#a16207", sofa: "#78716c", class: "#b45309", actor: "#334155", usecase: "#4d7c0f", component: "#4f46e5", note: "#a16207", package: "#57534e", event: "#16a34a", endevent: "#dc2626", task: "#2563eb", gateway: "#d97706", pool: "#475569", vm: "#0284c7", container: "#2563eb", function: "#ea580c", queue: "#9333ea", loadbalancer: "#16a34a", bucket: "#dc2626", diamond: "#d97706", terminator: "#0284c7", data: "#7c3aed", database: "#16a34a", manual: "#ea580c", ellipse: "#db2777", triangle: "#ca8a04", hexagon: "#4f46e5", person: "#475569", server: "#475569", cloud: "#64748b", document: "#78716c" };
+const FILLS = { lane: "#ffffff", room: "#fafaf9", wall: "#52525b", door: "#ffffff", window: "#e0f2fe", stairs: "#f5f5f4", table: "#fef3c7", desk: "#fef3c7", sofa: "#e7e5e4", class: "#fffbeb", actor: "#ffffff", usecase: "#ecfccb", component: "#e0e7ff", note: "#fef9c3", package: "#f5f5f4", event: "#dcfce7", endevent: "#fee2e2", task: "#dbeafe", gateway: "#fef3c7", pool: "#ffffff", vm: "#e0f2fe", container: "#dbeafe", function: "#ffedd5", queue: "#f3e8ff", loadbalancer: "#dcfce7", bucket: "#fee2e2", rect: "#dbeafe", rounded: "#dbeafe", diamond: "#fef3c7", terminator: "#e0f2fe", data: "#ede9fe", document: "#f5f5f4", database: "#dcfce7", manual: "#ffedd5", subprocess: "#dbeafe", ellipse: "#fce7f3", triangle: "#fef9c3", hexagon: "#e0e7ff", person: "#e2e8f0", server: "#e2e8f0", cloud: "#f1f5f9" };
+const LINES = { lane: "#64748b", room: "#57534e", wall: "#27272a", door: "#57534e", window: "#0284c7", stairs: "#78716c", table: "#a16207", desk: "#a16207", sofa: "#78716c", class: "#b45309", actor: "#334155", usecase: "#4d7c0f", component: "#4f46e5", note: "#a16207", package: "#57534e", event: "#16a34a", endevent: "#dc2626", task: "#2563eb", gateway: "#d97706", pool: "#475569", vm: "#0284c7", container: "#2563eb", function: "#ea580c", queue: "#9333ea", loadbalancer: "#16a34a", bucket: "#dc2626", diamond: "#d97706", terminator: "#0284c7", data: "#7c3aed", database: "#16a34a", manual: "#ea580c", ellipse: "#db2777", triangle: "#ca8a04", hexagon: "#4f46e5", person: "#475569", server: "#475569", cloud: "#64748b", document: "#78716c" };
 
 const state = {
   model: new DiagramModel(newDiagram("Untitled diagram")),
@@ -64,6 +65,29 @@ const commands = {
   new: () => { state.model = new DiagramModel(newDiagram("Untitled diagram")); state.pageId = state.model.doc.pages[0].id; state.sel = []; state.fileName = "Untitled diagram.wsdiagram"; render(); },
   open: () => $("wd-file").click(),
   fromTable: () => fromTable(),
+  swimlanes: async () => {
+    if (state.readOnly) return;
+    const v = await askForm({
+      title: "Swimlanes", ok: "Add",
+      hint: "A cross-functional flowchart: one lane per team or role. Shapes you put in a lane move with it.",
+      fields: [
+        { key: "names", label: "Lanes", value: "Customer, Sales, Operations, Finance", hint: "names, separated by commas" },
+        { key: "orientation", label: "Lanes run", type: "select", value: "h", options: [["h", "Across (horizontal)"], ["v", "Down (vertical)"]] },
+      ],
+      check: (x) => (x.names.split(",").map((n) => n.trim()).filter(Boolean).length ? null : "Name at least one lane"),
+    });
+    if (!v) return;
+    const names = v.names.split(",").map((n) => n.trim()).filter(Boolean), p = page();
+    const length = v.orientation === "v" ? Math.max(300, p.height - 80) : Math.max(400, p.width - 80);
+    const size = Math.max(90, Math.floor(((v.orientation === "v" ? p.width : p.height) - 80) / names.length));
+    run(() => { state.sel = state.model.addLanes(names, { orientation: v.orientation, x: 40, y: 40, length, size }, state.pageId); });
+  },
+  addLane: async () => {
+    const lane = state.sel.map(byId).find((i) => i?.type === "lane");
+    if (!lane) { state.message = "Select a lane: the new one goes at the end of its set"; render(); return; }
+    const v = await askForm({ title: "Add a lane", ok: "Add", fields: [{ key: "name", label: "Name", value: "Lane" }] });
+    if (v) run(() => { state.sel = [state.model.addLane(lane.id, v.name.trim() || "Lane", state.pageId)]; });
+  },
   aiDiagram: () => aiDiagram(),
   save: () => { download(state.fileName, packDocument(APP, serialize(state.model.doc)), "application/zip"); state.saved = state.model.undoStack.length; render(); },
   exportPng: () => exportPng(),
@@ -74,7 +98,7 @@ const commands = {
     };
     // the colours each shape is drawn with: its own, else its type's default, as on the canvas
     const styleOf = (sh) => ({ fill: FILLS[sh.type] || "#dbeafe", line: LINES[sh.type] || "#2563eb" });
-    download(state.fileName.replace(/\.wsdiagram$/, "") + ".vsdx", toVsdx(state.model.doc, (sh) => shapePath(sh.type, sh.w, sh.h, sh.path), routeOf, styleOf), "application/vnd.ms-visio.drawing");
+    download(state.fileName.replace(/\.wsdiagram$/, "") + ".vsdx", toVsdx(state.model.doc, (sh) => (sh.type === "lane" ? lanePath(sh) : shapePath(sh.type, sh.w, sh.h, sh.path)), routeOf, styleOf), "application/vnd.ms-visio.drawing");
   }),
   print: () => window.print(),
   exportSvg: () => download(state.fileName.replace(/\.wsdiagram$/, "") + ` - ${page().name}.svg`, pageSvg(false), "image/svg+xml"),
@@ -200,7 +224,17 @@ function textLines(text, x, cx, cy, size = 13) {
   const top = cy - ((lines.length - 1) * size * 1.25) / 2 + size * 0.35;
   return lines.map((l, i) => `<tspan x="${cx}" y="${top + i * size * 1.25}">${esc(l)}</tspan>`).join("");
 }
+function laneSvg(s) {
+  const v = s.lane?.orientation === "v", fill = s.style?.fill || "#ffffff", line = s.style?.line || "#64748b", head = s.style?.headerFill || "#e2e8f0";
+  const lw = s.style?.lineWidth ?? 1.25, H = LANE_HEADER, size = s.style?.fontSize || 13;
+  const header = v ? `<rect class="lane-head" width="${s.w}" height="${H}" fill="${head}" stroke="${line}" stroke-width="${lw}"/>`
+    : `<rect class="lane-head" width="${H}" height="${s.h}" fill="${head}" stroke="${line}" stroke-width="${lw}"/>`;
+  const label = v ? `<text class="shape-text lane-title" text-anchor="middle" x="${s.w / 2}" y="${H / 2 + size * 0.35}" style="font-size:${size}px;font-weight:600">${esc(s.text)}</text>`
+    : `<text class="shape-text lane-title" text-anchor="middle" transform="translate(${H / 2 + size * 0.35} ${s.h / 2}) rotate(-90)" style="font-size:${size}px;font-weight:600">${esc(s.text)}</text>`;
+  return `<g data-id="${s.id}" transform="translate(${s.x} ${s.y})"><path class="shape-body" d="M0 0 H${s.w} V${s.h} H0 Z" fill="${fill}" stroke="${line}" stroke-width="${lw}"/>${header}${label}</g>`;
+}
 function shapeSvg(s) {
+  if (s.type === "lane") return laneSvg(s);
   const fill = s.style?.fill || FILLS[s.type] || "#dbeafe", line = s.style?.line || LINES[s.type] || "#2563eb";
   const lw = s.style?.lineWidth ?? 1.5;
   const tf = `translate(${s.x} ${s.y})${s.rotate ? ` rotate(${s.rotate} ${s.w / 2} ${s.h / 2})` : ""}`;
@@ -365,7 +399,8 @@ $("wd-canvas").addEventListener("pointerdown", (e) => {
     const id = topOf(hit);
     if (e.shiftKey) state.sel = state.sel.includes(id) ? state.sel.filter((x) => x !== id) : [...state.sel, id];
     else if (!state.sel.includes(id)) state.sel = [id];
-    const moving = selShapes();
+    // a lane carries the shapes in it
+    const sel = selShapes(), moving = [...new Map([...sel, ...sel.filter((x) => x.type === "lane").flatMap((l) => laneMembers(page().items, l))].map((x) => [x.id, x])).values()];
     if (!state.readOnly && moving.length) state.drag = { move: true, x0: at.x, y0: at.y, start: moving.map((s) => ({ id: s.id, x: s.x, y: s.y })), box: bbox(moving) };
   } else {
     if (!e.shiftKey) state.sel = [];
