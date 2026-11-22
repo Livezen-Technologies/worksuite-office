@@ -78,6 +78,13 @@ export const FIELD_IDS = {
   date: seq(188743945, 10), // Date1-10
   flag: [...seq(188743752, 10), ...seq(188743972, 10)], // Flag1-20
 };
+/** Interim plans ↔ Microsoft Project's Start1-Finish1 to Start10-Finish10 (Interim n is Start n and Finish n). */
+export const INTERIM_IDS = [...[0, 1, 2, 3, 4].map((k) => 188743732 + 3 * k), ...[0, 1, 2, 3, 4].map((k) => 188743962 + 2 * k)].map((start, i) => ({ n: i + 1, start, finish: start + 1 }));
+const interimOf = (id) => { for (const x of INTERIM_IDS) { if (x.start === id) return { n: x.n, end: "start" }; if (x.finish === id) return { n: x.n, end: "finish" }; } return null; };
+/** Task calendars written as base calendars: working week days by Microsoft Project's DayType (1 Sunday … 7 Saturday). */
+const CAL_DAYS = { standard: [2, 3, 4, 5, 6], "7d": [1, 2, 3, 4, 5, 6, 7], "6d": [2, 3, 4, 5, 6, 7] };
+const CAL_NAME = { standard: "Standard", "7d": "Every day", "6d": "Mon–Sat" };
+
 /** Microsoft Project's accrual codes: 1 at the start, 2 at the end, 3 prorated (its default, so not written). */
 const ACCRUE_OUT = { start: 1, end: 2, prorated: 3 };
 const FIELD_LABEL = { text: "Text", number: "Number", date: "Date", flag: "Flag" };
@@ -125,6 +132,24 @@ export function fromProjectXml(text) {
     fieldById.set(id, f);
   }
   if (fieldById.size) doc.fields = [...fieldById.values()];
+  // interim plans: values in Start n / Finish n come in as Interim n (saved: the status date, or the start, as the file has no date)
+  const interims = new Map();
+  // calendars: which working week days each has, to tell a task on an every-day or Mon-Sat calendar
+  const calDays = new Map();
+  const calsEl = kid(top, "Calendars");
+  for (const c of calsEl ? kids(calsEl, "Calendar") : []) {
+    const wd = kid(c, "WeekDays");
+    const days = new Set();
+    let any = false;
+    for (const d of wd ? kids(wd, "WeekDay") : []) { const type = Number(val(d, "DayType")); if (type >= 1 && type <= 7) { any = true; if (val(d, "DayWorking") === "1") days.add(type); } }
+    if (any) calDays.set(val(c, "UID"), days);
+  }
+  const calendarOf = (uid) => {
+    const days = calDays.get(uid);
+    if (!days) return null;
+    const same = (list) => list.length === days.size && list.every((d) => days.has(d));
+    return same(CAL_DAYS["7d"]) ? "7d" : same(CAL_DAYS["6d"]) ? "6d" : same(CAL_DAYS.standard) ? "standard" : "other";
+  };
   const tasksEl = kid(top, "Tasks");
   const taskEls = tasksEl ? kids(tasksEl, "Task") : [];
   const byUid = new Map();
@@ -201,6 +226,14 @@ export function fromProjectXml(text) {
     const con = CON_IN[val(t, "ConstraintType")];
     if (con && val(t, "ConstraintDate")) task.constraint = { type: con, date: val(t, "ConstraintDate").slice(0, 10) };
     for (const e of kids(t, "ExtendedAttribute")) {
+      const im = interimOf(Number(val(e, "FieldID")));
+      if (im && /^\d{4}-\d{2}-\d{2}/.test(val(e, "Value"))) {
+        if (!interims.has(im.n)) interims.set(im.n, new Map());
+        const at = interims.get(im.n), cur = at.get(task.id) || {};
+        cur[im.end] = val(e, "Value").slice(0, 10);
+        at.set(task.id, cur);
+        continue;
+      }
       const f = fieldById.get(Number(val(e, "FieldID"))), raw = val(e, "Value");
       if (!f || raw === "") continue;
       const v = f.type === "number" ? Number(raw) : f.type === "flag" ? raw === "1" || /^true$/i.test(raw) : f.type === "date" ? raw.slice(0, 10) : raw;
@@ -208,6 +241,9 @@ export function fromProjectXml(text) {
       if ((f.type === "number" && !Number.isFinite(v)) || (f.type === "date" && !/^\d{4}-\d{2}-\d{2}$/.test(v))) { problems.push(`task "${task.name}": ${f.name} "${raw}" was left out`); continue; }
       task.custom = { ...(task.custom || {}), [f.key]: v };
     }
+    const tc = val(t, "CalendarUID") && val(t, "CalendarUID") !== "-1" ? calendarOf(val(t, "CalendarUID")) : null;
+    if (tc === "7d" || tc === "6d") task.calendar = tc;
+    else if (tc === "other") problems.push(`task "${task.name}" has its own calendar, which was read as the project calendar`);
     byUid.set(uid, task);
     doc.tasks.push(task);
   }
@@ -225,6 +261,9 @@ export function fromProjectXml(text) {
       doc.links.push({ from: from.id, to: to.id, type: TYPE_IN[val(p, "Type") || "1"] || "FS", lag: lagDays(val(p, "LinkLag")) });
     }
   }
+  const saved = doc.statusDate || doc.start;
+  const plans = [...interims].sort((a, b) => a[0] - b[0]).map(([n, at]) => ({ name: `Interim ${n}`, saved, tasks: Object.fromEntries([...at].filter(([, v]) => v.start && v.finish).map(([id, v]) => [id, { start: v.start, finish: v.finish }])) })).filter((p) => Object.keys(p.tasks).length);
+  if (plans.length) doc.interims = plans;
   validate(doc);
   return { doc, problems };
 }
@@ -244,7 +283,16 @@ export function toProjectXml(doc, isWork = null) {
   const costById = costs(doc).byId; // formula fields go out with their worked-out values
   const slot = { text: 0, number: 0, date: 0, flag: 0 };
   const outFields = (doc.fields || []).map((f) => ({ ...f, id: FIELD_IDS[f.type][slot[f.type]], n: ++slot[f.type] })).filter((f) => f.id);
-  const extXml = outFields.map((f) => `<ExtendedAttribute><FieldID>${f.id}</FieldID><FieldName>${FIELD_LABEL[f.type]}${f.n}</FieldName>${el("Alias", f.name)}${el("Formula", f.formula)}</ExtendedAttribute>`).join("\n    ");
+  const plansOut = (doc.interims || []).map((p) => ({ p, ids: INTERIM_IDS.find((x) => `Interim ${x.n}` === p.name) })).filter((x) => x.ids);
+  const extXml = [...outFields.map((f) => `<ExtendedAttribute><FieldID>${f.id}</FieldID><FieldName>${FIELD_LABEL[f.type]}${f.n}</FieldName>${el("Alias", f.name)}${el("Formula", f.formula)}</ExtendedAttribute>`),
+    ...plansOut.flatMap(({ ids }) => [`<ExtendedAttribute><FieldID>${ids.start}</FieldID><FieldName>Start${ids.n}</FieldName></ExtendedAttribute>`, `<ExtendedAttribute><FieldID>${ids.finish}</FieldID><FieldName>Finish${ids.n}</FieldName></ExtendedAttribute>`])].join("\n    ");
+  const interimXml = (t) => plansOut.map(({ p, ids }) => { const v = p.tasks[t.id]; return v ? `<ExtendedAttribute><FieldID>${ids.start}</FieldID><Value>${v.start}T08:00:00</Value></ExtendedAttribute><ExtendedAttribute><FieldID>${ids.finish}</FieldID><Value>${v.finish}T17:00:00</Value></ExtendedAttribute>` : ""; }).join("");
+  // task calendars: Standard (the project's) plus each task calendar in use
+  const calsUsed = ["standard", ...["7d", "6d"].filter((k) => doc.tasks.some((t) => t.calendar === k))];
+  const calUid = new Map(calsUsed.map((k, i) => [k, i + 1]));
+  const calXml = calsUsed.length > 1 ? calsUsed.map((k) => `<Calendar><UID>${calUid.get(k)}</UID>${el("Name", CAL_NAME[k])}<IsBaseCalendar>1</IsBaseCalendar><WeekDays>${[1, 2, 3, 4, 5, 6, 7].map((d) => CAL_DAYS[k].includes(d)
+    ? `<WeekDay><DayType>${d}</DayType><DayWorking>1</DayWorking><WorkingTimes><WorkingTime><FromTime>08:00:00</FromTime><ToTime>12:00:00</ToTime></WorkingTime><WorkingTime><FromTime>13:00:00</FromTime><ToTime>17:00:00</ToTime></WorkingTime></WorkingTimes></WeekDay>`
+    : `<WeekDay><DayType>${d}</DayType><DayWorking>0</DayWorking></WeekDay>`).join("")}</WeekDays></Calendar>`).join("\n    ") : "";
   const custom = (t) => outFields.map((f) => [f, f.formula ? fieldValue(doc, t, f, { finish: (x) => finishOf(x, isWork), cost: (x) => costById.get(x.id) || 0, work: (x) => (unitsOf(x) > 0 ? workOf(x) : 0) }).value : t.custom?.[f.key]])
     .filter(([, v]) => v !== undefined && v !== "" && v !== null).map(([f, v]) => {
     return `<ExtendedAttribute><FieldID>${f.id}</FieldID>${el("Value", f.type === "flag" ? (v ? 1 : 0) : f.type === "date" ? `${v}T08:00:00` : v)}</ExtendedAttribute>`;
@@ -263,7 +311,7 @@ export function toProjectXml(doc, isWork = null) {
       `<Milestone>${v.milestone ? 1 : 0}</Milestone><Summary>${v.summary ? 1 : 0}</Summary><PercentComplete>${v.progress}</PercentComplete>` +
       (t.actualStart ? `<ActualStart>${t.actualStart}T08:00:00</ActualStart>` : "") +
       (t.deadline ? `<Deadline>${t.deadline}T17:00:00</Deadline>` : "") + (t.inactive ? "<Active>0</Active>" : "") + (t.actualFinish ? `<ActualFinish>${t.actualFinish}T17:00:00</ActualFinish>` : "") +
-      `${con}${el("Notes", t.notes)}${links}${custom(t)}</Task>`;
+      `${con}${t.calendar && calUid.has(t.calendar) ? `<CalendarUID>${calUid.get(t.calendar)}</CalendarUID>` : ""}${el("Notes", t.notes)}${links}${custom(t)}${interimXml(t)}</Task>`;
   }).join("\n    ");
   const sheet = new Map((doc.resources || []).map((r) => [r.name, r]));
   const resXml = resources.map((r) => {
@@ -284,7 +332,7 @@ export function toProjectXml(doc, isWork = null) {
   <StartDate>${doc.start}T08:00:00</StartDate>${doc.statusDate ? `\n  <StatusDate>${doc.statusDate}T17:00:00</StatusDate>` : ""}
   <MinutesPerDay>${HOURS_PER_DAY * 60}</MinutesPerDay>
   <MinutesPerWeek>${HOURS_PER_DAY * 60 * 5}</MinutesPerWeek>
-  <DaysPerMonth>20</DaysPerMonth>${extXml ? `\n  <ExtendedAttributes>\n    ${extXml}\n  </ExtendedAttributes>` : ""}
+  <DaysPerMonth>20</DaysPerMonth>${calXml ? `\n  <CalendarUID>1</CalendarUID>` : ""}${extXml ? `\n  <ExtendedAttributes>\n    ${extXml}\n  </ExtendedAttributes>` : ""}${calXml ? `\n  <Calendars>\n    ${calXml}\n  </Calendars>` : ""}
   <Tasks>
     ${tasks}
   </Tasks>
