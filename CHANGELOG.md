@@ -1,5 +1,18 @@
 # Change log
 
+## 10.1.81
+
+### New features
+
+#### Project
+
+* Insert project: Task › Project brings another plan, a .wsproj or Project XML
+  file, into this one as a summary task named after it, with its tasks one
+  level under it and its links. Its Resource Sheet rows and custom fields that
+  this plan does not have are added (fields are matched by name and type);
+  its baselines, interim plans, budget and status date stay behind. One undo
+  takes it out again.
+
 ## 10.1.80
 
 ### Fixes

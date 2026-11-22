@@ -134,6 +134,7 @@ const first = () => selected()[0];
 const commands = {
   new: () => { if (confirmDiscard()) { state.model = new ProjectModel(newProject("Untitled project", mondayOf(new Date()))); state.sel = []; state.fileName = "Untitled project.wsproj"; render(); } },
   open: () => $("wp-file").click(),
+  insertProject: () => { if (!state.readOnly) $("wp-insert-file").click(); },
   fromOutline: () => fromOutline(),
   viewGantt: () => showView(null),
   viewWorkload: () => showView("workload"),
@@ -1106,6 +1107,32 @@ $("wp-file").addEventListener("change", async (e) => {
   try { load(new Uint8Array(await f.arrayBuffer()), f.name); } catch (err) { state.message = "Could not open " + f.name + ": " + err.message; render(); }
   e.target.value = "";
 });
+
+$("wp-insert-file").addEventListener("change", async (e) => {
+  const f = e.target.files[0];
+  e.target.value = "";
+  if (!f) return;
+  try {
+    const { doc, problems } = readProject(new Uint8Array(await f.arrayBuffer()), f.name);
+    const name = doc.name && doc.name !== "Imported project" ? doc.name : f.name.replace(/\.(wsproj|xml)$/i, "");
+    run(() => {
+      const id = state.model.insertProject(doc, name);
+      state.sel = [id];
+      state.note = `Inserted ${name}: ${doc.tasks.length} task${doc.tasks.length === 1 ? "" : "s"} under one summary. Link them to your tasks, then Auto Schedule`;
+    });
+    if (problems.length) { state.message = problems.join("; "); render(); }
+  } catch (err) { state.message = "Could not insert " + f.name + ": " + err.message; render(); }
+});
+
+/** A project's document from a file's bytes: a .wsproj (or its JSON) or Project XML; { doc, problems }. */
+function readProject(bytes, name) {
+  if (isMpp(bytes, name)) throw new Error(MPP_HELP);
+  let i = 0;
+  while (i < bytes.length && (bytes[i] <= 0x20 || bytes[i] === 0xef || bytes[i] === 0xbb || bytes[i] === 0xbf)) i++;
+  if (bytes[i] === 0x3c) return fromProjectXml(new TextDecoder().decode(bytes));
+  if (bytes[i] === 0x7b) return { doc: parse(new TextDecoder().decode(bytes)), problems: [] }; // "{": the JSON itself
+  return { doc: parse(unpackDocument(bytes, APP)), problems: [] };
+}
 
 /** Opens a project: the bytes of a .wsproj file (or its JSON text). */
 function load(input, name = "Project.wsproj") {

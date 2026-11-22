@@ -256,3 +256,32 @@ test("Project XML: interim plans as Start n / Finish n and task calendars as bas
   const plain = toProjectXml(new ProjectModel(newProject("Q", "2026-02-02")).doc);
   assert.doesNotMatch(plain, /<Calendars>|<ExtendedAttributes>/, "nothing extra when neither is used");
 });
+
+test("insertProject: another plan under one summary, new ids, links kept, fields and resources merged; one undo", async () => {
+  const main = new ProjectModel(newProject("Main", "2026-02-02"));
+  main.addTask({ name: "Ours", level: 0, start: "2026-02-02", duration: 2, progress: 0 });
+  main.addField("Supplier", "text");
+  main.setResource("Ravi", { rate: 100 });
+  const sub = new ProjectModel(newProject("Fit-out", "2026-03-02"));
+  const a = sub.addTask({ name: "Wiring", level: 0, start: "2026-03-02", duration: 3, progress: 0, owner: "Ravi" });
+  const b = sub.addTask({ name: "Paint", level: 0, start: "2026-03-05", duration: 2, progress: 0, owner: "Nimal" });
+  sub.link(a, b, "FS", 0);
+  const f1 = sub.addField("Supplier", "text"), f2 = sub.addField("Budget", "number");
+  sub.setCustom(a, f1, "Abans").setCustom(a, f2, 500);
+  sub.setResource("Ravi", { rate: 999 }).setResource("Nimal", { rate: 80 });
+  sub.saveBaseline("Baseline", "2026-03-01");
+  const before = main.tasks.length;
+  const id = main.insertProject(sub.doc);
+  const t = main.doc.tasks;
+  assert.deepEqual(t.slice(before).map((x) => [x.name, x.level]), [["Fit-out", 0], ["Wiring", 1], ["Paint", 1]]);
+  assert.equal(t[before].id, id);
+  assert.equal(new Set(t.map((x) => x.id)).size, t.length, "ids stay unique");
+  const [w, p] = t.slice(before + 1);
+  assert.deepEqual(main.doc.links.at(-1), { from: w.id, to: p.id, type: "FS", lag: 0 });
+  assert.deepEqual(main.doc.fields.map((x) => x.name), ["Supplier", "Budget"]);
+  assert.deepEqual(w.custom, { f1: "Abans", f2: 500 });
+  assert.deepEqual(main.doc.resources.map((r) => [r.name, r.rate]), [["Ravi", 100], ["Nimal", 80]], "ours win, theirs are added");
+  assert.equal(main.doc.baselines, undefined, "their baselines stay behind");
+  main.undo();
+  assert.equal(main.tasks.length, before);
+});
