@@ -5,6 +5,8 @@
  * are the ones in the tasks' Owner text. A task's cost is each person's hours (the task's work, shared by their
  * units) × their rate, plus their cost per use, plus the task's fixed cost. A summary costs what its tasks do,
  * plus its own fixed cost; inactive tasks cost nothing. People with no row on the sheet cost nothing yet.
+ * Material resources (type "material", with a unit such as "bags") cost their amount × their rate per unit plus their
+ * cost per use; cost resources (type "cost") cost the amount typed on each task. Neither has hours.
  */
 import { assignmentsOf, resourceList } from "./resources.js";
 import { workOf, unitsOf } from "./tasktypes.js";
@@ -14,7 +16,14 @@ const money = (n) => Math.round(n * 100) / 100;
 /** A person's sheet row, or a blank one. */
 export function resourceOf(doc, name) {
   const r = (doc.resources || []).find((x) => x.name === name);
-  return { name, rate: r?.rate || 0, costPerUse: r?.costPerUse || 0 };
+  return { name, type: r?.type || "work", unit: r?.unit || "", rate: r?.rate || 0, costPerUse: r?.costPerUse || 0 };
+}
+
+/** What one assignment costs: hours × rate for people, amount × rate for materials, the amount for a cost resource. */
+export function assignmentCost(r, a, U, W) {
+  if (a.amount !== undefined) return r.type === "cost" ? a.amount : a.amount * r.rate + r.costPerUse;
+  if (r.type === "cost") return 0; // a cost resource without an amount on this task
+  return (U > 0 ? (W * a.units) / U : 0) * r.rate + r.costPerUse;
 }
 
 /** One task's own cost (not counting subtasks). */
@@ -22,10 +31,7 @@ export function ownCost(doc, t) {
   if (t.inactive) return 0;
   let cost = t.fixedCost || 0;
   const list = assignmentsOf(t), U = unitsOf(t), W = workOf(t);
-  for (const a of list) {
-    const r = resourceOf(doc, a.name);
-    cost += (U > 0 ? (W * a.units) / U : 0) * r.rate + r.costPerUse;
-  }
+  for (const a of list) cost += assignmentCost(resourceOf(doc, a.name), a, U, W);
   return money(cost);
 }
 
@@ -45,7 +51,7 @@ export function costs(doc) {
   return { byId, total };
 }
 
-/** The Resource Sheet: everyone named on a task, with their rate, cost per use, work (hours) and cost. */
+/** The Resource Sheet: everyone named on a task, with their type, rate, cost per use, work (hours; for a material, its quantity) and cost. */
 export function resourceSheet(doc) {
   const out = new Map(resourceList(doc).map((r) => [r.name, { ...resourceOf(doc, r.name), tasks: r.tasks, work: 0, cost: 0 }]));
   for (const r of doc.resources || []) if (!out.has(r.name)) out.set(r.name, { ...resourceOf(doc, r.name), tasks: 0, work: 0, cost: 0 });
@@ -54,9 +60,9 @@ export function resourceSheet(doc) {
     if (summary || t.inactive) return;
     const U = unitsOf(t), W = workOf(t);
     for (const a of assignmentsOf(t)) {
-      const row = out.get(a.name), h = U > 0 ? (W * a.units) / U : 0;
+      const row = out.get(a.name), h = a.amount !== undefined ? (row.type === "material" ? a.amount : 0) : U > 0 ? (W * a.units) / U : 0;
       row.work = money(row.work + h);
-      row.cost = money(row.cost + h * row.rate + row.costPerUse);
+      row.cost = money(row.cost + assignmentCost(row, a, U, W));
     }
   });
   return [...out.values()].sort((a, b) => a.name.localeCompare(b.name));

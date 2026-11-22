@@ -130,7 +130,7 @@ export function usage(doc, isWork = null, by = "resource", hoursPerDay = 8) {
   doc.tasks.forEach((t, i) => {
     const summary = i + 1 < doc.tasks.length && doc.tasks[i + 1].level > t.level;
     if (summary || t.inactive || t.duration <= 0) return;
-    const list = assignmentsOf(t), U = list.reduce((s, a) => s + a.units, 0);
+    const list = assignmentsOf(t).filter((a) => a.units > 0), U = list.reduce((s, a) => s + a.units, 0); // people only: materials have no hours
     if (!(U > 0)) return;
     const W = t.work !== undefined ? t.work : t.duration * U * hoursPerDay;
     const days = [];

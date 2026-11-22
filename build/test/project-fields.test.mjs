@@ -76,3 +76,30 @@ test("Project XML from Microsoft Project: a field without an alias keeps its own
   assert.deepEqual(doc.fields, [{ key: "f1", name: "Number3", type: "number" }]);
   assert.deepEqual(doc.tasks[0].custom, { f1: 42 });
 });
+
+test("material and cost resources: amounts in brackets, costs by type, no hours or workload, through Project XML", async () => {
+  const { assignmentsOf, ownerText, overallocations } = await import("../apps/project/core/resources.js");
+  const { costs, resourceSheet } = await import("../apps/project/core/costs.js");
+  const { toProjectXml, fromProjectXml } = await import("../apps/project/core/projectxml.js");
+  const t = { owner: "Ravi, Cement [20], Permit fee [15000]" };
+  assert.deepEqual(assignmentsOf(t), [{ name: "Ravi", units: 1 }, { name: "Cement", units: 0, amount: 20 }, { name: "Permit fee", units: 0, amount: 15000 }]);
+  assert.equal(ownerText(assignmentsOf(t)), t.owner);
+  const m = new ProjectModel(newProject("P", "2026-02-02"));
+  m.addTask({ name: "Slab", level: 0, start: "2026-02-02", duration: 2, progress: 0, owner: "Ravi, Cement [20], Permit fee [15000]" });
+  m.addTask({ name: "Walls", level: 0, start: "2026-02-02", duration: 2, progress: 0, owner: "Cement [10]" });
+  m.setResource("Ravi", { rate: 100 }).setResource("Cement", { type: "material", unit: "bags", rate: 2500, costPerUse: 500 }).setResource("Permit fee", { type: "cost" });
+  const id = m.tasks[0].id;
+  assert.equal(m.task(id).work ?? 16, 16, "Ravi's hours only");
+  assert.equal(costs(m.doc).byId.get(id), 16 * 100 + 20 * 2500 + 500 + 15000);
+  const sheet = Object.fromEntries(resourceSheet(m.doc).map((r) => [r.name, [r.type, r.work, r.cost]]));
+  assert.deepEqual(sheet, { Cement: ["material", 30, 76000], "Permit fee": ["cost", 0, 15000], Ravi: ["work", 16, 1600] });
+  assert.deepEqual(overallocations(m.doc), [], "materials on two tasks at once are not over-allocated");
+  m.set(id, { duration: 4 });
+  assert.match(m.task(id).owner, /Cement \[20\]/, "a duration change keeps the amounts");
+  const { doc, problems } = fromProjectXml(toProjectXml(m.doc));
+  assert.deepEqual(problems, []);
+  assert.equal(doc.tasks[0].owner, "Ravi, Cement [20], Permit fee [15000]");
+  assert.deepEqual(doc.resources.find((r) => r.name === "Cement"), { name: "Cement", type: "material", unit: "bags", rate: 2500, costPerUse: 500 });
+  assert.equal(doc.resources.find((r) => r.name === "Permit fee").type, "cost");
+  assert.equal(costs(doc).total, costs(m.doc).total);
+});

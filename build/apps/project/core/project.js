@@ -123,6 +123,8 @@ export function validate(doc) {
         else if (names.has(r.name)) errs.push(`resource ${i + 1}: ${r.name} is listed twice`);
         names.add(r?.name);
         for (const k of ["rate", "costPerUse"]) if (r?.[k] !== undefined && !(Number.isFinite(r[k]) && r[k] >= 0)) errs.push(`resource ${i + 1}: ${k} must be 0 or more`);
+        if (r?.type !== undefined && !["work", "material", "cost"].includes(r.type)) errs.push(`resource ${i + 1}: type must be work, material or cost`);
+        if (r?.unit !== undefined && typeof r.unit !== "string") errs.push(`resource ${i + 1}: unit must be text`);
       });
     }
   }
@@ -265,14 +267,17 @@ export class ProjectModel {
       }
     });
   }
-  /** Sets a person's Resource Sheet row (rate per hour, cost per use), creating it; empty values clear them. */
+  /** Sets a Resource Sheet row (type work/material/cost, unit, rate, cost per use), creating it; empty values clear them. */
   setResource(name, fields) {
     return this.edit((d) => {
       d.resources = d.resources || [];
       let r = d.resources.find((x) => x.name === name);
       if (!r) { r = { name }; d.resources.push(r); }
       for (const k of ["rate", "costPerUse"]) if (k in fields) { if (fields[k] === null || fields[k] === undefined || fields[k] === "") delete r[k]; else r[k] = Number(fields[k]); }
-      d.resources = d.resources.filter((x) => x.rate || x.costPerUse);
+      if ("type" in fields) { if (!fields.type || fields.type === "work") delete r.type; else r.type = fields.type; }
+      if ("unit" in fields) { if (!String(fields.unit ?? "").trim()) delete r.unit; else r.unit = String(fields.unit).trim(); }
+      if (r.type !== "material") delete r.unit;
+      d.resources = d.resources.filter((x) => x.rate || x.costPerUse || x.type);
     });
   }
   /** Adds a custom field (a column) of a type; returns its key. */

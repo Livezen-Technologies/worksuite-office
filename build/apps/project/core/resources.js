@@ -2,21 +2,24 @@
  * WorkSuite Project: resources, workload and over-allocation (#86, roadmap stage 4). Pure ES module, no DOM.
  *
  * A task's people are its `owner` text, names separated by commas ("Nimal, Priya 50%"); a name alone works the
- * task full time, a percentage after it part time. A person's workload on a day is the sum of their tasks'
+ * task full time, a percentage after it part time. A quantity in brackets ("Cement [20]") is a material or cost
+ * resource: an amount (20 bags; a cost of 20), not a share of anyone's time, so it carries no units and no workload. A person's workload on a day is the sum of their tasks'
  * shares that day (summaries and milestones do not count); more than 100% is over-allocated.
  */
 import { toDay, fromDay, finishOf } from "./project.js";
 
-/** A task's assignments: [{ name, units }], units 1 = full time, from "Nimal, Priya 50%". */
+/** A task's assignments: [{ name, units, amount? }], units 1 = full time, from "Nimal, Priya 50%, Cement [20]". */
 export function assignmentsOf(t) {
   if (!t.owner) return [];
   return t.owner.split(",").map((s) => s.trim()).filter(Boolean).map((s) => {
+    const q = /^(.*?)\s*\[\s*(\d+(?:\.\d+)?)\s*\]$/.exec(s);
+    if (q && q[1]) return { name: q[1], units: 0, amount: Number(q[2]) };
     const m = /^(.*?)\s*(\d+(?:\.\d+)?)\s*%$/.exec(s);
     return m && m[1] ? { name: m[1], units: Math.max(0, Number(m[2])) / 100 } : { name: s, units: 1 };
   });
 }
 /** Owner text for assignments: the inverse of assignmentsOf. */
-export const ownerText = (list) => list.map((a) => (a.units === 1 ? a.name : `${a.name} ${Math.round(a.units * 100)}%`)).join(", ");
+export const ownerText = (list) => list.map((a) => (a.amount !== undefined ? `${a.name} [${a.amount}]` : a.units === 1 ? a.name : `${a.name} ${Math.round(a.units * 100)}%`)).join(", ");
 /** The names in a task's owner text. */
 export const ownersOf = (t) => assignmentsOf(t).map((a) => a.name);
 const EPS = 1e-9;
