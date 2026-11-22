@@ -1,5 +1,18 @@
 # Change log
 
+## 10.1.84
+
+### New features
+
+#### Diagram
+
+* Shape data: any shape can carry named values, such as Owner, Cost or Due
+  date, added and edited under Shape data in the panel; a value that reads as a
+  number or yes/no is kept as one. Show on the shape lists them under it, and
+  hovering a shape shows them. Shape data goes to and comes from Visio files
+  as the shape's Property rows, including values a shape inherits from its
+  master, so opening a Visio drawing no longer leaves shape data out.
+
 ## 10.1.83
 
 ### New features

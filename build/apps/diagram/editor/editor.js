@@ -14,6 +14,7 @@ import { autoLayout, applyLayout } from "../core/layout.js";
 import { parseTable, readTable, addTable } from "../core/fromtable.js";
 import { askText, askForm } from "../../common/dialog.js";
 import { laneMembers, lanePath, LANE_HEADER } from "../core/swimlane.js";
+import { parseDataValue, formatDataValue } from "../core/shapedata.js";
 import { decorateRibbon, ribbonStyles } from "../../common/ribbon.js";
 import { aiDraft } from "../../common/aidraft.js";
 import { DiagramModel, newDiagram, parse, serialize, connectionPoints, pointOn, APP } from "../core/diagram.js";
@@ -238,8 +239,10 @@ function shapeSvg(s) {
   const fill = s.style?.fill || FILLS[s.type] || "#dbeafe", line = s.style?.line || LINES[s.type] || "#2563eb";
   const lw = s.style?.lineWidth ?? 1.5;
   const tf = `translate(${s.x} ${s.y})${s.rotate ? ` rotate(${s.rotate} ${s.w / 2} ${s.h / 2})` : ""}`;
-  return `<g data-id="${s.id}" transform="${tf}"><path class="shape-body" d="${shapePath(s.type, s.w, s.h, s.path)}" fill="${fill}" stroke="${line}" stroke-width="${lw}"/>` +
-    `<text class="shape-text" text-anchor="middle" style="font-size:${s.style?.fontSize || 13}px">${textLines(s.text, 0, s.w / 2, s.h / 2, s.style?.fontSize || 13)}</text></g>`;
+  const shown = s.style?.showData && s.data?.length ? `<text class="shape-data" text-anchor="middle" style="font-size:10px">${s.data.map((d, i) => `<tspan x="${s.w / 2}" y="${s.h + 12 + i * 12}">${esc(d.label)}: ${esc(formatDataValue(d.value))}</tspan>`).join("")}</text>` : "";
+  const tip = s.data?.length ? `<title>${esc([s.text, ...s.data.map((d) => `${d.label}: ${formatDataValue(d.value)}`)].filter(Boolean).join("\n"))}</title>` : "";
+  return `<g data-id="${s.id}" transform="${tf}">${tip}<path class="shape-body" d="${shapePath(s.type, s.w, s.h, s.path)}" fill="${fill}" stroke="${line}" stroke-width="${lw}"/>` +
+    `<text class="shape-text" text-anchor="middle" style="font-size:${s.style?.fontSize || 13}px">${textLines(s.text, 0, s.w / 2, s.h / 2, s.style?.fontSize || 13)}</text>${shown}</g>`;
 }
 function connectorSvg(c, interactive) {
   const pts = connectorPoints(c), selected = interactive && state.sel.includes(c.id);
@@ -309,6 +312,8 @@ function renderProps() {
       <div class="two"><label>Fill<input type="color" data-prop="fill" value="${s.style?.fill || FILLS[s.type] || "#dbeafe"}"></label><label>Line<input type="color" data-prop="line" value="${s.style?.line || LINES[s.type] || "#2563eb"}"></label></div>
       <div class="two"><label>Width<input type="number" data-prop="w" value="${Math.round(s.w)}" min="10"></label><label>Height<input type="number" data-prop="h" value="${Math.round(s.h)}" min="10"></label></div>
       <div class="two"><label>Rotate<input type="number" data-prop="rotate" value="${s.rotate || 0}" step="15"></label><label>Text size<input type="number" data-prop="fontSize" value="${s.style?.fontSize || 13}" min="6" max="72"></label></div>`;
+    html += `<h4>Shape data</h4>` + (s.data || []).map((d, i) => `<div class="wd-data"><input data-data-label="${i}" value="${esc(d.label)}" aria-label="Name"><input data-data-value="${i}" value="${esc(formatDataValue(d.value))}" aria-label="Value"><button data-data-del="${i}" title="Remove">×</button></div>`).join("") +
+      `<div class="wd-data-tools"><button data-data-add ${state.readOnly ? "disabled" : ""}>+ Data</button>${s.data?.length ? `<label class="inline"><input type="checkbox" data-prop="showData" ${s.style?.showData ? "checked" : ""}> Show on the shape</label>` : ""}</div>`;
   } else if (conns.length === 1 && state.sel.length === 1) {
     const c = conns[0];
     html += `<h4>Connector</h4><label>Text<input data-prop="ctext" value="${esc(c.text)}"></label>
@@ -530,14 +535,22 @@ $("wd-pages").addEventListener("click", (e) => {
 });
 $("wd-props").addEventListener("change", (e) => {
   const el = e.target, prop = el.dataset.prop;
-  if (!prop) return;
   const id = state.sel[0], it = id && byId(id);
+  if (el.dataset.dataLabel !== undefined || el.dataset.dataValue !== undefined) {
+    const i = Number(el.dataset.dataLabel ?? el.dataset.dataValue), data = (it.data || []).map((d) => ({ ...d }));
+    if (el.dataset.dataLabel !== undefined) data[i].label = el.value.trim();
+    else data[i].value = parseDataValue(el.value);
+    run(() => state.model.setData(id, data, state.pageId));
+    return;
+  }
+  if (!prop) return;
   run(() => {
     if (prop === "text") state.model.set(id, { text: el.value }, state.pageId);
     else if (prop === "fill" || prop === "line" || prop === "fontSize") state.model.set(id, { style: { ...it.style, [prop]: prop === "fontSize" ? Number(el.value) : el.value } }, state.pageId);
     else if (prop === "w" || prop === "h" || prop === "rotate") state.model.set(id, { [prop]: Number(el.value) }, state.pageId);
     else if (prop === "ctext") state.model.set(id, { text: el.value }, state.pageId);
     else if (prop === "route") state.model.set(id, { route: el.value }, state.pageId);
+    else if (prop === "showData") state.model.set(id, { style: { ...it.style, showData: el.checked || undefined } }, state.pageId);
     else if (prop === "arrowEnd") state.model.set(id, { style: { ...it.style, arrowEnd: el.checked } }, state.pageId);
     else if (prop === "pname" || prop === "pw" || prop === "ph") state.model.edit((d) => { const p = d.pages.find((x) => x.id === state.pageId); if (prop === "pname") p.name = el.value || p.name; else p[prop === "pw" ? "width" : "height"] = Math.max(100, Number(el.value)); });
   });
@@ -545,6 +558,13 @@ $("wd-props").addEventListener("change", (e) => {
 $("wd-props").addEventListener("click", (e) => {
   const b = e.target.closest("button");
   if (!b || b.disabled) return;
+  if (b.dataset.dataAdd !== undefined || b.dataset.dataDel !== undefined) {
+    const id = state.sel[0], it = byId(id), data = [...(it.data || [])];
+    if (b.dataset.dataDel !== undefined) data.splice(Number(b.dataset.dataDel), 1);
+    else { let n = data.length + 1, label = "Property"; while (data.some((d) => d.label.toLowerCase() === label.toLowerCase())) label = `Property ${++n}`; data.push({ label, value: "" }); }
+    run(() => state.model.setData(id, data, state.pageId));
+    return;
+  }
   if (b.dataset.layerVis) { const l = page().layers.find((x) => x.id === b.dataset.layerVis); run(() => state.model.setLayer(l.id, { visible: !l.visible }, state.pageId)); }
   else if (b.dataset.layerLock) { const l = page().layers.find((x) => x.id === b.dataset.layerLock); run(() => state.model.setLayer(l.id, { locked: !l.locked }, state.pageId)); }
   else if (b.dataset.cmdLocal === "addLayer") run(() => state.model.addLayer(`Layer ${page().layers.length + 1}`, state.pageId));

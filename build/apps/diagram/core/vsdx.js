@@ -17,6 +17,7 @@
  *
  * Units: Visio uses inches with y up from the bottom of the page; WorkSuite uses points with y down.
  */
+import { toPropertySection, fromPropertyRows } from "./shapedata.js";
 import { parseXml } from "../../project/core/projectxml.js";
 import { zip, unzipAsync } from "../../common/zip.js";
 import { newDiagram, validate, connectionPoints, pointOn } from "./diagram.js";
@@ -159,7 +160,6 @@ export async function fromVsdx(bytes) {
         const is1D = c.BeginX !== undefined && c.EndX !== undefined && (num(c.ObjType) === 2 || h === 0 || num(c.ObjType) === 0 && master && /connector/i.test(master.name));
         if (is1D) { oneD.push({ s, c, offset }); continue; }
         if (s.attrs.Type === "Foreign") problems.add("pictures are left out");
-        if (kid(s, "Section") && kids(s, "Section").some((x) => x.attrs.N === "Property")) problems.add("shape data is left out");
         const pinX = num(c.PinX) + offset.x, pinY = num(c.PinY) + offset.y;
         const left = pinX - num(c.LocPinX, w / 2), bottom = pinY - num(c.LocPinY, h / 2);
         if (isGroup) { // members are placed relative to the group's own box
@@ -185,6 +185,12 @@ export async function fromVsdx(bytes) {
         if (line) shape.style.line = line;
         if (c.LineWeight !== undefined) shape.style.lineWidth = r3(num(c.LineWeight) * PT);
         if (c["Char.Size"] !== undefined) shape.style.fontSize = r3(num(c["Char.Size"]) * PT);
+        // shape data: the shape's own Property rows over its master's
+        const propRows = (sh) => kids(kids(sh, "Section").find((x) => x.attrs.N === "Property"), "Row").map((r) => ({ attrs: r.attrs, cells: cellsOf(r) }));
+        const own = propRows(s), inherited = ms ? propRows(ms) : [];
+        const rowsByName = new Map([...inherited, ...own].map((r) => [r.attrs.N, r]));
+        const data = fromPropertyRows([...rowsByName.values()]);
+        if (data.length) shape.data = data;
         page.items.push(shape);
         visioToShape.set(s.attrs.ID, shape);
       }
@@ -311,7 +317,7 @@ export function toVsdx(doc, outline, routeOf, styleOf = (sh) => sh.style || {}) 
         (fill ? cell("FillForegnd", fill) + cell("FillPattern", 1) : "") + (look.line ? cell("LineColor", look.line) : "") +
         (it.style?.lineWidth ? cell("LineWeight", it.style.lineWidth / PT, "PT") : "") +
         (it.style?.fontSize ? cell("Char.Size", it.style.fontSize / PT, "PT") : "") +
-        geo + (it.text ? `<Text>${esc(it.text)}</Text>` : "") + "</Shape>");
+        geo + toPropertySection(it.data, cell) + (it.text ? `<Text>${esc(it.text)}</Text>` : "") + "</Shape>");
     }
     for (const it of page.items) {
       if (it.kind !== "connector") continue;

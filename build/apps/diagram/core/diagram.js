@@ -10,6 +10,7 @@
  *   Layer:     { id, name, visible, locked }
  *   Shape:     { id, kind: "shape", type ("rect", "ellipse", "diamond", "terminator", …), layer, x, y, w, h,
  *                rotate (degrees), text, style: { fill, line, lineWidth, fontSize, … } }
+ *                data?: [{ label, value }] (shape data: text, numbers, yes/no; shapedata.js)
  *   Connector: { id, kind: "connector", layer, from: End, to: End, route: "straight" | "elbow" | "curved",
  *                text, style: { line, lineWidth, arrowEnd, arrowStart } }
  *     End:     { shape, point } glued to one of the shape's connection points, or { x, y } free
@@ -18,6 +19,7 @@
  */
 
 import { makeLanes, nextLane } from "./swimlane.js";
+import { dataError } from "./shapedata.js";
 
 export const APP = "worksuite.diagram";
 export const SCHEMA_VERSION = 1;
@@ -76,6 +78,7 @@ export function validate(doc) {
         if (typeof it.type !== "string" || !it.type) errs.push(`${w}: no type`);
         for (const k of ["x", "y", "w", "h"]) if (!Number.isFinite(it[k])) errs.push(`${w}: ${k} must be a number`);
         if (!(it.w > 0 && it.h > 0)) errs.push(`${w}: size must be positive`);
+        if (dataError(it.data)) errs.push(`${w}: ${dataError(it.data)}`);
       }
     }
     for (const it of page.items || []) {
@@ -175,6 +178,15 @@ export class DiagramModel {
       page.items.push(shape);
     });
     return id;
+  }
+  /** Sets a shape's data (shapedata.js); an empty list removes it. */
+  setData(id, data, pageId = this.page().id) {
+    this.edit((d) => {
+      const it = d.pages.find((p) => p.id === pageId).items.find((i) => i.id === id);
+      if (!it || it.kind !== "shape") throw new Error("shape data goes on a shape");
+      this.assertEditable(d, pageId, it.layer);
+      if (data && data.length) it.data = data.map((x) => ({ label: String(x.label).trim(), value: x.value })); else delete it.data;
+    });
   }
   /** Adds swimlanes (swimlane.js makeLanes) behind everything on the page; returns their ids. One undo step. */
   addLanes(names, opts = {}, pageId = this.page().id) {
