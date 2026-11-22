@@ -600,20 +600,28 @@ function renderUsage(by) {
 
 function renderSheet() {
   const rows = resourceSheet(state.model.doc);
-  if (!rows.length) { $("wp-chart").innerHTML = `<p class="wp-empty">No one is assigned yet. Type names in the Owner column; each person then gets a row here for their rate.</p>`; return; }
+  if (!rows.length) { $("wp-chart").innerHTML = `<p class="wp-empty">No one is assigned yet. Type names in the Owner column; each person then gets a row here for their rate. Materials go in brackets with their quantity, like <b>Cement [20]</b>.</p>`; return; }
   const ro = state.readOnly ? "disabled" : "";
-  let h = `<table class="wp-load wp-sheet"><thead><tr><th>Person</th><th>Rate per hour</th><th>Cost per use</th><th>Tasks</th><th>Work</th><th>Cost</th></tr></thead><tbody>`;
+  const num = (r, f, ph = "0.00") => `<input data-rate="${esc(r.name)}" data-field="${f}" type="number" min="0" step="0.01" value="${r[f] || ""}" placeholder="${ph}" ${ro}>`;
+  const TYPES = [["work", "Work"], ["material", "Material"], ["cost", "Cost"]];
+  let h = `<table class="wp-load wp-sheet"><thead><tr><th>Resource</th><th>Type</th><th>Unit</th><th>Rate</th><th>Cost per use</th><th>Tasks</th><th>Work / quantity</th><th>Cost</th></tr></thead><tbody>`;
   for (const r of rows) {
-    h += `<tr><th>${esc(r.name)}</th><td><input data-rate="${esc(r.name)}" data-field="rate" type="number" min="0" step="0.01" value="${r.rate || ""}" placeholder="0.00" ${ro}></td>` +
-      `<td><input data-rate="${esc(r.name)}" data-field="costPerUse" type="number" min="0" step="0.01" value="${r.costPerUse || ""}" placeholder="0.00" ${ro}></td>` +
-      `<td>${r.tasks}</td><td>${r.work} h</td><td class="money">${formatMoney(r.cost)}</td></tr>`;
+    const per = r.type === "material" ? `per ${esc(r.unit || "unit")}` : r.type === "cost" ? "" : "per hour";
+    h += `<tr><th>${esc(r.name)}</th><td><select data-rate="${esc(r.name)}" data-field="type" ${ro}>${TYPES.map(([v, l]) => `<option value="${v}" ${r.type === v ? "selected" : ""}>${l}</option>`).join("")}</select></td>` +
+      `<td>${r.type === "material" ? `<input class="unit" data-rate="${esc(r.name)}" data-field="unit" value="${esc(r.unit)}" placeholder="bags" ${ro}>` : ""}</td>` +
+      `<td>${r.type === "cost" ? `<span class="wp-hint">typed on each task</span>` : `${num(r, "rate")} <span class="wp-hint">${per}</span>`}</td>` +
+      `<td>${r.type === "cost" ? "" : num(r, "costPerUse")}</td>` +
+      `<td>${r.tasks}</td><td>${r.type === "cost" ? "" : r.type === "material" ? `${r.work} ${esc(r.unit || "")}` : `${r.work} h`}</td><td class="money">${formatMoney(r.cost)}</td></tr>`;
   }
-  $("wp-chart").innerHTML = h + `</tbody><tfoot><tr><th>Total</th><td></td><td></td><td></td><td>${Math.round(rows.reduce((s, r) => s + r.work, 0) * 100) / 100} h</td><td class="money">${formatMoney(rows.reduce((s, r) => s + r.cost, 0))}</td></tr></tfoot></table>`;
+  const hours = Math.round(rows.filter((r) => r.type === "work").reduce((s, r) => s + r.work, 0) * 100) / 100;
+  $("wp-chart").innerHTML = h + `</tbody><tfoot><tr><th>Total</th><td></td><td></td><td></td><td></td><td></td><td>${hours} h</td><td class="money">${formatMoney(rows.reduce((s, r) => s + r.cost, 0))}</td></tr></tfoot></table>` +
+    `<p class="wp-hint wp-sheet-help">On a task's Owner, people take a share of their time (<b>Ravi 50%</b>); materials and cost resources take an amount in brackets (<b>Cement [20]</b>, <b>Permit fee [15000]</b>).</p>`;
 }
 $("wp-chart").addEventListener("change", (e) => {
   const input = e.target.closest("[data-rate]");
   if (!input) return;
   const v = input.value.trim();
+  if (input.dataset.field === "type" || input.dataset.field === "unit") { run(() => state.model.setResource(input.dataset.rate, { [input.dataset.field]: v })); return; }
   run(() => {
     if (v !== "" && !(Number(v) >= 0)) throw new Error("A rate is an amount, 0 or more");
     state.model.setResource(input.dataset.rate, { [input.dataset.field]: v === "" ? null : Math.round(Number(v) * 100) / 100 });

@@ -35,7 +35,7 @@ function setUnits(t, total) {
   const now = list.reduce((s, a) => s + a.units, 0);
   if (!list.length || !(now > 0) || !(total > 0)) return;
   const f = total / now;
-  t.owner = ownerText(list.map((a) => ({ name: a.name, units: Math.max(0.01, Math.round(a.units * f * 100) / 100) })));
+  t.owner = ownerText(list.map((a) => (a.amount !== undefined ? a : { name: a.name, units: Math.max(0.01, Math.round(a.units * f * 100) / 100) }))); // materials keep their amount
 }
 
 /**

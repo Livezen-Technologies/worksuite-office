@@ -1,5 +1,19 @@
 # Change log
 
+## 10.1.69
+
+### New features
+
+#### Project
+
+* Material and cost resources: on the Resource Sheet each resource is Work,
+  Material or Cost. On a task's Owner, materials and cost resources take an
+  amount in brackets, such as Cement [20] or Permit fee [15000]. A material
+  costs its quantity × its rate per unit (with its unit, such as bags) plus its
+  cost per use; a cost resource costs the amount typed on the task. Neither
+  adds hours, workload or over-allocation. Both go to and come from Project
+  XML as Microsoft Project's material and cost resources.
+
 ## 10.1.68
 
 ### New features

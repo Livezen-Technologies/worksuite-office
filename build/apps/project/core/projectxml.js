@@ -123,18 +123,22 @@ export function fromProjectXml(text) {
   const problems = [];
 
   // owners: resource names by UID, then each task's assignments
-  const resources = new Map();
+  const resources = new Map(), resType = new Map(); // material and cost resources by UID
   const resEl = kid(top, "Resources");
   for (const r of resEl ? kids(resEl, "Resource") : []) {
     if (!val(r, "Name")) continue;
     resources.set(val(r, "UID"), val(r, "Name"));
+    const rtype = { 0: "material", 2: "cost" }[val(r, "Type")];
+    if (rtype) resType.set(val(r, "UID"), rtype);
     // the Resource Sheet: a rate per hour (StandardRateFormat 2, the default) and a cost per use
     const rate = Number(val(r, "StandardRate")), perUse = Number(val(r, "CostPerUse"));
     const fmt = val(r, "StandardRateFormat") || "2", perHour = { 1: 1 / 60, 2: 1, 3: 1 / 8, 4: 1 / 40, 5: 1 / 160, 7: 1 / 2080 }[fmt] ?? 1;
     const row = { name: val(r, "Name") };
+    if (rtype) row.type = rtype;
+    if (rtype === "material" && val(r, "MaterialLabel")) row.unit = val(r, "MaterialLabel");
     if (rate > 0) row.rate = Math.round(rate * perHour * 100) / 100;
     if (perUse > 0) row.costPerUse = Math.round(perUse * 100) / 100;
-    if ((row.rate || row.costPerUse) && !doc.resources.some((x) => x.name === row.name)) doc.resources.push(row);
+    if ((row.rate || row.costPerUse || row.type) && !doc.resources.some((x) => x.name === row.name)) doc.resources.push(row);
   }
   const owners = new Map();
   const asgEl = kid(top, "Assignments");
@@ -142,8 +146,10 @@ export function fromProjectXml(text) {
     const who = resources.get(val(a, "ResourceUID"));
     if (!who) continue;
     const t = val(a, "TaskUID");
-    const units = Number(val(a, "Units") || 1);
-    owners.set(t, [...(owners.get(t) || []), { name: who, units: units > 0 ? units : 1 }]);
+    const units = Number(val(a, "Units") || 1), kind = resType.get(val(a, "ResourceUID"));
+    // a material's Units are its quantity; a cost resource's amount is the assignment's Cost
+    const entry = kind === "material" ? { name: who, units: 0, amount: units > 0 ? units : 1 } : kind === "cost" ? { name: who, units: 0, amount: Math.max(0, Number(val(a, "Cost") || 0)) } : { name: who, units: units > 0 ? units : 1 };
+    owners.set(t, [...(owners.get(t) || []), entry]);
   }
 
   for (const t of taskEls) {
@@ -248,12 +254,14 @@ export function toProjectXml(doc, isWork = null) {
   const sheet = new Map((doc.resources || []).map((r) => [r.name, r]));
   const resXml = resources.map((r) => {
     const s = sheet.get(r) || {};
-    return `<Resource><UID>${rid.get(r)}</UID><ID>${rid.get(r)}</ID>${el("Name", r)}<Type>1</Type>` +
+    const type = s.type || (doc.tasks.some((t) => assignmentsOf(t).some((a) => a.name === r && a.amount !== undefined)) ? "material" : "work");
+    return `<Resource><UID>${rid.get(r)}</UID><ID>${rid.get(r)}</ID>${el("Name", r)}<Type>${{ work: 1, material: 0, cost: 2 }[type]}</Type>` + (type === "material" ? el("MaterialLabel", s.unit) : "") +
       (s.rate ? `<StandardRate>${s.rate}</StandardRate><StandardRateFormat>2</StandardRateFormat>` : "") + (s.costPerUse ? `<CostPerUse>${s.costPerUse}</CostPerUse>` : "") + `</Resource>`;
   }).join("\n    ");
   let a = 0;
   const asgXml = doc.tasks.flatMap((t) => assignmentsOf(t).map((r) =>
-    `<Assignment><UID>${++a}</UID><TaskUID>${uid.get(t.id)}</TaskUID><ResourceUID>${rid.get(r.name)}</ResourceUID><Units>${r.units}</Units></Assignment>`)).join("\n    ");
+    `<Assignment><UID>${++a}</UID><TaskUID>${uid.get(t.id)}</TaskUID><ResourceUID>${rid.get(r.name)}</ResourceUID>` +
+    (r.amount === undefined ? `<Units>${r.units}</Units>` : sheet.get(r.name)?.type === "cost" ? `<Units>1</Units><Cost>${r.amount}</Cost>` : `<Units>${r.amount}</Units>`) + `</Assignment>`)).join("\n    ");
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Project xmlns="${NS}">
   ${el("Name", doc.name)}

@@ -207,3 +207,7 @@ table.wp-table { border-collapse: collapse; width: 100%; table-layout: fixed; }
 .wp-bars .bar { display: inline-block; height: 12px; border-radius: 0 3px 3px 0; background: var(--accent, #2f6fde); min-width: 2px; }
 .wp-bars .v { color: var(--ink3); white-space: nowrap; }
 .wp-progressline { fill: none; stroke: #c62828; stroke-width: 1.6; stroke-linejoin: round; pointer-events: stroke; }
+.wp-sheet select { font: inherit; color: var(--ink); background: var(--card); border: 1px solid var(--line); border-radius: 5px; padding: 1px 4px; }
+.wp-sheet input.unit { width: 72px; text-align: start; }
+.wp-hint { color: var(--ink3); font-size: 12px; }
+.wp-sheet-help { margin: 10px 12px; }
