@@ -182,3 +182,35 @@ test("max units: a part-timer is over-allocated sooner, a crew of three later; l
   assert.equal(maxUnitsOf(doc, "Crew"), 3);
   assert.throws(() => m.setResource("Crew", { maxUnits: -1 }), /max units must be more than 0/);
 });
+
+test("cost accrual and budget: spent cost and planned value by accrual; the budget is checked and kept", async () => {
+  const { costParts, spentCost } = await import("../apps/project/core/costs.js");
+  const { earnedValue } = await import("../apps/project/core/earnedvalue.js");
+  const { toProjectXml, fromProjectXml } = await import("../apps/project/core/projectxml.js");
+  const m = new ProjectModel(newProject("P", "2026-02-02"));
+  m.addTask({ name: "Fit", level: 0, start: "2026-02-02", duration: 10, progress: 0, owner: "Ravi, Kit [1]", fixedCost: 1000 });
+  const id = m.tasks[0].id;
+  m.setResource("Ravi", { rate: 100 }) // 80 h = 8,000 prorated
+    .setResource("Kit", { type: "material", rate: 5000, accrue: "start" })
+    .edit((d) => { d.tasks[0].fixedCostAccrual = "end"; });
+  assert.deepEqual(costParts(m.doc, m.task(id)), { start: 5000, prorated: 8000, end: 1000 });
+  assert.equal(spentCost(m.doc, m.task(id)), 0);
+  m.set(id, { progress: 50 });
+  assert.equal(spentCost(m.doc, m.task(id)), 5000 + 4000);
+  m.set(id, { progress: 100 });
+  assert.equal(spentCost(m.doc, m.task(id)), 14000);
+  m.set(id, { progress: 0 });
+  m.saveBaseline("Baseline", "2026-02-01");
+  m.setStatusDate("2026-02-02"); // first day: start costs due, 1 of 10 days of the rest
+  const ev = earnedValue(m.doc, { isWork: null });
+  assert.equal(ev.total.pv, 5000 + 800);
+  m.setBudget(12000);
+  assert.equal(m.doc.budget, 12000);
+  const { doc } = fromProjectXml(toProjectXml(m.doc));
+  assert.equal(doc.resources.find((r) => r.name === "Kit").accrue, "start");
+  assert.equal(doc.tasks[0].fixedCostAccrual, "end");
+  assert.equal(doc.resources.find((r) => r.name === "Ravi").accrue, undefined, "prorated is the default");
+  m.setBudget(null);
+  assert.equal(m.doc.budget, undefined);
+  assert.throws(() => m.edit((d) => { d.budget = -5; }), /budget must be an amount/);
+});

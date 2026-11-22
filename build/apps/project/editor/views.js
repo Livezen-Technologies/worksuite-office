@@ -324,7 +324,7 @@ export function overview(doc, { isWork = null, from = null, baseline = "Baseline
     tasks: leaves.length, done: count("done"), doing: count("doing"), todo: count("todo"),
     percent: days ? Math.round(work.reduce((s, t) => s + t.duration * (t.progress || 0), 0) / days) : leaves.length && leaves.every((t) => t.progress >= 100) ? 100 : 0,
     start, finish, baselineFinish, slipDays: baselineFinish ? toDay(finish) - toDay(baselineFinish) : null,
-    cost: c.total, baselineCost, milestones,
+    cost: c.total, baselineCost, budget: doc.budget ?? null, milestones,
     people: resourceSheet(doc).filter((p) => p.tasks).sort((p, q) => q.work - p.work || p.name.localeCompare(q.name)).map((p) => ({ name: p.name, work: p.work, cost: p.cost, tasks: p.tasks })),
   };
 }

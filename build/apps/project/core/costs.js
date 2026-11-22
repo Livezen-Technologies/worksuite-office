@@ -16,7 +16,29 @@ const money = (n) => Math.round(n * 100) / 100;
 /** A person's sheet row, or a blank one. */
 export function resourceOf(doc, name) {
   const r = (doc.resources || []).find((x) => x.name === name);
-  return { name, type: r?.type || "work", unit: r?.unit || "", rate: r?.rate || 0, costPerUse: r?.costPerUse || 0, maxUnits: r?.maxUnits || 1 };
+  return { name, accrue: ACCRUALS.includes(r?.accrue) ? r.accrue : "prorated", type: r?.type || "work", unit: r?.unit || "", rate: r?.rate || 0, costPerUse: r?.costPerUse || 0, maxUnits: r?.maxUnits || 1 };
+}
+
+/** When a cost counts as spent: at the task's start, as its work is done (prorated, the default), or at its end. */
+export const ACCRUALS = ["start", "prorated", "end"];
+
+/**
+ * One task's own cost split by when it accrues: { start, prorated, end } (amounts). Each resource accrues by its
+ * Resource Sheet setting, the fixed cost by the task's fixedCostAccrual.
+ */
+export function costParts(doc, t) {
+  const parts = { start: 0, prorated: 0, end: 0 };
+  if (t.inactive) return parts;
+  parts[ACCRUALS.includes(t.fixedCostAccrual) ? t.fixedCostAccrual : "prorated"] += t.fixedCost || 0;
+  const U = unitsOf(t), W = workOf(t);
+  for (const a of assignmentsOf(t)) { const r = resourceOf(doc, a.name); parts[r.accrue] += assignmentCost(r, a, U, W); }
+  return { start: money(parts.start), prorated: money(parts.prorated), end: money(parts.end) };
+}
+
+/** The cost spent so far on a task at its % complete: start costs once begun, end costs once done, the rest pro rata. */
+export function spentCost(doc, t) {
+  const p = costParts(doc, t), pc = t.progress || 0;
+  return money((pc > 0 ? p.start : 0) + (p.prorated * pc) / 100 + (pc >= 100 ? p.end : 0));
 }
 
 /** What one assignment costs: hours × rate for people, amount × rate for materials, the amount for a cost resource. */
