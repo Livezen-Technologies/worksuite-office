@@ -18,6 +18,7 @@
  * Units: Visio uses inches with y up from the bottom of the page; WorkSuite uses points with y down.
  */
 import { toPropertySection, fromPropertyRows } from "./shapedata.js";
+import { toHyperlinkSection, fromHyperlinkRows } from "./hyperlink.js";
 import { parseXml } from "../../project/core/projectxml.js";
 import { zip, unzipAsync } from "../../common/zip.js";
 import { newDiagram, validate, connectionPoints, pointOn } from "./diagram.js";
@@ -119,6 +120,7 @@ export async function fromVsdx(bytes) {
   if (!pagesEl) throw new Error(files["visio/document.xml"] ? "the drawing has no pages" : "not a Visio drawing (.vsdx)");
   const pagesRels = rels("visio/pages/pages.xml");
   const problems = new Set();
+  const pendingLinks = []; // hyperlinks: resolved once every page is read, as they may go to a later page
 
   // masters: their top shapes by master ID (and sub-shapes by ID), for inheritance
   const masters = new Map();
@@ -191,6 +193,8 @@ export async function fromVsdx(bytes) {
         const rowsByName = new Map([...inherited, ...own].map((r) => [r.attrs.N, r]));
         const data = fromPropertyRows([...rowsByName.values()]);
         if (data.length) shape.data = data;
+        const linkRows = kids(kids(s, "Section").find((x) => x.attrs.N === "Hyperlink"), "Row").map((r) => cellsOf(r));
+        if (linkRows.length) pendingLinks.push({ shape, rows: linkRows });
         page.items.push(shape);
         visioToShape.set(s.attrs.ID, shape);
       }
@@ -225,6 +229,7 @@ export async function fromVsdx(bytes) {
     doc.pages.push(page);
   }
   if (!doc.pages.length) throw new Error("the drawing has no foreground pages");
+  for (const { shape, rows } of pendingLinks) { const link = fromHyperlinkRows(rows, doc.pages); if (link) shape.link = link; else problems.add("links to other files are left out"); }
   const name = (xml("docProps/core.xml") && kid(xml("docProps/core.xml"), "title")?.text) || "";
   if (name) doc.name = name;
   validate(doc);
@@ -317,7 +322,7 @@ export function toVsdx(doc, outline, routeOf, styleOf = (sh) => sh.style || {}) 
         (fill ? cell("FillForegnd", fill) + cell("FillPattern", 1) : "") + (look.line ? cell("LineColor", look.line) : "") +
         (it.style?.lineWidth ? cell("LineWeight", it.style.lineWidth / PT, "PT") : "") +
         (it.style?.fontSize ? cell("Char.Size", it.style.fontSize / PT, "PT") : "") +
-        geo + toPropertySection(it.data, cell) + (it.text ? `<Text>${esc(it.text)}</Text>` : "") + "</Shape>");
+        geo + toPropertySection(it.data, cell) + toHyperlinkSection(it.link, doc.pages, cell) + (it.text ? `<Text>${esc(it.text)}</Text>` : "") + "</Shape>");
     }
     for (const it of page.items) {
       if (it.kind !== "connector") continue;

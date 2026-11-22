@@ -1,5 +1,18 @@
 # Change log
 
+## 10.1.88
+
+### New features
+
+#### Diagram
+
+* Hyperlinks: a shape's Link, in the panel, goes to another page of the
+  diagram (typed by its name) or to a web or mail address (www. gets
+  https://). Ctrl+click follows it, as does a plain click when the diagram is
+  read only; a page opens in place, an address in a new tab. Only http, https
+  and mailto addresses are allowed. Linked shapes show a link mark. Links to a
+  page that is removed go with it. Hyperlinks go to and come from Visio files.
+
 ## 10.1.87
 
 ### New features

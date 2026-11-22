@@ -17,6 +17,7 @@ import { laneMembers, lanePath, LANE_HEADER } from "../core/swimlane.js";
 import { parseDataValue, formatDataValue } from "../core/shapedata.js";
 import { graphicFor, graphicsError, dataLabels } from "../core/datagraphics.js";
 import { readTableFile } from "../core/linkdata.js";
+import { parseLink, linkText, safeUrl } from "../core/hyperlink.js";
 import { decorateRibbon, ribbonStyles } from "../../common/ribbon.js";
 import { aiDraft } from "../../common/aidraft.js";
 import { DiagramModel, newDiagram, parse, serialize, connectionPoints, pointOn, APP } from "../core/diagram.js";
@@ -286,6 +287,7 @@ function shapeSvg(s) {
   const tip = s.data?.length ? `<title>${esc([s.text, ...s.data.map((d) => `${d.label}: ${formatDataValue(d.value)}`)].filter(Boolean).join("\n"))}</title>` : "";
   return `<g data-id="${s.id}" transform="${tf}">${tip}<path class="shape-body" d="${shapePath(s.type, s.w, s.h, s.path)}" fill="${fill}" stroke="${line}" stroke-width="${lw}"/>` +
     `<text class="shape-text" text-anchor="middle" style="font-size:${s.style?.fontSize || 13}px">${textLines(s.text, 0, s.w / 2, s.h / 2, s.style?.fontSize || 13)}</text>${shown}` +
+    (s.link ? `<text class="link-mark" x="4" y="${s.h - 4}" style="font-size:11px"><title>${esc(s.link.page ? `Go to ${linkText(s.link, state.model.doc.pages)}` : s.link.url)} (Ctrl+click)</title>🔗</text>` : "") +
     (gfx.icon ? `<text class="data-icon" x="${s.w - 4}" y="14" text-anchor="end" style="font-size:13px">${gfx.icon}</text>` : "") +
     (gfx.bar !== undefined ? `<rect class="data-bar-bg" x="6" y="${s.h - 9}" width="${s.w - 12}" height="5" rx="2.5" fill="#e5e7eb"/><rect class="data-bar" x="6" y="${s.h - 9}" width="${(s.w - 12) * gfx.bar}" height="5" rx="2.5" fill="#2a78d6"><title>${esc(gfx.barLabel)}</title></rect>` : "") + `</g>`;
 }
@@ -362,6 +364,7 @@ function renderProps() {
       <div class="two"><label>Width<input type="number" data-prop="w" value="${Math.round(s.w)}" min="10"></label><label>Height<input type="number" data-prop="h" value="${Math.round(s.h)}" min="10"></label></div>
       <div class="two"><label>Rotate<input type="number" data-prop="rotate" value="${s.rotate || 0}" step="15"></label><label>Text size<input type="number" data-prop="fontSize" value="${s.style?.fontSize || 13}" min="6" max="72"></label></div>`;
     html += `<h4>Shape data</h4>` + (s.data || []).map((d, i) => `<div class="wd-data"><input data-data-label="${i}" value="${esc(d.label)}" aria-label="Name"><input data-data-value="${i}" value="${esc(formatDataValue(d.value))}" aria-label="Value"><button data-data-del="${i}" title="Remove">×</button></div>`).join("") +
+      `<label>Link<input data-prop="link" list="wd-pages-list" value="${esc(linkText(s.link, state.model.doc.pages))}" placeholder="a page, or https://…"></label><datalist id="wd-pages-list">${state.model.doc.pages.map((pg) => `<option value="${esc(pg.name)}">`).join("")}</datalist>` +
       `<div class="wd-data-tools"><button data-data-add ${state.readOnly ? "disabled" : ""}>+ Data</button>${s.data?.length ? `<label class="inline"><input type="checkbox" data-prop="showData" ${s.style?.showData ? "checked" : ""}> Show on the shape</label>` : ""}</div>`;
   } else if (conns.length === 1 && state.sel.length === 1) {
     const c = conns[0];
@@ -429,8 +432,19 @@ function toPage(e) {
 // a double-click edits a shape's text. Each press redraws the page and captures the pointer, so the browser
 // sends neither "dblclick" nor a second "click": two presses within 400 ms at the same spot count as one.
 let lastPress = null;
+/** Follows a shape's hyperlink: another page opens here, an address in a new tab. */
+function followLink(shape) {
+  const l = shape.link;
+  if (l.page) { if (state.model.doc.pages.some((p) => p.id === l.page)) { state.pageId = l.page; state.sel = []; render(); } return; }
+  if (safeUrl(l.url)) window.open(l.url, "_blank", "noopener,noreferrer");
+}
 $("wd-canvas").addEventListener("pointerdown", (e) => {
   if (!e.target.closest("svg.page") || e.button !== 0) return;
+  if (e.ctrlKey || e.metaKey || state.readOnly) {
+    const at0 = toPage(e), hit0 = state.model.hitTest(at0.x, at0.y, state.pageId), sh = hit0 && byId(topOf(hit0));
+    const target = sh?.link ? sh : hit0 && byId(hit0)?.link ? byId(hit0) : null;
+    if (target) { e.preventDefault(); followLink(target); return; }
+  }
   $("wd-canvas").focus();
   const at = toPage(e);
   const now = e.timeStamp, again = lastPress && now - lastPress.t < 400 && Math.hypot(e.clientX - lastPress.x, e.clientY - lastPress.y) < 6;
@@ -601,6 +615,11 @@ $("wd-props").addEventListener("change", (e) => {
     else if (prop === "w" || prop === "h" || prop === "rotate") state.model.set(id, { [prop]: Number(el.value) }, state.pageId);
     else if (prop === "ctext") state.model.set(id, { text: el.value }, state.pageId);
     else if (prop === "route") state.model.set(id, { route: el.value }, state.pageId);
+    else if (prop === "link") {
+      const r = parseLink(el.value, state.model.doc.pages);
+      if (r.error) throw new Error(r.error);
+      state.model.setLink(id, r.link, state.pageId);
+    }
     else if (prop === "showData") state.model.set(id, { style: { ...it.style, showData: el.checked || undefined } }, state.pageId);
     else if (prop === "arrowEnd") state.model.set(id, { style: { ...it.style, arrowEnd: el.checked } }, state.pageId);
     else if (prop === "pname" || prop === "pw" || prop === "ph") state.model.edit((d) => { const p = d.pages.find((x) => x.id === state.pageId); if (prop === "pname") p.name = el.value || p.name; else p[prop === "pw" ? "width" : "height"] = Math.max(100, Number(el.value)); });

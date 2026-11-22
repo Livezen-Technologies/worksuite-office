@@ -13,6 +13,7 @@
  *   Shape:     { id, kind: "shape", type ("rect", "ellipse", "diamond", "terminator", …), layer, x, y, w, h,
  *                rotate (degrees), text, style: { fill, line, lineWidth, fontSize, … } }
  *                data?: [{ label, value }] (shape data: text, numbers, yes/no; shapedata.js)
+ *                link?: { page } | { url } (a hyperlink to a page of the diagram or an address; hyperlink.js)
  *   Connector: { id, kind: "connector", layer, from: End, to: End, route: "straight" | "elbow" | "curved",
  *                text, style: { line, lineWidth, arrowEnd, arrowStart } }
  *     End:     { shape, point } glued to one of the shape's connection points, or { x, y } free
@@ -24,6 +25,7 @@ import { makeLanes, nextLane } from "./swimlane.js";
 import { dataError } from "./shapedata.js";
 import { graphicsError } from "./datagraphics.js";
 import { matchRows, mergeRow } from "./linkdata.js";
+import { linkError } from "./hyperlink.js";
 
 export const APP = "worksuite.diagram";
 export const SCHEMA_VERSION = 1;
@@ -86,6 +88,7 @@ export function validate(doc) {
         for (const k of ["x", "y", "w", "h"]) if (!Number.isFinite(it[k])) errs.push(`${w}: ${k} must be a number`);
         if (!(it.w > 0 && it.h > 0)) errs.push(`${w}: size must be positive`);
         if (dataError(it.data)) errs.push(`${w}: ${dataError(it.data)}`);
+        if (linkError(it.link, (doc.pages || []).map((pg) => pg.id))) errs.push(`${w}: ${linkError(it.link, (doc.pages || []).map((pg) => pg.id))}`);
       }
     }
     for (const it of page.items || []) {
@@ -171,7 +174,7 @@ export class DiagramModel {
 
   /* pages and layers */
   addPage(name) { const id = this.id("p"), lid = this.id("l"); this.edit((d) => { d.pages.push({ id, name: name || `Page ${d.pages.length + 1}`, width: 842, height: 595, layers: [{ id: lid, name: "Layer 1", visible: true, locked: false }], items: [] }); }); return id; }
-  removePage(pageId) { this.edit((d) => { d.pages = d.pages.filter((p) => p.id !== pageId); }); }
+  removePage(pageId) { this.edit((d) => { d.pages = d.pages.filter((p) => p.id !== pageId); for (const p of d.pages) for (const it of p.items) if (it.link?.page === pageId) delete it.link; }); }
   addLayer(name, pageId = this.page().id) { const id = this.id("l"); this.edit((d) => { d.pages.find((p) => p.id === pageId).layers.push({ id, name, visible: true, locked: false }); }); return id; }
   setLayer(layerId, fields, pageId = this.page().id) { this.edit((d) => Object.assign(this.layerOf(d, pageId, layerId), fields)); }
 
@@ -206,6 +209,15 @@ export class DiagramModel {
       p.link = { source: String(source), key: header[keyIndex], at };
     });
     return { updated: matches.length, added: newIds.length, unmatched: addMissing ? 0 : unmatched.length };
+  }
+  /** Sets a shape's hyperlink ({ page } or { url }); undefined removes it. */
+  setLink(id, link, pageId = this.page().id) {
+    this.edit((d) => {
+      const it = d.pages.find((p) => p.id === pageId).items.find((i) => i.id === id);
+      if (!it || it.kind !== "shape") throw new Error("a link goes on a shape");
+      this.assertEditable(d, pageId, it.layer);
+      if (link) it.link = link; else delete it.link;
+    });
   }
   /** Sets a page's data graphics (datagraphics.js); null removes them. */
   setGraphics(graphics, pageId = this.page().id) {
