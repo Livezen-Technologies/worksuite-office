@@ -9,7 +9,7 @@
  * The page stands alone until the native shell hosts it (#72): it saves and opens through the browser, and
  * window.WorkSuiteProject lets the shell load a file, read it back and switch read-only mode (free viewing, #73).
  */
-import { ProjectModel, newProject, parse, serialize, finishOf, wbsCodes, APP } from "../core/project.js";
+import { ProjectModel, newProject, parse, serialize, finishOf, wbsCodes, APP, segmentsOf, splitsOf, toDay } from "../core/project.js";
 import { fromProjectXml, toProjectXml, isMpp, MPP_HELP } from "../core/projectxml.js";
 import { schedule, applySchedule, applyLevelling, clearLevelling, criticalPath, STANDARD, SRI_LANKA } from "../core/schedule.js";
 import { level, unlevelledStart } from "../core/levelling.js";
@@ -135,6 +135,26 @@ const commands = {
       fields: [{ key: "key", label: "Field", type: "select", options: fs.map((f) => [f.key, f.name]), value: fs[0].key }],
     });
     if (v) run(() => state.model.removeField(v.key));
+  },
+  splitTask: async () => {
+    if (state.readOnly) return;
+    const id = first(), t = id && state.model.task(id);
+    if (!t || state.model.isSummary(id) || !(t.duration > 1)) { state.message = "Select a task of 2 days or more to split: a summary or milestone cannot be split"; render(); return; }
+    const v = await askForm({
+      title: `Split “${t.name}”`, ok: "Split",
+      hint: "Work stops for a while and picks up again, as when people are needed elsewhere. The duration stays the work; the pause moves the finish out.",
+      fields: [
+        { key: "after", label: "Pause after", type: "number", min: 1, max: t.duration - 1, value: Math.max(1, Math.floor(t.duration / 2)), hint: `working days of work (1 to ${t.duration - 1})` },
+        { key: "days", label: "Pause for", type: "number", min: 1, value: 2, hint: "working days" },
+      ],
+      check: (x) => (!(Number.isInteger(x.after) && x.after >= 1 && x.after < t.duration) ? `Pause after 1 to ${t.duration - 1} days of work` : !(Number.isInteger(x.days) && x.days >= 1) ? "Pause for whole working days, 1 or more" : null),
+    });
+    if (v) run(() => state.model.split(id, v.after, v.days));
+  },
+  unsplitTask: () => {
+    const ids = state.sel.filter((id) => state.model.task(id)?.splits);
+    if (!ids.length) { state.message = "The selected task is not split"; render(); return; }
+    run(() => { for (const id of ids) state.model.unsplit(id); });
   },
   clearFilter: () => { state.filter = "all"; render(); },
   viewTaskUsage: () => showView("tuse"),
@@ -356,7 +376,10 @@ function renderGrid(rows) {
         const rec = r.recurring ? ` <span class="rec" title="${esc(describeRecurring(r.recurring))}">↻</span>` : "";
         return `<td class="name" style="padding-inline-start:${8 + r.level * 16}px">${tw}${esc(r.name)}${rec}</td>`;
       }
-      if (c.key === "duration") return `<td>${r.milestone ? "0 d" : `${r.duration} d`}</td>`;
+      if (c.key === "duration") {
+        const sp = splitsOf(r);
+        return `<td${sp.length ? ` title="Split: ${sp.map((x) => `after ${x.after} d, paused ${x.days} d`).join("; ")}"` : ""}>${r.milestone ? "0 d" : `${r.duration} d`}${sp.length ? ' <span class="wp-split-mark">⋯</span>' : ""}</td>`;
+      }
       if (c.key === "priority") return `<td class="${r.levelDelay ? "is-levelled" : ""}" title="${r.levelDelay ? `Delayed ${r.levelDelay} working day${r.levelDelay === 1 ? "" : "s"} by levelling` : ""}">${r.summary ? "" : r.priority ?? 500}</td>`;
       if (c.key === "cost") return `<td class="money">${cost.get(r.id) ? formatMoney(cost.get(r.id)) : ""}</td>`;
       if (c.key === "fixedCost") return `<td class="money">${r.fixedCost ? formatMoney(r.fixedCost) : ""}</td>`;
@@ -453,8 +476,24 @@ function renderChart(rows) {
       const late = behind.get(b.id);
       if (late) svg += `<rect class="wp-behind" x="${b.x - 4}" y="${b.y + 4}" width="${b.w + 8}" height="22" rx="6"><title>${late.late ? "Late" : "Behind"}: ${late.progress}% done, ${late.expected}% expected by the status date</title></rect>`;
       if (over.has(b.id)) svg += `<rect class="wp-over" x="${b.x - 2}" y="${b.y + 6}" width="${b.w + 4}" height="18" rx="5"><title>Someone on this task has another task at the same time</title></rect>`;
-      svg += `<rect class="wp-bar${crit}" x="${b.x}" y="${b.y + 8}" width="${b.w}" height="14" rx="4"/>`;
-      if (b.progress) svg += `<rect class="wp-bar-done${crit}" x="${b.x}" y="${b.y + 8}" width="${(b.w * b.progress) / 100}" height="14" rx="4"/>`;
+      const segs = r.splits ? segmentsOf(r, calendar().isWork) : null;
+      if (segs && segs.length > 1) {
+        // a split task: its pieces of work, joined by a dotted line across each pause; progress fills the work in order
+        let doneDays = Math.round((r.duration * (r.progress || 0)) / 100);
+        const wd = calendar().isWork;
+        segs.forEach((g, k) => {
+          const x = sc.x(g.start), w = sc.x(g.finish) - x + sc.dayW;
+          if (k) svg += `<line class="wp-split-gap" x1="${sc.x(segs[k - 1].finish) + sc.dayW}" x2="${x}" y1="${b.y + 15}" y2="${b.y + 15}"/>`;
+          svg += `<rect class="wp-bar${crit}" x="${x}" y="${b.y + 8}" width="${w}" height="14" rx="4"/>`;
+          const segDays = (() => { let n = 0; for (let d = toDay(g.start); d <= toDay(g.finish); d++) if (!wd || wd(d)) n++; return n; })();
+          const fill = Math.min(segDays, Math.max(0, doneDays));
+          doneDays -= fill;
+          if (fill) svg += `<rect class="wp-bar-done${crit}" x="${x}" y="${b.y + 8}" width="${(w * fill) / segDays}" height="14" rx="4"/>`;
+        });
+      } else {
+        svg += `<rect class="wp-bar${crit}" x="${b.x}" y="${b.y + 8}" width="${b.w}" height="14" rx="4"/>`;
+        if (b.progress) svg += `<rect class="wp-bar-done${crit}" x="${b.x}" y="${b.y + 8}" width="${(b.w * b.progress) / 100}" height="14" rx="4"/>`;
+      }
       if (r.owner) svg += `<text class="wp-label" x="${b.x + b.w + 6}" y="${b.y + 19}">${esc(r.owner)}</text>`;
       svg += `<rect class="wp-hit" data-drag="move" data-id="${b.id}" x="${b.x}" y="${b.y + 4}" width="${Math.max(0, b.w - 6)}" height="22"/><rect class="wp-grip" data-drag="size" data-id="${b.id}" x="${b.x + b.w - 6}" y="${b.y + 4}" width="10" height="22"/>`;
     }

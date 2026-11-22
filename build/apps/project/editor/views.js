@@ -2,7 +2,7 @@
  * WorkSuite Project: the Task Board and Calendar views (roadmap stage 5). Pure functions, no DOM, so the tests
  * cover them; editor.js draws what they return.
  */
-import { toDay, fromDay, finishOf } from "../core/project.js";
+import { toDay, fromDay, finishOf, workDays } from "../core/project.js";
 import { assignmentsOf } from "../core/resources.js";
 import { costs, resourceSheet } from "../core/costs.js";
 
@@ -134,7 +134,7 @@ export function usage(doc, isWork = null, by = "resource", hoursPerDay = 8) {
     if (!(U > 0)) return;
     const W = t.work !== undefined ? t.work : t.duration * U * hoursPerDay;
     const days = [];
-    for (let d = toDay(t.start), f = toDay(finishOf(t, isWork)); d <= f; d++) if (!isWork || isWork(d)) days.push(d);
+    days.push(...workDays(t, isWork)); // a split task's pauses are not worked
     if (!days.length) return;
     const row = { id: t.id, name: t.name, total: round(W), weeks: new Map(), children: [] };
     for (const a of list) {
