@@ -17,6 +17,8 @@
  * Coordinates are in points on the page; x, y are the shape's top-left before rotation.
  */
 
+import { makeLanes, nextLane } from "./swimlane.js";
+
 export const APP = "worksuite.diagram";
 export const SCHEMA_VERSION = 1;
 export const ROUTES = ["straight", "elbow", "curved"];
@@ -171,6 +173,27 @@ export class DiagramModel {
       const shape = { id, kind: "shape", type: "rect", layer: page.layers[0].id, x: 0, y: 0, w: 120, h: 60, rotate: 0, text: "", style: {}, ...fields };
       this.assertEditable(d, pageId, shape.layer);
       page.items.push(shape);
+    });
+    return id;
+  }
+  /** Adds swimlanes (swimlane.js makeLanes) behind everything on the page; returns their ids. One undo step. */
+  addLanes(names, opts = {}, pageId = this.page().id) {
+    const fields = makeLanes(names, opts), ids = fields.map(() => this.id("s"));
+    this.edit((d) => {
+      const page = d.pages.find((p) => p.id === pageId);
+      this.assertEditable(d, pageId, page.layers[0].id);
+      page.items.unshift(...fields.map((f, i) => ({ id: ids[i], kind: "shape", layer: page.layers[0].id, rotate: 0, style: {}, ...f })));
+    });
+    return ids;
+  }
+  /** Adds a lane at the end of the pool a lane is in; returns its id. */
+  addLane(laneId, name = "Lane", pageId = this.page().id) {
+    const page = this.page(pageId), lane = page.items.find((i) => i.id === laneId);
+    if (!lane || lane.type !== "lane") throw new Error("select a lane to add one after it");
+    const id = this.id("s"), f = nextLane(page.items, lane, name);
+    this.edit((d) => {
+      const p = d.pages.find((x) => x.id === pageId), at = p.items.findIndex((i) => i.id === laneId);
+      p.items.splice(at + 1, 0, { id, kind: "shape", layer: lane.layer, rotate: 0, style: { ...(lane.style || {}) }, ...f });
     });
     return id;
   }
