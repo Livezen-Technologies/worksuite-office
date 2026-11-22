@@ -54,11 +54,15 @@ const COLS = [
 /** The grid's columns: the fixed ones, then one per custom field (key "c:<field key>"). */
 const cols = () => [...COLS, ...(state.model.doc.fields || []).map((f) => ({ key: "c:" + f.key, label: f.name, w: f.type === "flag" ? 56 : f.type === "text" ? 120 : 96, edit: true, field: f }))];
 
+/** Microsoft Project's baseline names: Baseline, then Baseline 1 to 10. */
+const BASELINE_NAMES = ["Baseline", ...Array.from({ length: 10 }, (_, i) => `Baseline ${i + 1}`)];
+
 const calendar = () => (state.cal === "lk" ? SRI_LANKA : STANDARD);
 const state = {
   cal: "standard",
   showBaseline: false,
   showCritical: false,
+  baselineName: "Baseline", // the baseline the chart, variance, earned value and overview compare with
   showProgressLine: false, // the progress line from the status date (stage 5)
   board: false, // the Task Board (stage 5)
   net: false, // the Network Diagram (stage 5)
@@ -183,12 +187,33 @@ const commands = {
     state.message = r.problems.join("; ");
     if (!state.message) state.note = `Scheduled on the ${state.cal === "lk" ? "Sri Lanka" : "standard"} calendar: finishes ${fmt(r.finish)}`;
   }),
-  saveBaseline: () => run(() => {
-    state.model.saveBaseline("Baseline");
-    state.showBaseline = true;
-    $("wp-baseline").checked = true;
-    state.note = "Baseline saved: the grey bars show the plan as it is now";
-  }),
+  saveBaseline: async () => {
+    if (state.readOnly) return;
+    const saved = new Map((state.model.doc.baselines || []).map((b) => [b.name, b.saved]));
+    const v = await askForm({
+      title: "Set baseline", ok: "Save",
+      hint: "A baseline keeps the plan as it is now (dates, durations, work and cost) to compare against later. Saving over one replaces it.",
+      fields: [{ key: "name", label: "Save as", type: "select", value: state.baselineName, options: BASELINE_NAMES.map((n) => [n, saved.has(n) ? `${n} (saved ${fmt(saved.get(n))})` : n]) }],
+    });
+    if (!v) return;
+    run(() => {
+      state.model.saveBaseline(v.name);
+      state.baselineName = v.name;
+      state.showBaseline = true;
+      $("wp-baseline").checked = true;
+      state.note = `${v.name} saved: the grey bars show the plan as it is now`;
+    });
+  },
+  clearBaseline: async () => {
+    if (state.readOnly) return;
+    const list = state.model.doc.baselines || [];
+    if (!list.length) { state.message = "No baseline is saved yet"; render(); return; }
+    const v = await askForm({
+      title: "Clear baseline", ok: "Clear", hint: "The plan itself does not change. Undo brings the baseline back.",
+      fields: [{ key: "name", label: "Baseline", type: "select", value: list.some((b) => b.name === state.baselineName) ? state.baselineName : list[0].name, options: list.map((b) => [b.name, `${b.name} (saved ${fmt(b.saved)})`]) }],
+    });
+    if (v) run(() => state.model.clearBaseline(v.name));
+  },
   today: () => { const sc = timescale(shownRows(), state.zoom, state.model.doc.start); $("wp-chart").scrollLeft = Math.max(0, sc.x(new Date().toISOString().slice(0, 10)) - 120); },
 };
 
@@ -422,7 +447,7 @@ function renderChart(rows) {
     } else if (b.kind === "summary") {
       svg += `<path class="wp-sum" d="M${b.x} ${b.y + 10} h${b.w} v8 l-5 5 l-5 -5 H${b.x + 10} l-5 5 l-5 -5 Z"/>`;
     } else {
-      const base = state.showBaseline && state.model.baseline("Baseline")?.tasks[b.id];
+      const base = state.showBaseline && state.model.baseline(state.baselineName)?.tasks[b.id];
       if (base) svg += `<rect class="wp-base" x="${sc.x(base.start)}" y="${b.y + 23}" width="${Math.max(2, sc.x(base.finish) - sc.x(base.start) + sc.dayW)}" height="4" rx="2"/>`;
       const crit = (critical.has(b.id) ? " is-crit" : "") + (r.inactive ? " is-inactive" : "");
       const late = behind.get(b.id);
@@ -505,7 +530,7 @@ function renderNet() {
 /** The Project Overview report: headline figures, milestones ahead, tasks running late and work by person. */
 function renderReport() {
   const doc = state.model.doc, isWork = calendar().isWork;
-  const o = overview(doc, { isWork, from: doc.statusDate || null });
+  const o = overview(doc, { isWork, from: doc.statusDate || null, baseline: state.baselineName });
   const late = [...state.behind.map((x) => ({ id: x.id, name: x.name, why: `${x.progress}% done, ${x.expected}% expected` })),
     ...pastDeadline(doc, isWork).filter((x) => !state.behind.some((b) => b.id === x.id)).map((x) => ({ id: x.id, name: x.name, why: `finishes ${fmt(x.finish)}, deadline ${fmt(x.deadline)}` }))];
   const tile = (label, value, sub = "", cls = "") => `<section class="wp-tile ${cls}"><span class="l">${label}</span><b>${value}</b><span class="s">${sub}</span></section>`;
@@ -571,7 +596,7 @@ $("wp-chart").addEventListener("click", (e) => {
 
 /** Earned value at the status date: planned, earned and actual value per task, the indexes, and totals. */
 function renderEv() {
-  const r = earnedValue(state.model.doc, { isWork: calendar().isWork });
+  const r = earnedValue(state.model.doc, { isWork: calendar().isWork, baseline: state.baselineName });
   if (r.error) { $("wp-chart").innerHTML = `<p class="wp-empty">${esc(r.error)}</p>`; return; }
   const m = (n) => formatMoney(n), idx = (x) => (x === null ? "–" : x.toFixed(2)), cls = (x) => (x !== null && x < 1 ? "is-over" : "");
   const neg = (n) => (n < 0 ? "is-over" : "");
@@ -648,7 +673,7 @@ function renderWorkload() {
 
 function costText() {
   const total = costs(state.model.doc).total;
-  const ev = state.model.doc.statusDate ? earnedValue(state.model.doc, { isWork: calendar().isWork }) : { error: true };
+  const ev = state.model.doc.statusDate ? earnedValue(state.model.doc, { isWork: calendar().isWork, baseline: state.baselineName }) : { error: true };
   const idx = !ev.error && ev.total.spi !== null ? ` · SPI ${ev.total.spi.toFixed(2)}${ev.total.cpi !== null ? ` · CPI ${ev.total.cpi.toFixed(2)}` : ""}` : "";
   return total ? `<span title="SPI under 1: behind schedule. CPI under 1: over budget.">Cost: ${formatMoney(total)}${idx}</span>` : "";
 }
@@ -674,8 +699,8 @@ function overText() {
 
 /** The selected task's slip against the baseline, for the status bar. */
 function slipText() {
-  if (!state.showBaseline || !first() || !state.model.baseline("Baseline")) return "";
-  const v = state.model.variance(first(), "Baseline");
+  if (!state.showBaseline || !first() || !state.model.baseline(state.baselineName)) return "";
+  const v = state.model.variance(first(), state.baselineName);
   if (!v) return `<span>${esc(state.model.task(first()).name)}: not in the baseline</span>`;
   const days = Math.abs(v.finishSlip), unit = state.model.isWork ? "working day" : "day";
   const when = v.finishSlip === 0 ? "on plan" : `${days} ${unit}${days === 1 ? "" : "s"} ${v.finishSlip > 0 ? "late" : "early"}`;
@@ -705,6 +730,15 @@ function shownRows() {
 }
 /** The tasks' ids among the rows (group headings left out). */
 const taskIds = (rows) => rows.filter((r) => !r.group).map((r) => r.id);
+/** The Compare-with box: the saved baselines; the one in use falls back to the first saved when it is cleared. */
+function fillBaselines() {
+  const list = state.model.doc.baselines || [], sel = $("wp-baseline-name");
+  if (list.length && !list.some((b) => b.name === state.baselineName)) state.baselineName = list.some((b) => b.name === "Baseline") ? "Baseline" : list[0].name;
+  const html = list.length ? BASELINE_NAMES.filter((n) => list.some((b) => b.name === n)).map((n) => `<option value="${esc(n)}">${esc(n)}</option>`).join("") : `<option value="">None saved</option>`;
+  if (sel.dataset.html !== html) { sel.innerHTML = html; sel.dataset.html = html; }
+  sel.value = list.length ? state.baselineName : "";
+  sel.disabled = !list.length;
+}
 /** The Filter box: the fixed filters, then one per person. */
 function fillFilter() {
   const sel = $("wp-filter"), people = [...new Set(state.model.doc.tasks.flatMap((t) => assignmentsOf(t).map((a) => a.name)))].sort();
@@ -730,6 +764,7 @@ function draw() {
   try { state.behind = behindSchedule(state.model.doc, state.model.doc.statusDate, calendar().isWork); } catch { state.behind = []; }
   const rows = shownRows();
   fillFilter();
+  fillBaselines();
   renderGrid(rows);
   $("wp-status-date").value = state.model.doc.statusDate || "";
   const firstTyped = typedTargets()[0] ? state.model.task(typedTargets()[0]) : null;
@@ -779,6 +814,7 @@ $("wp-effort").addEventListener("change", (e) => run(() => {
 }));
 $("wp-status-date").addEventListener("change", (e) => run(() => state.model.setStatusDate(e.target.value || null)));
 $("wp-baseline").addEventListener("change", (e) => { state.showBaseline = e.target.checked; render(); });
+$("wp-baseline-name").addEventListener("change", (e) => { state.baselineName = e.target.value; state.showBaseline = true; render(); });
 $("wp-upgrade").addEventListener("click", () => (window.WorkSuiteProject.onUpgrade || openUpgrade)());
 $("wp-retry").addEventListener("click", () => applyLicence());
 /** Free viewing, Pro editing (#73): asks the local service at startup and on Try again. */
