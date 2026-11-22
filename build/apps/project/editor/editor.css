@@ -234,3 +234,6 @@ table.wp-table { border-collapse: collapse; width: 100%; table-layout: fixed; }
 .wp-chip { position: absolute; height: 20px; line-height: 20px; padding: 0 6px; border-radius: 4px; background: color-mix(in srgb, var(--accent, #2f6fde) 22%, var(--card)); border: 1px solid var(--accent, #2f6fde); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; cursor: grab; box-sizing: border-box; }
 .wp-chip.is-sel { box-shadow: 0 0 0 2px var(--accent, #2f6fde); }
 .wp-team-help { margin: 8px 12px; }
+.wp-table td.custom.is-formula { color: var(--ink2, var(--ink)); background: color-mix(in srgb, var(--accent, #2f6fde) 4%, transparent); }
+.wp-table td.custom.is-error { color: var(--today); }
+.wp-ind { font-size: 12px; }

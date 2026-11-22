@@ -1,5 +1,21 @@
 # Change log
 
+## 10.1.77
+
+### New features
+
+#### Project
+
+* Custom field formulas: a custom field can be worked out from a formula
+  instead of typed, reading the task's fields and other custom fields by name
+  in brackets, with arithmetic, text, comparisons, And, Or, Not and functions
+  such as IIf, Round, Min, Max, Left, Right and Days. Formulas are parsed, not
+  run as code; one that cannot be worked out shows an error in its cell. They
+  go to and come from Project XML with their values.
+* Graphical indicators: a custom field can show an icon instead of its value,
+  by rules such as "red if > 5; yellow if > 0; green".
+* Project › Edit field changes a field's name, formula or indicators.
+
 ## 10.1.76
 
 ### New features
