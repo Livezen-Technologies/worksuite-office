@@ -7,6 +7,7 @@
  * The document (schema version 1), saved as canonical JSON inside the .wsdiagram zip:
  *   { app: "worksuite.diagram", v: 1, name, pages: [Page] }
  *   Page:      { id, name, width, height, layers: [Layer], items: [Shape | Connector | Group], graphics? }   (items: back to front;
+ *              link?: { source, key, at } (the table last linked, linkdata.js);
  *              graphics: data graphics, datagraphics.js; jumps: false to draw crossing connectors without hops)
  *   Layer:     { id, name, visible, locked }
  *   Shape:     { id, kind: "shape", type ("rect", "ellipse", "diamond", "terminator", …), layer, x, y, w, h,
@@ -22,6 +23,7 @@
 import { makeLanes, nextLane } from "./swimlane.js";
 import { dataError } from "./shapedata.js";
 import { graphicsError } from "./datagraphics.js";
+import { matchRows, mergeRow } from "./linkdata.js";
 
 export const APP = "worksuite.diagram";
 export const SCHEMA_VERSION = 1;
@@ -67,6 +69,7 @@ export function validate(doc) {
     seen(page.id, at);
     if (!(page.width > 0 && page.height > 0)) errs.push(`${at}: bad size`);
     if (graphicsError(page.graphics)) errs.push(`${at}: ${graphicsError(page.graphics)}`);
+    if (page.link !== undefined && !(page.link && typeof page.link.key === "string" && page.link.key)) errs.push(`${at}: a data link needs its key column`);
     if (page.jumps !== undefined && page.jumps !== false) errs.push(`${at}: jumps is false or left out`);
     if (!Array.isArray(page.layers) || !page.layers.length) { errs.push(`${at}: needs a layer`); continue; }
     const layers = new Set(page.layers.map((l) => (seen(l.id, `${at} layer`), l.id)));
@@ -182,6 +185,27 @@ export class DiagramModel {
       page.items.push(shape);
     });
     return id;
+  }
+  /**
+   * Links a table to the page's shapes (linkdata.js): matching rows' columns become their shape data; with `addMissing`,
+   * rows with no shape become new shapes in a grid below the drawing. The page remembers { source, key }. One undo
+   * step. Returns { updated, added, unmatched }.
+   */
+  linkData(rows, key, { source = "", addMissing = false, at = new Date().toISOString().slice(0, 10) } = {}, pageId = this.page().id) {
+    const page = this.page(pageId), { header, keyIndex, matches, unmatched } = matchRows(page.items, rows, key);
+    const newIds = addMissing ? unmatched.map(() => this.id("s")) : [];
+    this.edit((d) => {
+      const p = d.pages.find((x) => x.id === pageId);
+      for (const { id, row } of matches) { const s = p.items.find((i) => i.id === id); this.assertEditable(d, pageId, s.layer); s.data = mergeRow(s.data, header, row); }
+      if (newIds.length) {
+        const bottom = Math.max(40, ...p.items.filter((i) => i.kind === "shape").map((i) => i.y + i.h));
+        const per = Math.max(1, Math.floor((p.width - 40) / 160));
+        unmatched.forEach((row, n) => p.items.push({ id: newIds[n], kind: "shape", type: "rect", layer: p.layers[0].id, x: 40 + (n % per) * 160, y: bottom + 30 + Math.floor(n / per) * 80, w: 140, h: 60, rotate: 0, text: row[keyIndex], style: {}, data: mergeRow([], header, row) }));
+        p.height = Math.max(p.height, bottom + 30 + Math.ceil(unmatched.length / per) * 80 + 20);
+      }
+      p.link = { source: String(source), key: header[keyIndex], at };
+    });
+    return { updated: matches.length, added: newIds.length, unmatched: addMissing ? 0 : unmatched.length };
   }
   /** Sets a page's data graphics (datagraphics.js); null removes them. */
   setGraphics(graphics, pageId = this.page().id) {

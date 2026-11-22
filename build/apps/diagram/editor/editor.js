@@ -16,6 +16,7 @@ import { askText, askForm } from "../../common/dialog.js";
 import { laneMembers, lanePath, LANE_HEADER } from "../core/swimlane.js";
 import { parseDataValue, formatDataValue } from "../core/shapedata.js";
 import { graphicFor, graphicsError, dataLabels } from "../core/datagraphics.js";
+import { readTableFile } from "../core/linkdata.js";
 import { decorateRibbon, ribbonStyles } from "../../common/ribbon.js";
 import { aiDraft } from "../../common/aidraft.js";
 import { DiagramModel, newDiagram, parse, serialize, connectionPoints, pointOn, APP } from "../core/diagram.js";
@@ -58,6 +59,7 @@ const selShapes = () => state.sel.flatMap((id) => state.model.shapesIn(page(), i
 
 function run(fn) {
   if (state.readOnly) return;
+  state.note = "";
   try { fn(); state.message = ""; } catch (e) { state.message = e.message; }
   render();
 }
@@ -110,6 +112,13 @@ const commands = {
     }
   },
   toggleJumps: () => run(() => state.model.edit((d) => { const pg = d.pages.find((x) => x.id === state.pageId); if (pg.jumps === false) delete pg.jumps; else pg.jumps = false; })),
+  linkData: () => { if (!state.readOnly) { state.refreshing = false; $("wd-data-file").click(); } },
+  refreshData: () => {
+    if (state.readOnly) return;
+    if (!page().link) { state.message = "This page has no linked data yet: use Link Data first"; render(); return; }
+    state.refreshing = true;
+    $("wd-data-file").click();
+  },
   clearGraphics: () => run(() => state.model.setGraphics(null, state.pageId)),
   addLane: async () => {
     const lane = state.sel.map(byId).find((i) => i?.type === "lane");
@@ -392,7 +401,7 @@ function render() {
     document.querySelectorAll("[data-tool]").forEach((b) => b.classList.toggle("is-on", b.dataset.tool === state.tool));
     $("wd-zoomlabel").textContent = Math.round(state.zoom * 100) + "%";
     const n = shapes().length, c = items().filter((i) => i.kind === "connector").length;
-    $("wd-status").innerHTML = `<span>${page().name} · page ${state.model.doc.pages.findIndex((p) => p.id === state.pageId) + 1} of ${state.model.doc.pages.length}</span><span>${n} shape${n === 1 ? "" : "s"} · ${c} connector${c === 1 ? "" : "s"}</span>${state.sel.length ? `<span>${state.sel.length} selected</span>` : ""}${state.message ? `<span class="err" role="alert">${esc(state.message)}</span>` : ""}`;
+    $("wd-status").innerHTML = `<span>${page().name} · page ${state.model.doc.pages.findIndex((p) => p.id === state.pageId) + 1} of ${state.model.doc.pages.length}</span><span>${n} shape${n === 1 ? "" : "s"} · ${c} connector${c === 1 ? "" : "s"}</span>${state.sel.length ? `<span>${state.sel.length} selected</span>` : ""}${state.message ? `<span class="err" role="alert">${esc(state.message)}</span>` : state.note ? `<span class="note" role="status">${esc(state.note)}</span>` : ""}`;
   } finally { rendering = false; }
 }
 
@@ -610,6 +619,34 @@ $("wd-props").addEventListener("click", (e) => {
   if (b.dataset.layerVis) { const l = page().layers.find((x) => x.id === b.dataset.layerVis); run(() => state.model.setLayer(l.id, { visible: !l.visible }, state.pageId)); }
   else if (b.dataset.layerLock) { const l = page().layers.find((x) => x.id === b.dataset.layerLock); run(() => state.model.setLayer(l.id, { locked: !l.locked }, state.pageId)); }
   else if (b.dataset.cmdLocal === "addLayer") run(() => state.model.addLayer(`Layer ${page().layers.length + 1}`, state.pageId));
+});
+$("wd-data-file").addEventListener("change", async (e) => {
+  const f = e.target.files[0];
+  e.target.value = "";
+  if (!f) return;
+  try {
+    const rows = await readTableFile(new Uint8Array(await f.arrayBuffer()));
+    if (rows.length < 2) throw new Error("the table needs a header row and at least one row");
+    const header = rows[0].map((h) => String(h || "").trim()).filter(Boolean);
+    let key = page().link?.key, addMissing = false;
+    if (!state.refreshing || !header.some((h) => h.toLowerCase() === String(key).toLowerCase())) {
+      const guess = header.find((h) => /^(name|id|key|step|title|task|shape)$/i.test(h)) || header[0];
+      const v = await askForm({
+        title: `Link ${f.name}`, ok: "Link",
+        hint: `${rows.length - 1} rows. Each row goes to the shape whose shape data, or else whose text, matches its key; every column becomes that shape's data.`,
+        fields: [
+          { key: "key", label: "Match shapes by", type: "select", value: guess, options: header.map((h) => [h, h]) },
+          { key: "add", label: "Rows with no shape", type: "select", value: "skip", options: [["skip", "Leave out"], ["add", "Add as new shapes"]] },
+        ],
+      });
+      if (!v) return;
+      key = v.key; addMissing = v.add === "add";
+    }
+    run(() => {
+      const r = state.model.linkData(rows, key, { source: f.name, addMissing }, state.pageId);
+      state.note = `${f.name}: ${r.updated} shape${r.updated === 1 ? "" : "s"} updated` + (r.added ? `, ${r.added} added` : "") + (r.unmatched ? `, ${r.unmatched} row${r.unmatched === 1 ? "" : "s"} with no shape` : "") + ". Use Data Graphics to show the data.";
+    });
+  } catch (err) { state.message = `Could not link ${f.name}: ${err.message}`; render(); }
 });
 $("wd-file").addEventListener("change", async (e) => {
   const f = e.target.files[0];
