@@ -9,7 +9,11 @@
  * default, baselines, custom fields. They come with stage 5 (#90–#94).
  */
 import { assignmentsOf, ownerText } from "./resources.js";
-import { ProjectModel, newProject, validate } from "./project.js";
+import { ProjectModel, newProject, validate, finishOf } from "./project.js";
+import { parseFormula } from "./formula.js";
+import { fieldValue } from "./fields.js";
+import { costs } from "./costs.js";
+import { unitsOf, workOf } from "./tasktypes.js";
 
 const NS = "http://schemas.microsoft.com/project";
 const HOURS_PER_DAY = 8;
@@ -109,6 +113,7 @@ export function fromProjectXml(text) {
   const start = (val(top, "StartDate") || "").slice(0, 10) || new Date().toISOString().slice(0, 10);
   const doc = newProject(name, start);
   if (/^\d{4}-\d{2}-\d{2}/.test(val(top, "StatusDate"))) doc.statusDate = val(top, "StatusDate").slice(0, 10);
+  const problems = [];
   // custom fields: the project's ExtendedAttribute definitions, by FieldID, named by their alias
   const fieldById = new Map();
   const extEl = kid(top, "ExtendedAttributes");
@@ -116,13 +121,13 @@ export function fromProjectXml(text) {
     const id = Number(val(e, "FieldID")), type = typeOfFieldId(id);
     if (!type || fieldById.has(id)) continue;
     const f = { key: "f" + (fieldById.size + 1), name: val(e, "Alias") || val(e, "FieldName") || FIELD_LABEL[type] + (FIELD_IDS[type].indexOf(id) + 1), type };
+    if (val(e, "Formula")) { try { parseFormula(val(e, "Formula")); f.formula = val(e, "Formula"); } catch { problems.push(`the formula of ${f.name} was left out: ${val(e, "Formula")}`); } }
     fieldById.set(id, f);
   }
   if (fieldById.size) doc.fields = [...fieldById.values()];
   const tasksEl = kid(top, "Tasks");
   const taskEls = tasksEl ? kids(tasksEl, "Task") : [];
   const byUid = new Map();
-  const problems = [];
 
   // owners: resource names by UID, then each task's assignments
   const resources = new Map(), resType = new Map(); // material and cost resources by UID
@@ -236,11 +241,12 @@ export function toProjectXml(doc, isWork = null) {
   const resources = [...new Set([...doc.tasks.flatMap((t) => assignmentsOf(t).map((a) => a.name)), ...(doc.resources || []).map((r) => r.name)])];
   const rid = new Map(resources.map((r, i) => [r, i + 1]));
   // custom fields take Microsoft Project's fields of their type in order (Text1, Text2, …); any past the last are left out
+  const costById = costs(doc).byId; // formula fields go out with their worked-out values
   const slot = { text: 0, number: 0, date: 0, flag: 0 };
   const outFields = (doc.fields || []).map((f) => ({ ...f, id: FIELD_IDS[f.type][slot[f.type]], n: ++slot[f.type] })).filter((f) => f.id);
-  const extXml = outFields.map((f) => `<ExtendedAttribute><FieldID>${f.id}</FieldID><FieldName>${FIELD_LABEL[f.type]}${f.n}</FieldName>${el("Alias", f.name)}</ExtendedAttribute>`).join("\n    ");
-  const custom = (t) => outFields.filter((f) => t.custom?.[f.key] !== undefined).map((f) => {
-    const v = t.custom[f.key];
+  const extXml = outFields.map((f) => `<ExtendedAttribute><FieldID>${f.id}</FieldID><FieldName>${FIELD_LABEL[f.type]}${f.n}</FieldName>${el("Alias", f.name)}${el("Formula", f.formula)}</ExtendedAttribute>`).join("\n    ");
+  const custom = (t) => outFields.map((f) => [f, f.formula ? fieldValue(doc, t, f, { finish: (x) => finishOf(x, isWork), cost: (x) => costById.get(x.id) || 0, work: (x) => (unitsOf(x) > 0 ? workOf(x) : 0) }).value : t.custom?.[f.key]])
+    .filter(([, v]) => v !== undefined && v !== "" && v !== null).map(([f, v]) => {
     return `<ExtendedAttribute><FieldID>${f.id}</FieldID>${el("Value", f.type === "flag" ? (v ? 1 : 0) : f.type === "date" ? `${v}T08:00:00` : v)}</ExtendedAttribute>`;
   }).join("");
   const tasks = doc.tasks.map((t, i) => {

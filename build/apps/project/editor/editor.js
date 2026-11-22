@@ -22,7 +22,7 @@ import { costs, resourceSheet, formatMoney } from "../core/costs.js";
 import { earnedValue } from "../core/earnedvalue.js";
 import { BOARD_COLUMNS, board, progressFor, month, network, NODE, usage, FILTERS, filterTasks, timeline, GROUPS, groupRows, overview, teamPlanner } from "./views.js";
 import { askText, askForm } from "../../common/dialog.js";
-import { FIELD_TYPES, parseValue, formatValue } from "../core/fields.js";
+import { FIELD_TYPES, parseValue, formatValue, fieldValue, fieldIcon, fieldError, FORMULA_FIELDS } from "../core/fields.js";
 import { describe as describeRecurring, patternError } from "../core/recurring.js";
 import { decorateRibbon, ribbonStyles } from "../../common/ribbon.js";
 import { aiDraft } from "../../common/aidraft.js";
@@ -50,6 +50,26 @@ const COLS = [
   { key: "owner", label: "Owner", w: 90, edit: true },
   { key: "priority", label: "Priority", w: 64, edit: true },
 ];
+
+/** The formula and indicator boxes of the custom field dialogs. */
+const FORMULA_FORM = (f = {}) => [
+  { key: "formula", label: "Formula", value: f.formula || "", hint: `optional: worked out instead of typed, e.g. [Cost] * 1.15 or IIf([% Complete] = 100, "Done", "Open"). Fields: ${FORMULA_FIELDS.join(", ")} and your own` },
+  { key: "indicators", label: "Indicators", value: f.indicators || "", hint: "optional: icons instead of values, e.g. red if > 5; yellow if > 0; green (icons: red, yellow, green, blue, flag, check, warn, cross, star)" },
+];
+/** What is wrong with the formula or indicators typed in a dialog, or null. */
+function formulaCheck(x) {
+  const err = fieldError({ key: "f1", name: x.name || "Field", type: x.type || "text", formula: x.formula?.trim() || undefined, indicators: x.indicators?.trim() || undefined });
+  return err;
+}
+
+/** A custom field's value for a task, typed or worked out by its formula: { value } or { error }. */
+let costMemo = { doc: null, byId: null };
+function customOf(t, f) {
+  const isWork = calendar().isWork;
+  if (costMemo.doc !== state.model.doc) costMemo = { doc: state.model.doc, byId: costs(state.model.doc).byId }; // once per edit, not per cell
+  const cost = costMemo.byId;
+  return fieldValue(state.model.doc, t, f, { finish: (x) => finishOf(x, isWork), cost: (x) => cost.get(x.id) || 0, work: (x) => (unitsOf(x) > 0 ? workOf(x) : 0) });
+}
 
 /** The grid's columns: the fixed ones, then one per custom field (key "c:<field key>"). */
 const cols = () => [...COLS, ...(state.model.doc.fields || []).map((f) => ({ key: "c:" + f.key, label: f.name, w: f.type === "flag" ? 56 : f.type === "text" ? 120 : 96, edit: true, field: f }))];
@@ -123,10 +143,24 @@ const commands = {
     if (state.readOnly) return;
     const v = await askForm({
       title: "New custom field", hint: "A column of your own for every task, such as Supplier, Budget code, Approved or Delivery date.", ok: "Add column",
-      fields: [{ key: "name", label: "Name", value: "" }, { key: "type", label: "Type", type: "select", options: FIELD_TYPES.map((t) => [t.key, t.title]), value: "text" }],
-      check: (x) => (!x.name.trim() ? "Give the field a name" : (state.model.doc.fields || []).some((f) => f.name.toLowerCase() === x.name.trim().toLowerCase()) ? "There is already a field with that name" : null),
+      fields: [{ key: "name", label: "Name", value: "" }, { key: "type", label: "Type", type: "select", options: FIELD_TYPES.map((t) => [t.key, t.title]), value: "text" }, ...FORMULA_FORM()],
+      check: (x) => (!x.name.trim() ? "Give the field a name" : (state.model.doc.fields || []).some((f) => f.name.toLowerCase() === x.name.trim().toLowerCase()) ? "There is already a field with that name" : formulaCheck(x)),
     });
-    if (v) run(() => state.model.addField(v.name, v.type));
+    if (v) run(() => state.model.addField(v.name, v.type, { formula: v.formula, indicators: v.indicators }));
+  },
+  editField: async () => {
+    if (state.readOnly) return;
+    const fs = state.model.doc.fields || [];
+    if (!fs.length) { state.message = "There are no custom fields yet: add one with Custom Field"; render(); return; }
+    const pick = fs.length === 1 ? { key: fs[0].key } : await askForm({ title: "Edit a custom field", ok: "Next", fields: [{ key: "key", label: "Field", type: "select", options: fs.map((f) => [f.key, f.name]), value: fs[0].key }] });
+    const f = pick && fs.find((x) => x.key === pick.key);
+    if (!f) return;
+    const v = await askForm({
+      title: `Edit “${f.name}”`, ok: "Save",
+      fields: [{ key: "name", label: "Name", value: f.name }, ...FORMULA_FORM(f)],
+      check: (x) => (!x.name.trim() ? "Give the field a name" : fs.some((o) => o.key !== f.key && o.name.toLowerCase() === x.name.trim().toLowerCase()) ? "There is already a field with that name" : formulaCheck(x)),
+    });
+    if (v) run(() => state.model.updateField(f.key, v));
   },
   removeField: async () => {
     if (state.readOnly) return;
@@ -339,7 +373,7 @@ function tableRows() {
   state.model.tasks.forEach((t, i) => {
     const v = state.model.view(t.id);
     const preds = state.model.doc.links.filter((l) => l.to === t.id).map((l) => `${state.model.indexOf(l.from) + 1}${l.type}${l.lag ? (l.lag > 0 ? "+" : "") + l.lag + "d" : ""}`).join(";");
-    rows.push([i + 1, wbs.get(t.id), t.level, "  ".repeat(t.level) + t.name, v.duration, v.start, v.finish, t.deadline || "", v.progress, t.owner || "", preds, t.inactive ? "No" : "Yes", ...fs.map((f) => (f.type === "flag" ? (t.custom?.[f.key] ? "Yes" : "No") : t.custom?.[f.key] ?? ""))]);
+    rows.push([i + 1, wbs.get(t.id), t.level, "  ".repeat(t.level) + t.name, v.duration, v.start, v.finish, t.deadline || "", v.progress, t.owner || "", preds, t.inactive ? "No" : "Yes", ...fs.map((f) => { const cv = customOf(t, f); return cv.error ? "#ERR" : f.type === "flag" ? (cv.value ? "Yes" : "No") : cv.value ?? ""; })]);
   });
   return rows;
 }
@@ -355,7 +389,7 @@ function renderGrid(rows) {
   const wbs = wbsCodes(t.tasks);
   const cost = costs(t.doc).byId;
   const C = cols();
-  let html = `<table class="wp-table"><colgroup>${C.map((c) => `<col style="width:${c.w}px">`).join("")}</colgroup><tr>${C.map((c) => `<th${c.field ? ` class="custom" title="${esc(c.field.name)} (${c.field.type})"` : ""}>${esc(c.label)}</th>`).join("")}</tr>`;
+  let html = `<table class="wp-table"><colgroup>${C.map((c) => `<col style="width:${c.w}px">`).join("")}</colgroup><tr>${C.map((c) => `<th${c.field ? ` class="custom" title="${esc(c.field.name)} (${c.field.type})${c.field.formula ? ` = ${esc(c.field.formula)}` : ""}"` : ""}>${esc(c.label)}</th>`).join("")}</tr>`;
   for (const r of rows) {
     if (r.group) {
       html += `<tr class="is-summary is-group" data-group="${esc(r.id)}"><td class="n"></td><td colspan="${C.length - 1}" class="name"><span class="tw" data-toggle="${esc(r.id)}">${state.collapsed.has(r.id) ? "▸" : "▾"}</span>${esc(r.name)} <span class="wp-group-n">${r.count} task${r.count === 1 ? "" : "s"} · ${fmt(r.start)} – ${fmt(r.finish)} · ${r.progress}%</span></td></tr>`;
@@ -367,7 +401,12 @@ function renderGrid(rows) {
         const v = r.custom?.[c.field.key];
         return `<td class="custom"><input data-edit-input value="${esc(c.field.type === "flag" ? (v ? "yes" : "") : v ?? "")}" ${c.field.type === "date" ? 'type="date"' : ""} placeholder="${c.field.type === "flag" ? "yes / no" : ""}"></td>`;
       }
-      if (c.field) return `<td class="custom ${c.field.type}">${esc(formatValue(c.field.type, r.custom?.[c.field.key], fmt))}</td>`;
+      if (c.field) {
+        const cv = customOf(r, c.field);
+        if (cv.error) return `<td class="custom is-error" title="${esc(cv.error)}">#ERR</td>`;
+        const icon = fieldIcon(c.field, cv.value), text = formatValue(c.field.type, cv.value, fmt);
+        return `<td class="custom ${c.field.type}${c.field.formula ? " is-formula" : ""}" title="${icon ? esc(text) : ""}">${icon ? `<span class="wp-ind">${icon}</span>` : esc(text)}</td>`;
+      }
       if (state.editing && state.editing.id === r.id && state.editing.key === c.key) {
         const value = c.key === "duration" ? `${r.duration}d` : c.key === "progress" ? r.progress : c.key === "work" ? `${workOf(r)}h` : (r[c.key] ?? "");
         return `<td class="${c.key}"><input data-edit-input value="${esc(value)}" ${c.key === "start" || c.key === "deadline" ? 'type="date"' : ""}></td>`;
@@ -403,6 +442,7 @@ function startEdit(id, key) {
   if (state.readOnly) return;
   const col = cols().find((c) => c.key === key);
   if (!col || !col.edit) return;
+  if (col.field?.formula) { state.message = `${col.field.name} is worked out by its formula: ${col.field.formula}`; render(); return; }
   if (state.model.isSummary(id) && (key === "duration" || key === "start" || key === "progress" || key === "deadline" || key === "work" || key === "priority")) { state.message = "A summary's dates and progress come from its subtasks"; render(); return; }
   state.editing = { id, key };
   render();

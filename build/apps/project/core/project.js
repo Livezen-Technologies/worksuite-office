@@ -369,10 +369,27 @@ export class ProjectModel {
   /** Joins a split task's pieces back together. */
   unsplit(id) { return this.edit((d) => { const t = d.tasks.find((x) => x.id === id); if (t) delete t.splits; }); }
   /** Adds a custom field (a column) of a type; returns its key. */
-  addField(name, type) {
+  addField(name, type, extra = {}) {
     let key;
-    this.edit((d) => { d.fields = d.fields || []; key = nextFieldKey(d.fields); d.fields.push({ key, name: String(name).trim(), type }); });
+    this.edit((d) => {
+      d.fields = d.fields || []; key = nextFieldKey(d.fields);
+      const f = { key, name: String(name).trim(), type };
+      if (extra.formula && String(extra.formula).trim()) f.formula = String(extra.formula).trim();
+      if (extra.indicators && String(extra.indicators).trim()) f.indicators = String(extra.indicators).trim();
+      d.fields.push(f);
+    });
     return key;
+  }
+  /** Changes a custom field's name, formula or indicators (empty text removes a formula or indicators). */
+  updateField(key, props) {
+    return this.edit((d) => {
+      const f = (d.fields || []).find((x) => x.key === key);
+      if (!f) return;
+      if (props.name !== undefined) f.name = String(props.name).trim();
+      for (const k of ["formula", "indicators"]) if (props[k] !== undefined) { const v = String(props[k] ?? "").trim(); if (v) f[k] = v; else delete f[k]; }
+      // a field worked out by a formula keeps no typed values
+      if (f.formula) for (const t of d.tasks) if (t.custom && f.key in t.custom) { delete t.custom[f.key]; if (!Object.keys(t.custom).length) delete t.custom; }
+    });
   }
   /** Renames a custom field. */
   renameField(key, name) { return this.edit((d) => { const f = (d.fields || []).find((x) => x.key === key); if (f) f.name = String(name).trim(); }); }
@@ -386,6 +403,8 @@ export class ProjectModel {
   }
   /** A task's value for a custom field; undefined clears it. */
   setCustom(id, key, value) {
+    const f = (this.doc.fields || []).find((x) => x.key === key);
+    if (f?.formula) throw new Error(`${f.name} is worked out by its formula`);
     return this.edit((d) => {
       const t = d.tasks.find((x) => x.id === id);
       if (!t) return;
