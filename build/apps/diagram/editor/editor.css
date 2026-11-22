@@ -93,3 +93,9 @@ body { font: 13px/1.35 Inter, system-ui, -apple-system, "Segoe UI", sans-serif; 
 
 /* inside the WorkSuite Diagram plugin: the document saves the diagram, so no File tab or title */
 .is-embedded .wd-tab[data-tab="file"], .is-embedded .wd-title { display: none; }
+.wd-data { display: grid; grid-template-columns: 1fr 1fr auto; gap: 4px; margin-bottom: 4px; }
+.wd-data input { min-width: 0; }
+.wd-data button { padding: 0 6px; }
+.wd-data-tools { display: flex; gap: 10px; align-items: center; margin-bottom: 8px; }
+.wd-data-tools .inline { display: flex; gap: 4px; align-items: center; font-size: 12px; }
+.shape-data { fill: var(--ink2, #52525b); }
