@@ -90,9 +90,8 @@ Stage 6, shipped:
 Stage 6, left:
 
 - Files: VSDM, stencils (VSSX/VSS) and templates (VSTX/VST); user-built masters and stencils
-- Templates: network and rack, cloud architecture, P&ID, floor and site plans, value stream maps, brainstorming
-- Lists (containers that stack their shapes)
-- Visio export of data graphic icons and bars, and of comments
+- Templates: P&ID, site plans
+- Visio export of data graphic icons and bars
 
 Alongside (worksuite repository, `ops/document-server`): a terminal and a web setup wizard for the Document Server,
 and its admin panel and API (status, actions, logs, settings, secret rotation, fonts, users and roles,

@@ -136,3 +136,26 @@ test("not a Visio drawing", async () => {
   const { zip } = await import("../apps/common/zip.js");
   await assert.rejects(fromVsdx(zip([{ name: "a.txt", data: "x" }])), /not a Visio drawing/);
 });
+
+test("comments travel through .vsdx: on shapes and the page, replies in the text, resolved kept", async () => {
+  const m = new DiagramModel(newDiagram("Reviewed"));
+  const a = m.addShape({ type: "rect", x: 40, y: 40, w: 120, h: 60, text: "Step" });
+  const c1 = m.addComment(a, "Is this the <right> step?", "Asha Perera", "2026-11-20T09:00:00.000Z");
+  m.replyComment(c1, "Yes & it stays", "Ravi", "2026-11-20T10:00:00.000Z");
+  const c2 = m.addComment(null, "Page note", "Ravi", "2026-11-21T08:00:00.000Z");
+  m.resolveComment(c2);
+  const bytes = toVsdx(m.doc, (s) => shapePath(s.type, s.w, s.h, s.path), routeOf(m));
+  const { doc } = await fromVsdx(bytes);
+  const page = doc.pages[0], shape = page.items.find((i) => i.kind === "shape");
+  assert.equal(page.comments.length, 2);
+  const [x, y] = page.comments;
+  assert.equal(x.target, shape.id);
+  assert.equal(x.author, "Asha Perera");
+  assert.equal(x.text, "Is this the <right> step?\n— Ravi: Yes & it stays");
+  assert.equal(x.at, "2026-11-20T09:00:00.000Z");
+  assert.equal(x.done, false);
+  assert.equal(y.target, null);
+  assert.equal(y.done, true);
+  const plain = await fromVsdx(toVsdx(new DiagramModel(newDiagram("None")).doc, (s) => shapePath(s.type, s.w, s.h, s.path), routeOf(m)));
+  assert.equal(plain.doc.pages[0].comments, undefined);
+});
