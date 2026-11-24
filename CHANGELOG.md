@@ -1,5 +1,20 @@
 # Change log
 
+## 10.1.97
+
+### New features
+
+#### Diagram
+
+* Smart shapes: a shape data value that starts with = is a formula, in the
+  same language as Project's custom fields, such as =[Qty] * [Price] or
+  =IIf([Total] > 5000, "Approve", "OK"). It reads the shape's other data,
+  and Width, Height (in real units on a scaled drawing), Text and Page. The
+  panel shows each result; a formula that refers to itself shows #CYCLE.
+* Text fields: shape text can show its data, such as {Name} or {Total}, and
+  follows the data as it changes. Data graphics, tooltips and Visio export
+  use the worked out values.
+
 ## 10.1.96
 
 ### Fixes
