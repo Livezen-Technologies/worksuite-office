@@ -33,3 +33,19 @@ test("callouts: next to their shape with a leader line; a removed target leaves 
   assert.equal(m.item(n).target, undefined);
   assert.throws(() => m.edit((d) => { d.pages[0].items[0].target = "zz"; }), /callout target is not on the page/);
 });
+
+test("the cloud library's Container shape is its own type, and files from 10.1.89 to 10.1.91 are put right on opening", async () => {
+  const { LIBRARIES, shapePath } = await import("../apps/diagram/editor/geometry.js");
+  const cloud = LIBRARIES.find((l) => l.id === "cloud").shapes.find((s) => s.name === "Container");
+  assert.equal(cloud.type, "appcontainer");
+  assert.match(shapePath("appcontainer", 64, 70), /^M32 0/);
+  const m = new DiagramModel(newDiagram("Cloud"));
+  const a = m.addShape({ type: "rect", x: 100, y: 100, w: 100, h: 50 });
+  const titled = m.addContainer([a], "Team");
+  m.addShape({ type: "rect", x: 400, y: 100, w: 64, h: 70, text: "" });
+  const doc = JSON.parse(serialize(m.doc));
+  doc.pages[0].items.at(-1).type = "container"; // as 10.1.89 to 10.1.91 saved a cloud container
+  const back = parse(JSON.stringify(doc));
+  assert.equal(back.pages[0].items.at(-1).type, "appcontainer");
+  assert.equal(back.pages[0].items.find((i) => i.id === titled).type, "container", "a titled container round shapes stays one");
+});
