@@ -24,6 +24,8 @@ export const TEMPLATES = [
   { id: "cloud", name: "Cloud architecture", group: "IT", about: "Users, a load balancer, app containers, functions, a queue and storage." },
   { id: "rack", name: "Equipment rack", group: "IT", about: "A 12U rack with patch panel, switch, servers and storage." },
   { id: "floorplan", name: "Office floor plan", group: "Facilities", about: "Rooms, walls, doors, desks and a 1:100 scale." },
+  { id: "pid", name: "Piping and instrumentation (P&ID)", group: "Engineering", about: "A tank, pump, control valve and flow loop on process lines." },
+  { id: "siteplan", name: "Site plan", group: "Facilities", about: "A building on its plot with a road, parking, trees and a 1:500 scale." },
   { id: "valuestream", name: "Value stream map", group: "Business", about: "Supplier to customer: process steps, inventory and lead times." },
 ];
 
@@ -36,8 +38,8 @@ export function templatePage(id, newId) {
   const C = (from, to, text = "", fp = "right", tp = "left", extra = {}) => { items.push({ id: newId("c"), kind: "connector", layer, from: { shape: from, point: fp }, to: { shape: to, point: tp }, route: "elbow", text, style: { arrowEnd: true }, ...extra }); };
   let width = 842, height = 595;
   BUILD[id]({ S, C });
-  if (id === "swimlane" || id === "timeline" || id === "erd" || id === "valuestream") width = 1000;
-  return { name: t.name, width, height, layers: [{ id: layer, name: "Layer 1", visible: true, locked: false }], items, ...(id === "floorplan" ? { scale: { paper: 1, paperUnit: "cm", real: 1, realUnit: "m" } } : {}) };
+  if (id === "swimlane" || id === "timeline" || id === "erd" || id === "valuestream" || id === "pid") width = 1000;
+  return { name: t.name, width, height, layers: [{ id: layer, name: "Layer 1", visible: true, locked: false }], items, ...(id === "floorplan" ? { scale: { paper: 1, paperUnit: "cm", real: 1, realUnit: "m" } } : id === "siteplan" ? { scale: { paper: 1, paperUnit: "cm", real: 5, realUnit: "m" } } : {}) };
 }
 
 const CM = 720 / 25.4; // a centimetre in points: a metre at 1:100
@@ -77,6 +79,34 @@ const BUILD = {
     for (let r = 0; r < 2; r++) for (let c = 0; c < 3; c++) S("desk", ox + 40 + c * 2.4 * CM, oy + 1.6 * CM + r * 3.8 * CM, 60, 44, "");
     S("table", ox + 12.4 * CM, oy + 0.35 * CM, 40, 40, "");
     S("dimension", ox, oy + H + 20, W, 28, "");
+  },
+  pid({ S, C }) {
+    const line = { arrowEnd: true, lineWidth: 2 }, signal = { arrowEnd: false, dash: true };
+    const P = (from, to, fp, tp, text = "") => C(from, to, text, fp, tp, { route: "straight", style: { ...line } });
+    const feed = S("rect", 40, 260, 90, 36, "Feed", { style: { fill: "#f8fafc", line: "#334155" } });
+    const v1 = S("valve", 175, 268, 36, 20, "");
+    const tank = S("vessel", 250, 180, 80, 160, "T-101\nFeed tank");
+    const pump = S("pump", 390, 300, 50, 50, "P-101");
+    const ft = S("instrument", 480, 200, 44, 44, "FT\n101"), fic = S("instrument", 580, 120, 44, 44, "FIC\n101");
+    const fcv = S("controlvalve", 590, 281, 36, 44, "");
+    const hx = S("heatexchanger", 680, 283, 60, 60, "");
+    S("rect", 660, 346, 100, 18, "E-101", { style: { fill: "none", line: "none", fontSize: 12 } });
+    const out = S("rect", 790, 295, 90, 36, "To reactor", { style: { fill: "#f8fafc", line: "#334155" } });
+    P(feed, v1, "right", "left"); P(v1, tank, "right", "left"); P(tank, pump, "bottom", "left"); P(pump, fcv, "right", "bottom");
+    P(fcv, hx, "right", "left"); P(hx, out, "right", "left");
+    C(ft, fic, "", "top", "left", { route: "elbow", style: { ...signal } }); C(fic, fcv, "", "bottom", "top", { route: "straight", style: { ...signal } });
+    S("rect", 40, 500, 920, 40, "Process lines: solid. Signal lines: dashed. Tags follow ISA 5.1 (FT flow transmitter, FIC flow controller).", { style: { fill: "none", line: "none", fontSize: 11 } });
+  },
+  siteplan({ S }) {
+    const M = 720 / 25.4 / 5; // a metre at 1:500
+    const ox = 60, oy = 60, W = 120 * M, H = 80 * M;
+    S("rect", ox, oy, W, H, "", { style: { fill: "#f0fdf4", line: "#15803d", lineWidth: 1.5 } }); // the plot
+    S("road", ox - 20, oy + H + 10, W + 40, 8 * M, "Main road");
+    S("rect", ox + 20 * M, oy + H - 12 * M, 6 * M, 12 * M + 10, "", { style: { fill: "#d4d4d8", line: "#71717a" } }); // driveway
+    S("building", ox + 15 * M, oy + 12 * M, 50 * M, 30 * M, "Office building");
+    S("parking", ox + 72 * M, oy + 45 * M, 40 * M, 15 * M, "");
+    for (const [x, y] of [[8, 8], [8, 60], [80, 10], [100, 10], [100, 30], [40, 62]]) S("tree", ox + x * M, oy + y * M, 6 * M, 6 * M, "");
+    S("dimension", ox, oy - 34, W, 28, "");
   },
   valuestream({ S, C }) {
     const sup = S("rect", 40, 60, 130, 60, "Supplier", { style: { fill: "#f1f5f9", line: "#475569" } }), cus = S("rect", 830, 60, 130, 60, "Customer", { style: { fill: "#f1f5f9", line: "#475569" } });

@@ -16,7 +16,7 @@
  *                target?: a shape id (a callout's shape; container.js)
  *                link?: { page } | { url } (a hyperlink to a page of the diagram or an address; hyperlink.js)
  *   Connector: { id, kind: "connector", layer, from: End, to: End, route: "straight" | "elbow" | "curved",
- *                text, style: { line, lineWidth, arrowEnd, arrowStart } }
+ *                text, style: { line, lineWidth, dash, arrowEnd, arrowStart } }
  *     End:     { shape, point } glued to one of the shape's connection points, or { x, y } free
  *   Group:     { id, kind: "group", layer, members: [shape or group ids] }
  * Coordinates are in points on the page; x, y are the shape's top-left before rotation.

@@ -42,6 +42,18 @@ export function shapePath(type, w, h, path = null) {
     case "desk": return `${box(w, h * 0.7)} M${r(w * 0.35)} ${r(h * 0.78)} H${r(w * 0.65)} V${r(h)} H${r(w * 0.35)} Z`;
     case "sofa": return `M0 0 H${r(w)} V${r(h)} H0 Z M${r(w * 0.12)} ${r(h * 0.3)} H${r(w * 0.88)} V${r(h)} M${r(w * 0.12)} ${r(h * 0.3)} V${r(h)}`;
     /* UML */
+    // P&ID (ISA 5.1 style): vessel, pump, valves, instrument bubble, heat exchanger
+    case "vessel": { const k = Math.min(h * 0.15, w / 2); return `M0 ${r(k)} A${r(w / 2)} ${r(k)} 0 0 1 ${r(w)} ${r(k)} V${r(h - k)} A${r(w / 2)} ${r(k)} 0 0 1 0 ${r(h - k)} Z`; }
+    case "pump": return `${oval(w / 2, h / 2, w / 2, h / 2)} M${r(w / 2)} 0 H${r(w)} M${r(w * 0.15)} ${r(h)} L${r(w * 0.3)} ${r(h * 0.82)} M${r(w * 0.85)} ${r(h)} L${r(w * 0.7)} ${r(h * 0.82)}`;
+    case "valve": return `M0 0 L${r(w)} ${r(h)} V0 L0 ${r(h)} Z`;
+    case "controlvalve": return `M0 ${r(h * 0.45)} L${r(w)} ${r(h)} V${r(h * 0.45)} L0 ${r(h)} Z M${r(w / 2)} ${r(h * 0.72)} V${r(h * 0.25)} M${r(w * 0.2)} ${r(h * 0.25)} A${r(w * 0.3)} ${r(h * 0.25)} 0 0 1 ${r(w * 0.8)} ${r(h * 0.25)} Z`;
+    case "instrument": return `${oval(w / 2, h / 2, w / 2, h / 2)} M0 ${r(h / 2)} H${r(w)}`;
+    case "heatexchanger": return `${oval(w / 2, h / 2, w / 2, h / 2)} M${r(w * 0.1)} ${r(h / 2)} L${r(w * 0.3)} ${r(h * 0.25)} L${r(w * 0.5)} ${r(h * 0.75)} L${r(w * 0.7)} ${r(h * 0.25)} L${r(w * 0.9)} ${r(h / 2)}`;
+    // site plan: building footprint, tree, parking bays, road
+    case "building": return `${box(w, h)} M0 0 L${r(w)} ${r(h)} M${r(w)} 0 L0 ${r(h)}`;
+    case "tree": return `${oval(w / 2, h / 2, w / 2, h / 2)} ${oval(w / 2, h / 2, w * 0.08, h * 0.08)}`;
+    case "parking": { let d = box(w, h); const n = Math.max(1, Math.round(w / 30)); for (let i = 1; i < n; i++) d += ` M${r((w * i) / n)} 0 V${r(h * 0.8)}`; return d; }
+    case "road": return `${box(w, h)} M0 ${r(h / 2)} H${r(w)}`;
     case "class": return `${box(w, h)} M0 ${r(h * 0.28)} H${r(w)} M0 ${r(h * 0.64)} H${r(w)}`;
     case "actor": { const hr = Math.min(w, h) * 0.14; return `${oval(w / 2, hr, hr, hr)} M${r(w / 2)} ${r(2 * hr)} V${r(h * 0.62)} M${r(w * 0.15)} ${r(h * 0.36)} H${r(w * 0.85)} M${r(w * 0.15)} ${r(h)} L${r(w / 2)} ${r(h * 0.62)} L${r(w * 0.85)} ${r(h)}`; }
     case "usecase": return oval(w / 2, h / 2, w / 2, h / 2);
@@ -120,6 +132,20 @@ export const LIBRARIES = [
     { type: "task", name: "Task", w: 140, h: 70, text: "Task" },
     { type: "gateway", name: "Gateway", w: 56, h: 56, text: "" },
     { type: "pool", name: "Pool / lane", w: 500, h: 140, text: "" },
+  ] },
+  { id: "pid", name: "Process (P&ID)", shapes: [
+    { type: "vessel", name: "Tank / vessel", w: 70, h: 130, text: "" },
+    { type: "pump", name: "Pump", w: 50, h: 50, text: "" },
+    { type: "valve", name: "Valve", w: 36, h: 20, text: "" },
+    { type: "controlvalve", name: "Control valve", w: 36, h: 44, text: "" },
+    { type: "instrument", name: "Instrument", w: 44, h: 44, text: "FT\n101" },
+    { type: "heatexchanger", name: "Heat exchanger", w: 60, h: 60, text: "" },
+  ] },
+  { id: "site", name: "Site plan", shapes: [
+    { type: "building", name: "Building", w: 200, h: 120, text: "" },
+    { type: "tree", name: "Tree", w: 40, h: 40, text: "" },
+    { type: "parking", name: "Parking bays", w: 180, h: 60, text: "" },
+    { type: "road", name: "Road", w: 300, h: 40, text: "" },
   ] },
   { id: "cloud", name: "Cloud architecture", shapes: [
     { type: "vm", name: "Virtual machine", w: 70, h: 70, text: "VM" },
