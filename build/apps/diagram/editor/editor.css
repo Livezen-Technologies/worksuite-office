@@ -93,6 +93,12 @@ body { font: 13px/1.35 Inter, system-ui, -apple-system, "Segoe UI", sans-serif; 
 
 /* inside the WorkSuite Diagram plugin: the document saves the diagram, so no File tab or title */
 .is-embedded .wd-tab[data-tab="file"], .is-embedded .wd-title { display: none; }
+.wd-issues { border-bottom: 1px solid var(--line, #e4e4e7); padding-bottom: 8px; margin-bottom: 8px; }
+.wd-issues h4 { display: flex; justify-content: space-between; align-items: center; }
+.wd-issues h4 button { padding: 0 6px; }
+.wd-issue { display: grid; grid-template-columns: 1fr auto; gap: 4px; margin-bottom: 4px; }
+.wd-issue .go { text-align: left; white-space: normal; padding: 4px 6px; border-left: 3px solid var(--guide); }
+.issue-mark { fill: none; stroke: var(--guide); stroke-width: 2; stroke-dasharray: 5 3; pointer-events: none; }
 .wd-data { display: grid; grid-template-columns: 1fr 1fr auto; gap: 4px; margin-bottom: 4px; }
 .wd-data input { min-width: 0; }
 .wd-data button { padding: 0 6px; }
@@ -100,3 +106,4 @@ body { font: 13px/1.35 Inter, system-ui, -apple-system, "Segoe UI", sans-serif; 
 .wd-data-tools .inline { display: flex; gap: 4px; align-items: center; font-size: 12px; }
 .shape-data { fill: var(--ink2, #52525b); }
 .wd-status .note { color: var(--ink2, #52525b); }
+@media print { .issue-mark { display: none; } }

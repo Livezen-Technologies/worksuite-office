@@ -1,5 +1,20 @@
 # Change log
 
+## 10.1.93
+
+### New features
+
+#### Diagram
+
+* Diagram validation: Review › Check Diagram checks the page against the
+  flowchart or BPMN rules, chosen from the shapes on it, and lists the issues
+  beside the page with the shapes marked. A flowchart needs a Start / end
+  shape; decisions need two or more labelled ways out; every step needs
+  something after it, and no shape or line may be left on its own. A BPMN
+  process needs start and end events used the right way round, tasks with a
+  flow in and out, and gateways that split or join. The list keeps up as you
+  edit; click an issue to select its shape, or ignore it (the page remembers).
+
 ## 10.1.92
 
 ### Fixes
