@@ -24,6 +24,7 @@ import { THEMES, VARIANTS, themeColors, themeConnector, borderParts, contrast } 
 import { checkPage, rulesetOf, issueKey } from "../core/rules.js";
 import { openCounts, sortThreads, ago, initials } from "../core/comments.js";
 import { computeData, shapeText, withComputed, isFormula, formulaError } from "../core/smart.js";
+import { TEMPLATES, templatePage } from "../core/templates.js";
 import { PRESETS, PAPERS, UNITS, PAPER_UNITS, toReal, fromReal, unitOf, formatLength, scaleText, tiles } from "../core/scale.js";
 import { decorateRibbon, ribbonStyles } from "../../common/ribbon.js";
 import { aiDraft } from "../../common/aidraft.js";
@@ -127,6 +128,20 @@ const commands = {
     if (!v) return;
     const background = v.background === "custom" ? v.custom : v.background || null;
     run(() => state.model.setLook({ background, border: v.border ? { style: v.border, title: v.title.trim() } : null }, v.scope === "all" ? state.model.doc.pages.map((x) => x.id) : [state.pageId]));
+  },
+  fromTemplate: async () => {
+    if (state.readOnly) return;
+    const v = await askForm({
+      title: "New from a template", ok: "Add page",
+      hint: "The template is added as a new page of this diagram, ready to change.",
+      fields: [{ key: "t", label: "Template", type: "radio", value: "flowchart", options: TEMPLATES.map((t) => [t.id, `${t.name}: ${t.about}`]) }],
+    });
+    if (!v) return;
+    run(() => {
+      const m = state.model, pageId = m.id("p");
+      m.edit((d) => { d.pages.push({ id: pageId, ...templatePage(v.t, (x) => m.id(x)) }); });
+      state.pageId = pageId; state.sel = [];
+    });
   },
   checkDiagram: () => { state.checking = true; render(); },
   comments: () => { state.commenting = !state.commenting; render(); },
@@ -384,6 +399,12 @@ function textLines(text, x, cx, cy, size = 13) {
   const top = cy - ((lines.length - 1) * size * 1.25) / 2 + size * 0.35;
   return lines.map((l, i) => `<tspan x="${cx}" y="${top + i * size * 1.25}">${esc(l)}</tspan>`).join("");
 }
+/** A UML class or database table: the name centred in the top band, the other lines listed left aligned below it. */
+function classText(text, s) {
+  const [name, ...rest] = String(text || "").split("\n"), size = s.style?.fontSize || 13, band = s.h * 0.28;
+  return `<tspan x="${s.w / 2}" y="${band / 2 + size * 0.35}" font-weight="600">${esc(name)}</tspan>` +
+    rest.map((l, i) => `<tspan x="8" text-anchor="start" y="${band + 6 + size + i * size * 1.3}" style="font-size:${size - 1}px">${esc(l)}</tspan>`).join("");
+}
 /** The field data graphics colour by at first: one named like Status, else the first whose values are text. */
 function defaultField(labels) {
   const textual = labels.filter((l) => page().items.some((i) => (i.data || []).some((d) => d.label === l && typeof d.value === "string" && d.value)));
@@ -425,7 +446,7 @@ function shapeSvg(s) {
   const shown = s.style?.showData && s.data?.length ? `<text class="shape-data" text-anchor="middle" style="font-size:10px">${sc.data.map((d, i) => `<tspan x="${s.w / 2}" y="${s.h + 12 + i * 12}">${esc(d.label)}: ${esc(formatDataValue(d.value))}</tspan>`).join("")}</text>` : "";
   const tip = s.data?.length ? `<title>${esc([label, ...sc.data.map((d) => `${d.label}: ${formatDataValue(d.value)}`)].filter(Boolean).join("\n"))}</title>` : "";
   return `<g data-id="${s.id}" transform="${tf}">${tip}<path class="shape-body" d="${shapePath(s.type, s.w, s.h, s.path)}" fill="${fill}" stroke="${line}" stroke-width="${lw}"/>` +
-    `<text class="shape-text" text-anchor="middle" style="font-size:${s.style?.fontSize || 13}px${ink}">${s.type === "dimension" ? textLines(s.text || formatLength(s.w, page().scale), 0, s.w / 2, (s.h - 12) / 2, s.style?.fontSize || 12) : textLines(label, 0, s.w / 2, s.h / 2, s.style?.fontSize || 13)}</text>${shown}` +
+    `<text class="shape-text" text-anchor="middle" style="font-size:${s.style?.fontSize || 13}px${ink}">${s.type === "dimension" ? textLines(s.text || formatLength(s.w, page().scale), 0, s.w / 2, (s.h - 12) / 2, s.style?.fontSize || 12) : s.type === "class" ? classText(label, s) : textLines(label, 0, s.w / 2, s.h / 2, s.style?.fontSize || 13)}</text>${shown}` +
     (s.link ? `<text class="link-mark" x="4" y="${s.h - 4}" style="font-size:11px"><title>${esc(s.link.page ? `Go to ${linkText(s.link, state.model.doc.pages)}` : s.link.url)} (Ctrl+click)</title>🔗</text>` : "") +
     (gfx.icon ? `<text class="data-icon" x="${s.w - 4}" y="14" text-anchor="end" style="font-size:13px">${gfx.icon}</text>` : "") +
     (gfx.bar !== undefined ? `<rect class="data-bar-bg" x="6" y="${s.h - 9}" width="${s.w - 12}" height="5" rx="2.5" fill="#e5e7eb"/><rect class="data-bar" x="6" y="${s.h - 9}" width="${(s.w - 12) * gfx.bar}" height="5" rx="2.5" fill="#2a78d6"><title>${esc(gfx.barLabel)}</title></rect>` : "") + `</g>`;

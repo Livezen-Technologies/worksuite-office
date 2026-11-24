@@ -1,5 +1,19 @@
 # Change log
 
+## 10.1.98
+
+### New features
+
+#### Diagram
+
+* Templates: File › From Template adds a ready-made page to change: a basic
+  flowchart, a cross-functional flowchart, a BPMN process, an org chart, a
+  project timeline, a UML use case diagram, a UML class diagram, a database
+  (ERD) diagram, a network diagram or a mind map. The flowchart and BPMN
+  templates pass Check Diagram as they come.
+* UML classes and database tables show their name in the top band and their
+  fields listed below it.
+
 ## 10.1.97
 
 ### New features
