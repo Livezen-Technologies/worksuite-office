@@ -10,7 +10,8 @@
  * The page stands alone until the native shell hosts it (#72); window.WorkSuiteDiagram lets the shell load a
  * file, read it back and switch read-only mode (free viewing, #73).
  */
-import { autoLayout, applyLayout } from "../core/layout.js";
+import { applyLayout } from "../core/layout.js";
+import { align, distribute, autoAlignSpace, relayout } from "../core/arrange.js";
 import { parseTable, readTable, addTable } from "../core/fromtable.js";
 import { askText, askForm } from "../../common/dialog.js";
 import { lanePath, LANE_HEADER } from "../core/swimlane.js";
@@ -166,15 +167,20 @@ const commands = {
   ungroup: () => run(() => { const g = state.sel.map(byId).filter((i) => i?.kind === "group"); g.forEach((x) => state.model.ungroup(x.id, state.pageId)); state.sel = g.flatMap((x) => x.members); }),
   front: () => run(() => state.sel.forEach((id) => state.model.toFront(id, state.pageId))),
   back: () => run(() => [...state.sel].reverse().forEach((id) => state.model.toBack(id, state.pageId))),
-  alignLeft: () => arrange((ss) => { const x = Math.min(...ss.map((s) => s.x)); ss.forEach((s) => (s.x = x)); }),
-  alignCenter: () => arrange((ss) => { const c = ss[0].x + ss[0].w / 2; ss.forEach((s) => (s.x = c - s.w / 2)); }),
-  alignTop: () => arrange((ss) => { const y = Math.min(...ss.map((s) => s.y)); ss.forEach((s) => (s.y = y)); }),
-  distributeH: () => arrange((ss) => {
-    ss.sort((a, b) => a.x - b.x);
-    const total = ss.reduce((a, s) => a + s.w, 0), span = ss[ss.length - 1].x + ss[ss.length - 1].w - ss[0].x, gap = (span - total) / (ss.length - 1);
-    let x = ss[0].x;
-    for (const s of ss) { s.x = x; x += s.w + gap; }
-  }, 3),
+  alignLeft: () => arrange((ss) => align(ss, "left")),
+  alignCenter: () => arrange((ss) => align(ss, "center")),
+  alignRight: () => arrange((ss) => align(ss, "right")),
+  alignTop: () => arrange((ss) => align(ss, "top")),
+  alignMiddle: () => arrange((ss) => align(ss, "middle")),
+  alignBottom: () => arrange((ss) => align(ss, "bottom")),
+  distributeH: () => arrange((ss) => distribute(ss, "h"), 3),
+  distributeV: () => arrange((ss) => distribute(ss, "v"), 3),
+  autoAlign: () => run(() => {
+    const picked = selShapes().map((s) => s.id);
+    const moved = autoAlignSpace(page(), picked.length >= 2 ? picked : null);
+    if (!moved.size) { state.note = "Already lined up and evenly spaced"; return; }
+    state.model.edit((d) => applyLayout(d.pages.find((p) => p.id === state.pageId), { positions: moved, connectors: [], page: null }));
+  }),
   layoutDown: () => layout("down"),
   layoutRight: () => layout("right"),
   zoomIn: () => { state.zoom = Math.min(4, state.zoom * 1.25); render(); },
@@ -229,7 +235,7 @@ function layout(direction) {
   run(() => {
     const picked = selShapes().map((s) => s.id);
     const ids = picked.length >= 2 ? picked : null;
-    const plan = autoLayout(page(), { direction, ids });
+    const plan = relayout(page(), direction, ids);
     if (plan.positions.size < 2) throw new Error("Nothing to lay out: add two or more shapes");
     state.model.edit((d) => applyLayout(d.pages.find((p) => p.id === state.pageId), plan));
   });
