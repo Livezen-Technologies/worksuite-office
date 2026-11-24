@@ -13,7 +13,8 @@
 import { autoLayout, applyLayout } from "../core/layout.js";
 import { parseTable, readTable, addTable } from "../core/fromtable.js";
 import { askText, askForm } from "../../common/dialog.js";
-import { laneMembers, lanePath, LANE_HEADER } from "../core/swimlane.js";
+import { lanePath, LANE_HEADER } from "../core/swimlane.js";
+import { carried, leader, containerPath, CONTAINER_HEADER } from "../core/container.js";
 import { parseDataValue, formatDataValue } from "../core/shapedata.js";
 import { graphicFor, graphicsError, dataLabels } from "../core/datagraphics.js";
 import { readTableFile } from "../core/linkdata.js";
@@ -121,6 +122,18 @@ const commands = {
     $("wd-data-file").click();
   },
   clearGraphics: () => run(() => state.model.setGraphics(null, state.pageId)),
+  addContainer: async () => {
+    if (state.readOnly) return;
+    const ids = state.sel.filter((id) => byId(id) && byId(id).kind !== "connector");
+    if (!ids.length) { state.message = "Select the shapes to put in a container"; render(); return; }
+    const v = await askForm({ title: "Container", ok: "Add", hint: "A titled box around the selected shapes; moving it moves them.", fields: [{ key: "title", label: "Title", value: "Container" }] });
+    if (v) run(() => { state.sel = [state.model.addContainer(ids, v.title.trim() || "Container", state.pageId)]; });
+  },
+  addCallout: () => {
+    const t = state.sel.map(byId).find((i) => i?.kind === "shape");
+    if (!t) { state.message = "Select a shape to add a callout to"; render(); return; }
+    run(() => { state.sel = [state.model.addCallout(t.id, "Note", state.pageId)]; });
+  },
   addLane: async () => {
     const lane = state.sel.map(byId).find((i) => i?.type === "lane");
     if (!lane) { state.message = "Select a lane: the new one goes at the end of its set"; render(); return; }
@@ -137,7 +150,7 @@ const commands = {
     };
     // the colours each shape is drawn with: its own, else its type's default, as on the canvas
     const styleOf = (sh) => ({ fill: FILLS[sh.type] || "#dbeafe", line: LINES[sh.type] || "#2563eb" });
-    download(state.fileName.replace(/\.wsdiagram$/, "") + ".vsdx", toVsdx(state.model.doc, (sh) => (sh.type === "lane" ? lanePath(sh) : shapePath(sh.type, sh.w, sh.h, sh.path)), routeOf, styleOf), "application/vnd.ms-visio.drawing");
+    download(state.fileName.replace(/\.wsdiagram$/, "") + ".vsdx", toVsdx(state.model.doc, (sh) => (sh.type === "lane" ? lanePath(sh) : sh.type === "container" ? containerPath(sh) : sh.type === "callout" ? shapePath("note", sh.w, sh.h) : shapePath(sh.type, sh.w, sh.h, sh.path)), routeOf, styleOf), "application/vnd.ms-visio.drawing");
   }),
   print: () => window.print(),
   exportSvg: () => download(state.fileName.replace(/\.wsdiagram$/, "") + ` - ${page().name}.svg`, pageSvg(false), "image/svg+xml"),
@@ -277,8 +290,23 @@ function laneSvg(s) {
     : `<text class="shape-text lane-title" text-anchor="middle" transform="translate(${H / 2 + size * 0.35} ${s.h / 2}) rotate(-90)" style="font-size:${size}px;font-weight:600">${esc(s.text)}</text>`;
   return `<g data-id="${s.id}" transform="translate(${s.x} ${s.y})"><path class="shape-body" d="M0 0 H${s.w} V${s.h} H0 Z" fill="${fill}" stroke="${line}" stroke-width="${lw}"/>${header}${label}</g>`;
 }
+function containerSvg(s) {
+  const line = s.style?.line || "#64748b", fill = s.style?.fill || "#f8fafc", H = CONTAINER_HEADER;
+  return `<g data-id="${s.id}" transform="translate(${s.x} ${s.y})"><path class="shape-body" d="M0 0 H${s.w} V${s.h} H0 Z" fill="${fill}" fill-opacity="0.6" stroke="${line}" stroke-width="${s.style?.lineWidth ?? 1.25}" stroke-dasharray="6 3"/>` +
+    `<rect class="container-head" width="${s.w}" height="${H}" fill="${s.style?.headerFill || "#e2e8f0"}" stroke="${line}" stroke-width="1"/>` +
+    `<text class="shape-text" x="10" y="${H / 2 + 4}" style="font-size:${s.style?.fontSize || 12}px;font-weight:600">${esc(s.text)}</text></g>`;
+}
+function calloutSvg(s) {
+  const t = s.target && byId(s.target), line = s.style?.line || "#a16207";
+  const lead = t ? leader(s, t) : null;
+  return (lead ? `<line class="callout-leader" x1="${lead[0].x}" y1="${lead[0].y}" x2="${lead[1].x}" y2="${lead[1].y}" stroke="${line}" stroke-width="1.25" stroke-dasharray="4 3"/><circle cx="${lead[1].x}" cy="${lead[1].y}" r="2.5" fill="${line}"/>` : "") +
+    `<g data-id="${s.id}" transform="translate(${s.x} ${s.y})"><path class="shape-body" d="${shapePath("note", s.w, s.h)}" fill="${s.style?.fill || "#fef9c3"}" stroke="${line}" stroke-width="${s.style?.lineWidth ?? 1.25}"/>` +
+    `<text class="shape-text" text-anchor="middle" style="font-size:${s.style?.fontSize || 12}px">${textLines(s.text, 0, s.w / 2, s.h / 2, s.style?.fontSize || 12)}</text></g>`;
+}
 function shapeSvg(s) {
   if (s.type === "lane") return laneSvg(s);
+  if (s.type === "container") return containerSvg(s);
+  if (s.type === "callout") return calloutSvg(s);
   const gfx = graphicFor(s, page().graphics);
   const fill = gfx.fill || s.style?.fill || FILLS[s.type] || "#dbeafe", line = s.style?.line || LINES[s.type] || "#2563eb";
   const lw = s.style?.lineWidth ?? 1.5;
@@ -469,7 +497,7 @@ $("wd-canvas").addEventListener("pointerdown", (e) => {
     if (e.shiftKey) state.sel = state.sel.includes(id) ? state.sel.filter((x) => x !== id) : [...state.sel, id];
     else if (!state.sel.includes(id)) state.sel = [id];
     // a lane carries the shapes in it
-    const sel = selShapes(), moving = [...new Map([...sel, ...sel.filter((x) => x.type === "lane").flatMap((l) => laneMembers(page().items, l))].map((x) => [x.id, x])).values()];
+    const moving = carried(page().items, selShapes()); // lanes and containers take their shapes along
     if (!state.readOnly && moving.length) state.drag = { move: true, x0: at.x, y0: at.y, start: moving.map((s) => ({ id: s.id, x: s.x, y: s.y })), box: bbox(moving) };
   } else {
     if (!e.shiftKey) state.sel = [];

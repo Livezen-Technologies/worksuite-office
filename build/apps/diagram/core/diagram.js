@@ -13,6 +13,7 @@
  *   Shape:     { id, kind: "shape", type ("rect", "ellipse", "diamond", "terminator", …), layer, x, y, w, h,
  *                rotate (degrees), text, style: { fill, line, lineWidth, fontSize, … } }
  *                data?: [{ label, value }] (shape data: text, numbers, yes/no; shapedata.js)
+ *                target?: a shape id (a callout's shape; container.js)
  *                link?: { page } | { url } (a hyperlink to a page of the diagram or an address; hyperlink.js)
  *   Connector: { id, kind: "connector", layer, from: End, to: End, route: "straight" | "elbow" | "curved",
  *                text, style: { line, lineWidth, arrowEnd, arrowStart } }
@@ -26,6 +27,7 @@ import { dataError } from "./shapedata.js";
 import { graphicsError } from "./datagraphics.js";
 import { matchRows, mergeRow } from "./linkdata.js";
 import { linkError } from "./hyperlink.js";
+import { containerAround, calloutFor } from "./container.js";
 
 export const APP = "worksuite.diagram";
 export const SCHEMA_VERSION = 1;
@@ -88,10 +90,12 @@ export function validate(doc) {
         for (const k of ["x", "y", "w", "h"]) if (!Number.isFinite(it[k])) errs.push(`${w}: ${k} must be a number`);
         if (!(it.w > 0 && it.h > 0)) errs.push(`${w}: size must be positive`);
         if (dataError(it.data)) errs.push(`${w}: ${dataError(it.data)}`);
+        if (it.target !== undefined && (typeof it.target !== "string" || it.target === it.id)) errs.push(`${w}: a callout's target must be another shape`);
         if (linkError(it.link, (doc.pages || []).map((pg) => pg.id))) errs.push(`${w}: ${linkError(it.link, (doc.pages || []).map((pg) => pg.id))}`);
       }
     }
     for (const it of page.items || []) {
+      if (it.target !== undefined && it.kind === "shape" && !shapes.has(it.target)) errs.push(`${at} item ${it.id}: its callout target is not on the page`);
       const w = `${at} item ${it.id}`;
       if (it.kind === "connector") {
         if (!ROUTES.includes(it.route)) errs.push(`${w}: route must be one of ${ROUTES.join(", ")}`);
@@ -210,6 +214,22 @@ export class DiagramModel {
     });
     return { updated: matches.length, added: newIds.length, unmatched: addMissing ? 0 : unmatched.length };
   }
+  /** Puts a container around shapes, behind the first of them; returns its id. */
+  addContainer(ids, title = "Container", pageId = this.page().id) {
+    const page = this.page(pageId), shapes = ids.flatMap((id) => this.shapesIn(page, id));
+    const f = containerAround(shapes, title), id = this.id("s");
+    this.edit((d) => {
+      const p = d.pages.find((x) => x.id === pageId), at = Math.min(...shapes.map((s) => p.items.findIndex((i) => i.id === s.id)));
+      p.items.splice(Math.max(0, at), 0, { id, kind: "shape", layer: shapes[0].layer, rotate: 0, style: {}, ...f });
+    });
+    return id;
+  }
+  /** Adds a callout on a shape; returns its id. */
+  addCallout(targetId, text = "Note", pageId = this.page().id) {
+    const t = this.page(pageId).items.find((i) => i.id === targetId);
+    if (!t || t.kind !== "shape") throw new Error("select a shape to add a callout to");
+    return this.addShape({ ...calloutFor(t, text), layer: t.layer }, pageId);
+  }
   /** Sets a shape's hyperlink ({ page } or { url }); undefined removes it. */
   setLink(id, link, pageId = this.page().id) {
     this.edit((d) => {
@@ -276,6 +296,7 @@ export class DiagramModel {
       for (const id of gone) for (const s of this.shapesIn(page, id)) gone.add(s.id);
       page.items = page.items.filter((i) => !gone.has(i.id) && !(i.kind === "connector" && (gone.has(i.from.shape) || gone.has(i.to.shape))));
       for (const g of page.items.filter((i) => i.kind === "group")) g.members = g.members.filter((m) => !gone.has(m));
+      for (const c of page.items) if (c.target && gone.has(c.target)) delete c.target; // a callout whose shape goes stays as a note
       page.items = page.items.filter((i) => i.kind !== "group" || i.members.length >= 2);
     });
   }
