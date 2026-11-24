@@ -188,6 +188,7 @@ export async function fromVsdx(bytes) {
         if (fill && shape.style.fill !== "none" && num(c.FillPattern, 1) !== 0) shape.style.fill = fill;
         if (num(c.FillPattern, 1) === 0) shape.style.fill = "none";
         if (line) shape.style.line = line;
+        if (c.LinePattern !== undefined && num(c.LinePattern) === 0) shape.style.line = "none";
         if (c.LineWeight !== undefined) shape.style.lineWidth = r3(num(c.LineWeight) * PT);
         if (c["Char.Size"] !== undefined) shape.style.fontSize = r3(num(c["Char.Size"]) * PT);
         // shape data: the shape's own Property rows over its master's
@@ -327,14 +328,14 @@ export function toVsdx(doc, outline, routeOf, styleOf = (sh) => sh.style || {}) 
       if (it.kind !== "shape") continue;
       const w = it.w / PT, h = it.h / PT, x = it.x / PT, top = it.y / PT;
       const geo = pathToGeometry(outline(it), it.w, it.h).map((sec, k) =>
-        `<Section N="Geometry" IX="${k}">${cell("NoFill", sec.closed && it.style?.fill !== "none" ? 0 : 1)}${cell("NoLine", 0)}` +
+        `<Section N="Geometry" IX="${k}">${cell("NoFill", sec.closed && it.style?.fill !== "none" ? 0 : 1)}${cell("NoLine", it.style?.line === "none" ? 1 : 0)}` +
         sec.rows.map((r, j) => `<Row T="${r.t}" IX="${j + 1}">${cell("X", r.p[0])}${cell("Y", r.p[1])}</Row>`).join("") + "</Section>").join("");
       const look = { ...styleOf(it), ...(it.style || {}) };
       const fill = look.fill && look.fill !== "none" ? look.fill : null;
       shapes.push(`<Shape ID="${vid.get(it.id)}" NameU="Shape.${vid.get(it.id)}" Type="Shape" LineStyle="0" FillStyle="0" TextStyle="0">` +
         cell("PinX", x + w / 2, "IN") + cell("PinY", ph - top - h / 2, "IN") + cell("Width", w, "IN") + cell("Height", h, "IN") +
         cell("LocPinX", w / 2, "IN") + cell("LocPinY", h / 2, "IN") + cell("Angle", (-(it.rotate || 0) * Math.PI) / 180, "RAD") +
-        (fill ? cell("FillForegnd", fill) + cell("FillPattern", 1) : "") + (look.line ? cell("LineColor", look.line) : "") +
+        (fill ? cell("FillForegnd", fill) + cell("FillPattern", 1) : "") + (look.line === "none" ? cell("LinePattern", 0) : look.line ? cell("LineColor", look.line) : "") +
         (it.style?.lineWidth ? cell("LineWeight", it.style.lineWidth / PT, "PT") : "") +
         (it.style?.fontSize ? cell("Char.Size", it.style.fontSize / PT, "PT") : "") +
         geo + toPropertySection(it.data, cell) + toHyperlinkSection(it.link, doc.pages, cell) + (it.text ? `<Text>${esc(it.text)}</Text>` : "") + "</Shape>");

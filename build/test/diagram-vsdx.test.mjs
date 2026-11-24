@@ -159,3 +159,22 @@ test("comments travel through .vsdx: on shapes and the page, replies in the text
   const plain = await fromVsdx(toVsdx(new DiagramModel(newDiagram("None")).doc, (s) => shapePath(s.type, s.w, s.h, s.path), routeOf(m)));
   assert.equal(plain.doc.pages[0].comments, undefined);
 });
+
+test("data graphic icons and bars go to .vsdx as shapes; borderless shapes stay borderless", async () => {
+  const { graphicFor, graphicShapes } = await import("../apps/diagram/core/datagraphics.js");
+  const shape = { id: "s1", kind: "shape", type: "rect", layer: "l1", x: 100, y: 50, w: 112, h: 60, data: [{ label: "Status", value: "Late" }, { label: "Done", value: 25 }] };
+  const gfx = graphicFor(shape, { field: "Status", rules: 'red if = "Late"; green', icon: true, bar: { field: "Done", max: 100 } });
+  const extra = graphicShapes(shape, gfx);
+  assert.deepEqual(extra.map((s) => s.id), ["s1-icon", "s1-bar-bg", "s1-bar"]);
+  assert.equal(extra[0].text, "🔴");
+  assert.deepEqual([extra[0].x, extra[0].y], [192, 52]);
+  assert.deepEqual([extra[1].x, extra[1].y, extra[1].w], [106, 101, 100]);
+  assert.equal(extra[2].w, 25);
+  assert.deepEqual(graphicShapes(shape, {}), []);
+  assert.equal(graphicShapes(shape, { bar: 0 }).length, 1); // an empty bar: the track alone
+
+  const m = new DiagramModel(newDiagram("Bars"));
+  m.addShape({ type: "rect", x: 10, y: 10, w: 40, h: 20, text: "x", style: { fill: "#e5e7eb", line: "none" } });
+  const { doc } = await fromVsdx(toVsdx(m.doc, (s) => shapePath(s.type, s.w, s.h, s.path), routeOf(m)));
+  assert.equal(doc.pages[0].items[0].style.line, "none");
+});
