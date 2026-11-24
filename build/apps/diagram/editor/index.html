@@ -14,6 +14,7 @@
     <button class="wd-tab" data-tab="insert">Insert</button>
     <button class="wd-tab" data-tab="design">Design</button>
     <button class="wd-tab" data-tab="arrange">Arrange</button>
+    <button class="wd-tab" data-tab="review">Review</button>
     <button class="wd-tab" data-tab="view">View</button>
     <span class="wd-title" id="wd-title"></span>
     <span class="wd-mode" id="wd-mode" role="status" hidden><span id="wd-mode-text">Read-only</span> · <button type="button" id="wd-upgrade">Upgrade to Pro</button><button type="button" id="wd-retry" hidden>Try again</button></span>
@@ -93,6 +94,10 @@
     <div class="wd-group rb-group" data-tab="design">
       <button class="big" data-icon="pageframe" data-cmd="designPage" data-edit title="A background colour, and a border with the page's title">Background &amp; Border</button>
       <span class="rb-glabel">Page</span>
+    </div>
+    <div class="wd-group rb-group" data-tab="review">
+      <button class="big" data-icon="check" data-cmd="checkDiagram" title="Check the page against the flowchart or BPMN rules">Check Diagram</button>
+      <span class="rb-glabel">Validate</span>
     </div>
     <div class="wd-group rb-group" data-tab="view">
       <div class="rb-stack"><label class="rb-field"><input type="checkbox" id="wd-grid" checked> Grid and snap</label><label class="rb-field"><input type="checkbox" id="wd-jumps" checked> Line jumps</label></div>

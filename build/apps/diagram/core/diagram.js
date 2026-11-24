@@ -29,6 +29,7 @@ import { matchRows, mergeRow } from "./linkdata.js";
 import { linkError } from "./hyperlink.js";
 import { containerAround, calloutFor } from "./container.js";
 import { themeError, pageLookError } from "./theme.js";
+import { ignoreError, issueKey } from "./rules.js";
 
 export const APP = "worksuite.diagram";
 export const SCHEMA_VERSION = 1;
@@ -76,6 +77,7 @@ export function validate(doc) {
     if (graphicsError(page.graphics)) errs.push(`${at}: ${graphicsError(page.graphics)}`);
     if (themeError(page.theme)) errs.push(`${at}: ${themeError(page.theme)}`);
     if (pageLookError(page)) errs.push(`${at}: ${pageLookError(page)}`);
+    if (ignoreError(page.ignore)) errs.push(`${at}: ${ignoreError(page.ignore)}`);
     if (page.link !== undefined && !(page.link && typeof page.link.key === "string" && page.link.key)) errs.push(`${at}: a data link needs its key column`);
     if (page.jumps !== undefined && page.jumps !== false) errs.push(`${at}: jumps is false or left out`);
     if (!Array.isArray(page.layers) || !page.layers.length) { errs.push(`${at}: needs a layer`); continue; }
@@ -267,6 +269,15 @@ export class DiagramModel {
           if (look[k] === null || look[k] === "") delete p[k]; else p[k] = structuredClone(look[k]);
         }
       }
+    });
+  }
+  /** Ignores a validation issue (rules.js) on its page, or brings it back (ignore false); one undo step. */
+  ignoreIssue(issue, ignore = true, pageId = this.page().id) {
+    this.edit((d) => {
+      const p = d.pages.find((x) => x.id === pageId), key = issueKey(issue);
+      const list = (p.ignore || []).filter((k) => k !== key);
+      if (ignore) list.push(key);
+      if (list.length) p.ignore = list; else delete p.ignore;
     });
   }
   /** Sets a shape's data (shapedata.js); an empty list removes it. */

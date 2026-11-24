@@ -21,6 +21,7 @@ import { graphicFor, graphicsError, dataLabels } from "../core/datagraphics.js";
 import { readTableFile } from "../core/linkdata.js";
 import { parseLink, linkText, safeUrl } from "../core/hyperlink.js";
 import { THEMES, VARIANTS, themeColors, themeConnector, borderParts, contrast } from "../core/theme.js";
+import { checkPage, rulesetOf, issueKey } from "../core/rules.js";
 import { decorateRibbon, ribbonStyles } from "../../common/ribbon.js";
 import { aiDraft } from "../../common/aidraft.js";
 import { DiagramModel, newDiagram, parse, serialize, connectionPoints, pointOn, APP } from "../core/diagram.js";
@@ -41,6 +42,7 @@ const state = {
   pageId: "p1",
   libOpen: new Set(OPEN_LIBRARIES), // shape libraries open in the panel
   sel: [],
+  checking: false, // the Issues list is open (Review › Check Diagram)
   tool: "select",
   zoom: 1,
   grid: true,
@@ -121,6 +123,7 @@ const commands = {
     const background = v.background === "custom" ? v.custom : v.background || null;
     run(() => state.model.setLook({ background, border: v.border ? { style: v.border, title: v.title.trim() } : null }, v.scope === "all" ? state.model.doc.pages.map((x) => x.id) : [state.pageId]));
   },
+  checkDiagram: () => { state.checking = true; render(); },
   dataGraphics: async () => {
     if (state.readOnly) return;
     const labels = dataLabels(page()), g = page().graphics || {};
@@ -421,6 +424,10 @@ function overlaySvg() {
     const s = byId(state.hover);
     if (s?.kind === "shape") for (const p of connectionPoints(s)) { const at = pointOn(s, p.fx, p.fy); out += `<circle class="cpoint" cx="${at.x}" cy="${at.y}" r="4"/>`; }
   }
+  if (state.checking) for (const x of checkPage(page())) {
+    const it = x.id && byId(x.id);
+    if (it?.kind === "shape") out += `<rect class="issue-mark" x="${it.x - 6}" y="${it.y - 6}" width="${it.w + 12}" height="${it.h + 12}" rx="4"><title>${esc(x.text)}</title></rect>`;
+  }
   for (const g of state.guides) out += g.axis === "x" ? `<line class="guide" x1="${g.at}" x2="${g.at}" y1="0" y2="${page().height}"/>` : `<line class="guide" y1="${g.at}" y2="${g.at}" x1="0" x2="${page().width}"/>`;
   if (state.drag?.marquee) { const m = state.drag.marquee; out += `<rect class="marquee" x="${Math.min(m.x0, m.x1)}" y="${Math.min(m.y0, m.y1)}" width="${Math.abs(m.x1 - m.x0)}" height="${Math.abs(m.y1 - m.y0)}"/>`; }
   if (state.drag?.link) { const l = state.drag.link; out += `<line class="ghost" x1="${l.x0}" y1="${l.y0}" x2="${l.x1}" y2="${l.y1}"/>`; }
@@ -438,9 +445,20 @@ function renderLib() {
   $("wd-lib").innerHTML = html;
   $("wd-lib").querySelectorAll("details").forEach((d) => d.addEventListener("toggle", () => { if (d.open) state.libOpen.add(d.dataset.libOpen); else state.libOpen.delete(d.dataset.libOpen); }));
 }
+/** The Issues list (rules.js), checked afresh on every render while it is open. */
+function issuesHtml() {
+  const p = page(), set = rulesetOf(p), list = checkPage(p), ignored = checkPage(p, { all: true }).length - list.length;
+  let html = `<div class="wd-issues"><h4>Issues <button data-issues-close title="Close">×</button></h4>`;
+  if (!set) html += `<p class="hint">This page has no flowchart or BPMN shapes to check.</p>`;
+  else if (!list.length) html += `<p class="hint">No issues: the ${set === "bpmn" ? "BPMN process" : "flowchart"} follows the rules.</p>`;
+  else html += `<p class="hint">${list.length} issue${list.length === 1 ? "" : "s"} in the ${set === "bpmn" ? "BPMN process" : "flowchart"}. Click one to select its shape.</p>` +
+    list.map((x, i) => `<div class="wd-issue"><button class="go" data-issue="${i}" ${x.id ? "" : "disabled"}>${esc(x.text)}</button><button data-issue-ignore="${i}" title="Ignore this issue" ${state.readOnly ? "disabled" : ""}>Ignore</button></div>`).join("");
+  if (ignored) html += `<p class="hint">${ignored} ignored. <button data-issues-unignore ${state.readOnly ? "disabled" : ""}>Show them again</button></p>`;
+  return html + `</div>`;
+}
 function renderProps() {
   const ss = selShapes(), conns = state.sel.map(byId).filter((i) => i?.kind === "connector");
-  let html = "";
+  let html = state.checking ? issuesHtml() : "";
   if (ss.length === 1 && state.sel.length === 1) {
     const s = ss[0];
     html += `<h4>Shape</h4><label>Text<textarea data-prop="text" rows="2">${esc(s.text)}</textarea></label>
@@ -719,6 +737,10 @@ $("wd-props").addEventListener("click", (e) => {
     run(() => state.model.setData(id, data, state.pageId));
     return;
   }
+  if (b.dataset.issuesClose !== undefined) { state.checking = false; render(); return; }
+  if (b.dataset.issue !== undefined) { const x = checkPage(page())[Number(b.dataset.issue)]; if (x?.id) { state.sel = [x.id]; render(); } return; }
+  if (b.dataset.issueIgnore !== undefined) { const x = checkPage(page())[Number(b.dataset.issueIgnore)]; if (x) run(() => state.model.ignoreIssue(x, true, state.pageId)); return; }
+  if (b.dataset.issuesUnignore !== undefined) { run(() => state.model.edit((d) => { delete d.pages.find((x) => x.id === state.pageId).ignore; })); return; }
   if (b.dataset.layerVis) { const l = page().layers.find((x) => x.id === b.dataset.layerVis); run(() => state.model.setLayer(l.id, { visible: !l.visible }, state.pageId)); }
   else if (b.dataset.layerLock) { const l = page().layers.find((x) => x.id === b.dataset.layerLock); run(() => state.model.setLayer(l.id, { locked: !l.locked }, state.pageId)); }
   else if (b.dataset.cmdLocal === "addLayer") run(() => state.model.addLayer(`Layer ${page().layers.length + 1}`, state.pageId));
