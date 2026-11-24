@@ -25,12 +25,13 @@ import { checkPage, rulesetOf, issueKey } from "../core/rules.js";
 import { openCounts, sortThreads, ago, initials } from "../core/comments.js";
 import { computeData, shapeText, withComputed, isFormula, formulaError } from "../core/smart.js";
 import { TEMPLATES, templatePage } from "../core/templates.js";
+import { shapeReport, reportTable, toCsv } from "../core/report.js";
 import { PRESETS, PAPERS, UNITS, PAPER_UNITS, toReal, fromReal, unitOf, formatLength, scaleText, tiles } from "../core/scale.js";
 import { decorateRibbon, ribbonStyles } from "../../common/ribbon.js";
 import { aiDraft } from "../../common/aidraft.js";
 import { DiagramModel, newDiagram, parse, serialize, connectionPoints, pointOn, APP } from "../core/diagram.js";
 import { checkEdit, reasonText, openUpgrade } from "../../common/licence.js";
-import { packDocument, unpackDocument } from "../../common/zip.js";
+import { packDocument, unpackDocument, xlsx } from "../../common/zip.js";
 import { fromVsdx, toVsdx } from "../core/vsdx.js";
 import { shapePath, LIBRARIES, OPEN_LIBRARIES, libraryShape, snap, alignGuides, route, midpoint, resizeBox, lineJumps, jumpPath } from "./geometry.js";
 
@@ -143,6 +144,7 @@ const commands = {
       state.pageId = pageId; state.sel = [];
     });
   },
+  shapeReport: () => showReport(),
   checkDiagram: () => { state.checking = true; render(); },
   comments: () => { state.commenting = !state.commenting; render(); },
   newComment: async () => {
@@ -547,6 +549,26 @@ function renderLib() {
   }
   $("wd-lib").innerHTML = html;
   $("wd-lib").querySelectorAll("details").forEach((d) => d.addEventListener("toggle", () => { if (d.open) state.libOpen.add(d.dataset.libOpen); else state.libOpen.delete(d.dataset.libOpen); }));
+}
+/** Review › Shape Report: the shapes with data in a table, this page or all pages, to CSV or Excel. */
+function showReport(scope = "page") {
+  document.getElementById("wd-report")?.remove();
+  const rep = shapeReport(state.model.doc, { pages: scope === "all" ? "all" : state.pageId });
+  const table = reportTable(rep), base = state.fileName.replace(/\.wsdiagram$/, "") + " - shape report";
+  const dlg = document.createElement("dialog");
+  dlg.id = "wd-report"; dlg.className = "wd-report";
+  const cell = (v, i) => `<td${typeof v === "number" ? ' class="num"' : ""}>${esc(typeof v === "number" ? v.toLocaleString() : v)}</td>`;
+  dlg.innerHTML = `<header><h3>Shape report</h3><select id="wd-report-scope" aria-label="Pages"><option value="page" ${scope === "page" ? "selected" : ""}>This page</option><option value="all" ${scope === "all" ? "selected" : ""}>All pages</option></select>
+    <span class="hint">${rep.rows.length} shape${rep.rows.length === 1 ? "" : "s"} with data</span><span style="flex:1"></span>
+    <button id="wd-report-csv" ${rep.rows.length ? "" : "disabled"}>CSV</button><button id="wd-report-xlsx" ${rep.rows.length ? "" : "disabled"}>Excel</button><button id="wd-report-close">Close</button></header>
+    <div class="wrap">${rep.rows.length ? `<table><thead><tr>${table[0].map((h) => `<th>${esc(h)}</th>`).join("")}</tr></thead><tbody>${table.slice(1, Object.keys(rep.totals).length ? -1 : undefined).map((r) => `<tr>${r.map(cell).join("")}</tr>`).join("")}</tbody>${Object.keys(rep.totals).length ? `<tfoot><tr>${table.at(-1).map(cell).join("")}</tr></tfoot>` : ""}</table>` : `<p class="hint">No shapes with data here. Give shapes data in the panel (Shape data › + Data), or link data from a spreadsheet.</p>`}</div>`;
+  document.body.append(dlg);
+  dlg.showModal();
+  dlg.querySelector("#wd-report-close").addEventListener("click", () => dlg.remove());
+  dlg.addEventListener("close", () => dlg.remove());
+  dlg.querySelector("#wd-report-scope").addEventListener("change", (e) => showReport(e.target.value));
+  dlg.querySelector("#wd-report-csv").addEventListener("click", () => download(base + ".csv", "\ufeff" + toCsv(table), "text/csv"));
+  dlg.querySelector("#wd-report-xlsx").addEventListener("click", () => download(base + ".xlsx", xlsx(table, "Shape report"), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"));
 }
 /** The name comments are signed with: asked once, then remembered in this browser. */
 async function authorName() {

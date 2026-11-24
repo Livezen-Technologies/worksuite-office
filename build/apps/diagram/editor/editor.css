@@ -130,3 +130,13 @@ body { font: 13px/1.35 Inter, system-ui, -apple-system, "Segoe UI", sans-serif; 
 .wd-data input.formula { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; }
 .formula-result { margin: -2px 0 6px; font-family: ui-monospace, Menlo, Consolas, monospace; }
 .formula-result.err { color: var(--guide); }
+.wd-report { width: min(1100px, 94vw); max-height: 84vh; padding: 0; border: 1px solid var(--line); border-radius: 12px; background: var(--card); color: var(--ink); }
+.wd-report::backdrop { background: rgba(0,0,0,.35); }
+.wd-report header { display: flex; gap: 10px; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.wd-report header h3 { margin: 0; font-size: 16px; }
+.wd-report .wrap { overflow: auto; max-height: calc(84vh - 60px); padding: 0 16px 16px; }
+.wd-report table { border-collapse: collapse; width: 100%; font-size: 13px; }
+.wd-report th { position: sticky; top: 0; background: var(--card); text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.wd-report td { padding: 6px 10px; border-bottom: 1px solid var(--line); }
+.wd-report td.num { text-align: right; font-variant-numeric: tabular-nums; }
+.wd-report tfoot td { font-weight: 600; border-top: 2px solid var(--line); }
