@@ -60,6 +60,44 @@ How it works:
   lapsed licence still opens every file read-only.
 - Today (stage 1) nothing changes: opening Visio drawings to view and print stays free.
 
+## Status (November 2026, 10.1.101)
+
+About 87% of the roadmap has shipped.
+
+| Stage | Done | Notes |
+|---|---|---|
+| 1. On the start page | 100% | 10.1.36 |
+| 2. First editors | 100% | |
+| 3. Industry files | 100% | Project XML, VSDX edit and save, VSD read |
+| 4. Team and AI | ~95% | |
+| 5. Full project management | ~93% | Left: linked subprojects, split tasks in Project XML |
+| 6. Full diagramming | ~65% | See below |
+
+Stage 6, shipped:
+
+- Swimlanes, containers and callouts; hyperlinks between pages and to web addresses
+- Themes and variants; backgrounds and borders
+- Line jumps, re-layout of a page (swimlanes kept), auto align and spacing
+- Shape data, linking to XLSX and CSV with refresh, data graphics
+- Smart shapes: shape data formulas and text fields
+- Ten templates: flowchart, cross-functional, BPMN, org chart, timeline, UML use case and class, ERD, network,
+  mind map
+- Diagram validation for flowcharts and BPMN; comments and review
+- Drawing scale, dimension lines and print tiling
+- Shape reports to CSV and Excel
+- Visio export of data graphic colours, backgrounds and borders
+
+Stage 6, left:
+
+- Files: VSDM, stencils (VSSX/VSS) and templates (VSTX/VST); user-built masters and stencils
+- Templates: network and rack, cloud architecture, P&ID, floor and site plans, value stream maps, brainstorming
+- Lists (containers that stack their shapes)
+- Visio export of data graphic icons and bars, and of comments
+
+Alongside (worksuite repository, `ops/document-server`): a terminal and a web setup wizard for the Document Server,
+and its admin panel and API (status, actions, logs, settings, secret rotation, fonts, users and roles,
+collaboration, features). They have been tried as dry runs and against stand-ins, not yet on a real server.
+
 ## Roadmap
 
 ### Stage 1: on the start page (10.1.36)
