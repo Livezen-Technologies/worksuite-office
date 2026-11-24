@@ -20,6 +20,7 @@ import { parseDataValue, formatDataValue } from "../core/shapedata.js";
 import { graphicFor, graphicsError, dataLabels } from "../core/datagraphics.js";
 import { readTableFile } from "../core/linkdata.js";
 import { parseLink, linkText, safeUrl } from "../core/hyperlink.js";
+import { THEMES, VARIANTS, themeColors, themeConnector, borderParts, contrast } from "../core/theme.js";
 import { decorateRibbon, ribbonStyles } from "../../common/ribbon.js";
 import { aiDraft } from "../../common/aidraft.js";
 import { DiagramModel, newDiagram, parse, serialize, connectionPoints, pointOn, APP } from "../core/diagram.js";
@@ -89,6 +90,37 @@ const commands = {
     const size = Math.max(90, Math.floor(((v.orientation === "v" ? p.width : p.height) - 80) / names.length));
     run(() => { state.sel = state.model.addLanes(names, { orientation: v.orientation, x: 40, y: 40, length, size }, state.pageId); });
   },
+  /* Design (theme.js): a theme and variant, a background, a border and title, for this page or all of them */
+  designTheme: async () => {
+    const p = page();
+    const v = await askForm({
+      title: "Theme", ok: "Apply",
+      hint: "Colours for the shapes and lines. Shapes you gave their own colours keep them; lanes, containers, callouts and floor plans keep theirs.",
+      fields: [
+        { key: "theme", label: "Theme", type: "select", value: p.theme?.id || "", options: [["", "None (each shape's own colours)"], ...THEMES.map((t) => [t.id, t.name])] },
+        { key: "variant", label: "Variant", type: "select", value: p.theme?.variant || "light", options: VARIANTS.map((x) => [x, { light: "Light: pale shapes, coloured outlines", bold: "Bold: coloured shapes, white text", outline: "Outline: white shapes, coloured outlines" }[x]]) },
+        { key: "scope", label: "Apply to", type: "select", value: "page", options: [["page", "This page"], ["all", "All pages"]] },
+      ],
+    });
+    if (!v) return;
+    run(() => state.model.setLook({ theme: v.theme ? { id: v.theme, variant: v.variant } : null }, v.scope === "all" ? state.model.doc.pages.map((x) => x.id) : [state.pageId]));
+  },
+  designPage: async () => {
+    const p = page(), presets = BACKGROUNDS.map(([c]) => c);
+    const v = await askForm({
+      title: "Background and border", ok: "Apply",
+      fields: [
+        { key: "background", label: "Background", type: "select", value: !p.background ? "" : presets.includes(p.background) ? p.background : "custom", options: [["", "None (white)"], ...BACKGROUNDS, ["custom", "Custom colour (below)"]] },
+        { key: "custom", label: "Custom colour", type: "color", value: p.background || "#f8fafc" },
+        { key: "border", label: "Border", type: "select", value: p.border?.style || "", options: [["", "None"], ["frame", "Frame with a title box"], ["band", "Title band across the top"]] },
+        { key: "title", label: "Title", value: p.border?.title ?? p.name, hint: "shown in the border" },
+        { key: "scope", label: "Apply to", type: "select", value: "page", options: [["page", "This page"], ["all", "All pages"]] },
+      ],
+    });
+    if (!v) return;
+    const background = v.background === "custom" ? v.custom : v.background || null;
+    run(() => state.model.setLook({ background, border: v.border ? { style: v.border, title: v.title.trim() } : null }, v.scope === "all" ? state.model.doc.pages.map((x) => x.id) : [state.pageId]));
+  },
   dataGraphics: async () => {
     if (state.readOnly) return;
     const labels = dataLabels(page()), g = page().graphics || {};
@@ -150,7 +182,8 @@ const commands = {
       return route(c.route, e.from, e.to, sideOf(c.from), sideOf(c.to));
     };
     // the colours each shape is drawn with: its own, else its type's default, as on the canvas
-    const styleOf = (sh) => ({ fill: FILLS[sh.type] || "#dbeafe", line: LINES[sh.type] || "#2563eb" });
+    const themeOf = new Map(state.model.doc.pages.flatMap((p) => p.items.map((it) => [it.id, p.theme])));
+    const styleOf = (sh) => { const t = themeColors(themeOf.get(sh.id), sh.type); return { fill: t?.fill || FILLS[sh.type] || "#dbeafe", line: t?.line || LINES[sh.type] || "#2563eb" }; };
     download(state.fileName.replace(/\.wsdiagram$/, "") + ".vsdx", toVsdx(state.model.doc, (sh) => (sh.type === "lane" ? lanePath(sh) : sh.type === "container" ? containerPath(sh) : sh.type === "callout" ? shapePath("note", sh.w, sh.h) : shapePath(sh.type, sh.w, sh.h, sh.path)), routeOf, styleOf), "application/vnd.ms-visio.drawing");
   }),
   print: () => window.print(),
@@ -221,6 +254,7 @@ async function aiDiagram() {
     await fromTable(text);
   } catch (e) { state.message = e.message; render(); }
 }
+const BACKGROUNDS = [["#f8fafc", "Mist"], ["#fefce8", "Cream"], ["#f0f9ff", "Sky"], ["#f0fdf4", "Mint"], ["#fdf2f8", "Blush"], ["#f4f4f5", "Stone"]];
 const TABLE_SAMPLE = `Name	Role	Reports to
 Anura Perera	Managing Director	
 Bimali Silva	Finance	Anura Perera
@@ -314,13 +348,15 @@ function shapeSvg(s) {
   if (s.type === "container") return containerSvg(s);
   if (s.type === "callout") return calloutSvg(s);
   const gfx = graphicFor(s, page().graphics);
-  const fill = gfx.fill || s.style?.fill || FILLS[s.type] || "#dbeafe", line = s.style?.line || LINES[s.type] || "#2563eb";
+  const th = themeColors(page().theme, s.type);
+  const fill = gfx.fill || s.style?.fill || th?.fill || FILLS[s.type] || "#dbeafe", line = s.style?.line || th?.line || LINES[s.type] || "#2563eb";
+  const ink = th && !s.style?.fill && !gfx.fill ? `;fill:${th.text}` : "";
   const lw = s.style?.lineWidth ?? 1.5;
   const tf = `translate(${s.x} ${s.y})${s.rotate ? ` rotate(${s.rotate} ${s.w / 2} ${s.h / 2})` : ""}`;
   const shown = s.style?.showData && s.data?.length ? `<text class="shape-data" text-anchor="middle" style="font-size:10px">${s.data.map((d, i) => `<tspan x="${s.w / 2}" y="${s.h + 12 + i * 12}">${esc(d.label)}: ${esc(formatDataValue(d.value))}</tspan>`).join("")}</text>` : "";
   const tip = s.data?.length ? `<title>${esc([s.text, ...s.data.map((d) => `${d.label}: ${formatDataValue(d.value)}`)].filter(Boolean).join("\n"))}</title>` : "";
   return `<g data-id="${s.id}" transform="${tf}">${tip}<path class="shape-body" d="${shapePath(s.type, s.w, s.h, s.path)}" fill="${fill}" stroke="${line}" stroke-width="${lw}"/>` +
-    `<text class="shape-text" text-anchor="middle" style="font-size:${s.style?.fontSize || 13}px">${textLines(s.text, 0, s.w / 2, s.h / 2, s.style?.fontSize || 13)}</text>${shown}` +
+    `<text class="shape-text" text-anchor="middle" style="font-size:${s.style?.fontSize || 13}px${ink}">${textLines(s.text, 0, s.w / 2, s.h / 2, s.style?.fontSize || 13)}</text>${shown}` +
     (s.link ? `<text class="link-mark" x="4" y="${s.h - 4}" style="font-size:11px"><title>${esc(s.link.page ? `Go to ${linkText(s.link, state.model.doc.pages)}` : s.link.url)} (Ctrl+click)</title>🔗</text>` : "") +
     (gfx.icon ? `<text class="data-icon" x="${s.w - 4}" y="14" text-anchor="end" style="font-size:13px">${gfx.icon}</text>` : "") +
     (gfx.bar !== undefined ? `<rect class="data-bar-bg" x="6" y="${s.h - 9}" width="${s.w - 12}" height="5" rx="2.5" fill="#e5e7eb"/><rect class="data-bar" x="6" y="${s.h - 9}" width="${(s.w - 12) * gfx.bar}" height="5" rx="2.5" fill="#2a78d6"><title>${esc(gfx.barLabel)}</title></rect>` : "") + `</g>`;
@@ -328,18 +364,21 @@ function shapeSvg(s) {
 function connectorSvg(c, interactive, jumps = null) {
   const pts = connectorPoints(c), selected = interactive && state.sel.includes(c.id);
   const d = c.route === "curved" ? `M${pts[0]} C${pts[1]} ${pts[2]} ${pts[3]}` : jumps ? jumpPath(pts, jumps) : `M${pts.map((p) => p.join(" ")).join(" L")}`;
-  const ms = c.style?.arrowEnd !== false ? ` marker-end="url(#wd-arrow)"` : "";
+  const tc = themeConnector(page().theme);
+  const ms = c.style?.arrowEnd !== false ? ` marker-end="url(#${tc ? "wd-arrow-t" : "wd-arrow"})"` : "";
   const mid = midpoint(c.route === "curved" ? [pts[0], pts[3]] : pts);
-  return `<path class="conn${selected ? " is-sel" : ""}" d="${d}"${ms}/>` + (interactive ? `<path class="conn-hit" data-id="${c.id}" d="${d}"/>` : "") +
-    (c.text ? `<text class="conn-text" x="${mid[0]}" y="${mid[1] - 4}" text-anchor="middle">${esc(c.text)}</text>` : "");
+  return `<path class="conn${selected ? " is-sel" : ""}" d="${d}"${ms}${tc && !selected ? ` style="stroke:${tc}"` : ""}/>` + (interactive ? `<path class="conn-hit" data-id="${c.id}" d="${d}"/>` : "") +
+    (c.text ? `<text class="conn-text" x="${mid[0]}" y="${mid[1] - 4}" text-anchor="middle"${tc ? ` style="fill:${tc}"` : ""}>${esc(c.text)}</text>` : "");
 }
 function pageSvg(interactive) {
   const p = page(), z = interactive ? state.zoom : 1;
   let out = `<svg xmlns="${NS}" class="page" width="${p.width * z}" height="${p.height * z}" viewBox="0 0 ${p.width} ${p.height}" font-family="Inter, system-ui, sans-serif">`;
   out += `<defs><marker id="wd-arrow" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto"><path class="arrow-head" d="M0,0 L9,4.5 L0,9z" fill="#475569"/></marker>` +
+    (themeConnector(p.theme) ? `<marker id="wd-arrow-t" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9z" fill="${themeConnector(p.theme)}"/></marker>` : "") +
     `<pattern id="wd-dots" width="${GRID * 2}" height="${GRID * 2}" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r="1" fill="var(--dot)"/></pattern></defs>`;
-  if (interactive) out += `<rect class="bg" x="0" y="0" width="${p.width}" height="${p.height}" fill="${state.grid ? "url(#wd-dots)" : "transparent"}"/>`;
-  else out += `<style>.shape-body{stroke-width:1.5}.shape-text{font-size:13px;fill:#1f2937}.conn{fill:none;stroke:#475569;stroke-width:1.5}.conn-text{font-size:12px;fill:#475569;paint-order:stroke;stroke:#fff;stroke-width:4px}.arrow-head{fill:#475569}</style><rect x="0" y="0" width="${p.width}" height="${p.height}" fill="#fff"/>`; // an exported file has no stylesheet
+  if (interactive) out += (p.background ? `<rect class="page-bg" pointer-events="none" x="0" y="0" width="${p.width}" height="${p.height}" fill="${p.background}"/>` : "") + `<rect class="bg" x="0" y="0" width="${p.width}" height="${p.height}" fill="${state.grid ? "url(#wd-dots)" : "transparent"}"/>`;
+  else out += `<style>.shape-body{stroke-width:1.5}.shape-text{font-size:13px;fill:#1f2937}.conn{fill:none;stroke:#475569;stroke-width:1.5}.conn-text{font-size:12px;fill:#475569;paint-order:stroke;stroke:#fff;stroke-width:4px}.arrow-head{fill:#475569}</style><rect x="0" y="0" width="${p.width}" height="${p.height}" fill="${p.background || "#fff"}"/>`; // an exported file has no stylesheet
+  out += borderSvg(p);
   // line jumps (on unless the page turns them off): each crossing hops on the later connector
   const conns = p.items.filter((it) => it.kind === "connector" && isVisible(it));
   const jumps = p.jumps === false ? [] : lineJumps(conns.map((c) => (c.route === "curved" ? null : connectorPoints(c))));
@@ -351,6 +390,17 @@ function pageSvg(interactive) {
   }
   if (interactive) out += overlaySvg();
   return out + "</svg>";
+}
+/** A page's border and title (theme.js borderParts), behind the shapes. */
+function borderSvg(p) {
+  const b = borderParts(p);
+  if (!b) return "";
+  let out = `<g class="page-border" pointer-events="none">`;
+  if (b.band) out += `<rect x="${b.band.x}" y="${b.band.y}" width="${b.band.w}" height="${b.band.h}" fill="${b.color}"/>`;
+  if (b.frame) out += `<rect x="${b.frame.x}" y="${b.frame.y}" width="${b.frame.w}" height="${b.frame.h}" fill="none" stroke="${b.color}" stroke-width="1.5"/>`;
+  if (b.titleBox) out += `<rect x="${b.titleBox.x}" y="${b.titleBox.y}" width="${b.titleBox.w}" height="${b.titleBox.h}" fill="#ffffff" stroke="${b.color}" stroke-width="1.5"/>`;
+  if (b.title) out += `<text x="${b.title.x}" y="${b.title.y}" text-anchor="${b.title.anchor}" style="font-size:15px;font-weight:600;fill:${b.band ? (contrast(b.color, "#ffffff") >= 4.5 ? "#ffffff" : "#111827") : b.color}">${esc(b.title.text)}</text>`;
+  return out + "</g>";
 }
 function bbox(ss) {
   const x = Math.min(...ss.map((s) => s.x)), y = Math.min(...ss.map((s) => s.y));
@@ -394,7 +444,7 @@ function renderProps() {
   if (ss.length === 1 && state.sel.length === 1) {
     const s = ss[0];
     html += `<h4>Shape</h4><label>Text<textarea data-prop="text" rows="2">${esc(s.text)}</textarea></label>
-      <div class="two"><label>Fill<input type="color" data-prop="fill" value="${s.style?.fill || FILLS[s.type] || "#dbeafe"}"></label><label>Line<input type="color" data-prop="line" value="${s.style?.line || LINES[s.type] || "#2563eb"}"></label></div>
+      <div class="two"><label>Fill<input type="color" data-prop="fill" value="${s.style?.fill || themeColors(page().theme, s.type)?.fill || FILLS[s.type] || "#dbeafe"}"></label><label>Line<input type="color" data-prop="line" value="${s.style?.line || themeColors(page().theme, s.type)?.line || LINES[s.type] || "#2563eb"}"></label></div>
       <div class="two"><label>Width<input type="number" data-prop="w" value="${Math.round(s.w)}" min="10"></label><label>Height<input type="number" data-prop="h" value="${Math.round(s.h)}" min="10"></label></div>
       <div class="two"><label>Rotate<input type="number" data-prop="rotate" value="${s.rotate || 0}" step="15"></label><label>Text size<input type="number" data-prop="fontSize" value="${s.style?.fontSize || 13}" min="6" max="72"></label></div>`;
     html += `<h4>Shape data</h4>` + (s.data || []).map((d, i) => `<div class="wd-data"><input data-data-label="${i}" value="${esc(d.label)}" aria-label="Name"><input data-data-value="${i}" value="${esc(formatDataValue(d.value))}" aria-label="Value"><button data-data-del="${i}" title="Remove">×</button></div>`).join("") +

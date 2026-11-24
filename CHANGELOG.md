@@ -1,5 +1,24 @@
 # Change log
 
+## 10.1.91
+
+### New features
+
+#### Diagram
+
+* Themes: Design › Theme colours the shapes and lines of a page, or of every
+  page, with one of six themes (Office, Ocean, Forest, Sunset, Berry, Slate)
+  in one of three variants: light (pale shapes, coloured outlines), bold
+  (coloured shapes, white text) or outline (white shapes). Each kind of shape
+  takes its own colour: processes, decisions, starts and ends, and data.
+  Shapes given their own colours keep them, and so do lanes, containers,
+  callouts and floor plans. Text always has at least 4.5:1 contrast.
+* Backgrounds and borders: Design › Background & Border gives a page a
+  background colour and a border with its title, either a frame with a title
+  box in the corner or a band across the top.
+* Themes, backgrounds and borders show in SVG, PNG and print; theme colours
+  also go to Visio files.
+
 ## 10.1.90
 
 ### New features

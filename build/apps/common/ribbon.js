@@ -47,6 +47,8 @@ const I = {
   alignmiddle: "M2.5 10h15 M5 4.5h3.5v11h-3.5z M11.5 6.5h3.5v7h-3.5z",
   alignbottom: "M2.5 17h15 M5 6h3.5v9h-3.5z M11.5 9h3.5v6h-3.5z",
   distributev: "M3 3h14 M3 17h14 M7 6h6v2.5h-6z M7 11.5h6v2.5h-6z",
+  theme: "M10 2.5a7.5 7.5 0 1 0 0 15c1.2 0 1.6-.9 1.2-1.8-.5-1 .1-2.2 1.3-2.2h1.6a3.4 3.4 0 0 0 3.4-3.4c0-4.3-3.4-7.6-7.5-7.6z M6 9a1 1 0 1 0 .01 0z M9 5.5a1 1 0 1 0 .01 0z M13 6.5a1 1 0 1 0 .01 0z",
+  pageframe: "M3 3h14v14h-14z M3 6.5h14 M10.5 13h4.5v4",
   autoalign: "M2.5 8h4v4h-4z M8 8h4v4h-4z M13.5 8h4v4h-4z M6.5 10h1.5 M12 10h1.5 M4.5 5.5v-2 M15.5 5.5v-2 M4.5 3.5h11",
   group: "M2.5 2.5h15v15h-15z M5.5 5.5h4v4h-4z M10.5 10.5h4v4h-4z",
   ungroup: "M5.5 5.5h4v4h-4z M10.5 10.5h4v4h-4z M2.5 4.5v-2h2 M15.5 2.5h2v2 M17.5 15.5v2h-2 M4.5 17.5h-2v-2",
