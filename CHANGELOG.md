@@ -1,5 +1,16 @@
 # Change log
 
+## 10.1.103
+
+### New features
+
+#### Diagram
+
+* Five more templates in File › From Template: a brainstorm (a question and
+  sticky notes by theme), cloud architecture, an equipment rack, an office
+  floor plan drawn to a 1:100 scale with a dimension line, and a value stream
+  map with cycle times, inventory and lead time.
+
 ## 10.1.102
 
 ### New features
