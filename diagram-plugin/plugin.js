@@ -46,13 +46,19 @@ function rasterize(svg, width, height, scale = 2) {
   });
 }
 
+const IN_WINDOW = new URLSearchParams(location.search).has("window"); // a window of the Insert › Diagram button
+const closeMe = () => (IN_WINDOW ? plugin.sendToPlugin("onWindowClose", {}) : plugin.executeCommand("close", ""));
+
 plugin.button = async function (id) {
-  if (id !== 0 || readOnly || !api) { plugin.executeCommand("close", ""); return; }
+  if (id !== 0 || readOnly || !api) { closeMe(); return; }
   try {
     const fit = api.svgFit(16);
-    const payload = olePayload({ guid: plugin.info.guid, data: api.text(), imgSrc: await rasterize(fit.svg, fit.width, fit.height), widthPt: fit.width, heightPt: fit.height, objectId: plugin.info.objectId });
+    const drawing = { data: api.text(), imgSrc: await rasterize(fit.svg, fit.width, fit.height), widthPt: fit.width, heightPt: fit.height };
+    // opened from Insert › Diagram (toolbar.js): the background part inserts it
+    if (IN_WINDOW) { plugin.sendToPlugin("onDiagramInsert", drawing); return; }
+    const payload = olePayload({ guid: plugin.info.guid, ...drawing, objectId: plugin.info.objectId });
     plugin.executeMethod(oleMethod(plugin.info.objectId), [payload], () => plugin.executeCommand("close", ""));
   } catch (e) {
-    plugin.executeCommand("close", "");
+    closeMe();
   }
 };
