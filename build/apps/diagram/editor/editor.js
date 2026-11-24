@@ -22,6 +22,7 @@ import { readTableFile } from "../core/linkdata.js";
 import { parseLink, linkText, safeUrl } from "../core/hyperlink.js";
 import { THEMES, VARIANTS, themeColors, themeConnector, borderParts, contrast } from "../core/theme.js";
 import { checkPage, rulesetOf, issueKey } from "../core/rules.js";
+import { openCounts, sortThreads, ago, initials } from "../core/comments.js";
 import { PRESETS, PAPERS, UNITS, PAPER_UNITS, toReal, fromReal, unitOf, formatLength, scaleText, tiles } from "../core/scale.js";
 import { decorateRibbon, ribbonStyles } from "../../common/ribbon.js";
 import { aiDraft } from "../../common/aidraft.js";
@@ -44,6 +45,8 @@ const state = {
   libOpen: new Set(OPEN_LIBRARIES), // shape libraries open in the panel
   sel: [],
   checking: false, // the Issues list is open (Review › Check Diagram)
+  commenting: false, // the Comments list is open (Review › Comments)
+  showDone: false, // resolved comments shown too
   tool: "select",
   zoom: 1,
   grid: true,
@@ -125,6 +128,15 @@ const commands = {
     run(() => state.model.setLook({ background, border: v.border ? { style: v.border, title: v.title.trim() } : null }, v.scope === "all" ? state.model.doc.pages.map((x) => x.id) : [state.pageId]));
   },
   checkDiagram: () => { state.checking = true; render(); },
+  comments: () => { state.commenting = !state.commenting; render(); },
+  newComment: async () => {
+    const author = await authorName();
+    if (!author) return;
+    const target = state.sel.length === 1 && byId(state.sel[0])?.kind === "shape" ? state.sel[0] : null;
+    const got = await askText({ title: target ? `Comment on “${(byId(target).text || "this shape").split("\n")[0]}”` : "Comment on the page", hint: `As ${author}.`, placeholder: "What should change, or what is the question?", ok: "Comment", rows: 4 });
+    if (!got || !got.text.trim()) return;
+    run(() => { state.model.addComment(target, got.text, author, new Date().toISOString(), state.pageId); state.commenting = true; });
+  },
   drawingScale: async () => {
     const p = page(), cur = p.scale, preset = cur ? PRESETS.find((x) => JSON.stringify(x.scale) === JSON.stringify(cur))?.id || "custom" : "";
     const v = await askForm({
@@ -475,6 +487,10 @@ function overlaySvg() {
     const s = byId(state.hover);
     if (s?.kind === "shape") for (const p of connectionPoints(s)) { const at = pointOn(s, p.fx, p.fy); out += `<circle class="cpoint" cx="${at.x}" cy="${at.y}" r="4"/>`; }
   }
+  for (const [target, n] of openCounts(page().comments)) {
+    const it = target && byId(target);
+    if (it?.kind === "shape" && isVisible(it)) out += `<g class="comment-badge" data-comment-shape="${it.id}" transform="translate(${it.x + it.w - 2} ${it.y - 10})"><title>${n} open comment${n === 1 ? "" : "s"}</title><path d="M0 0 h18 a4 4 0 0 1 4 4 v9 a4 4 0 0 1 -4 4 h-11 l-5 4 v-4 a4 4 0 0 1 -2 -4 v-9 a4 4 0 0 1 0 0 z" transform="translate(-2 0)"/><text x="9" y="12.5" text-anchor="middle">${n}</text></g>`;
+  }
   if (state.checking) for (const x of checkPage(page())) {
     const it = x.id && byId(x.id);
     if (it?.kind === "shape") out += `<rect class="issue-mark" x="${it.x - 6}" y="${it.y - 6}" width="${it.w + 12}" height="${it.h + 12}" rx="4"><title>${esc(x.text)}</title></rect>`;
@@ -496,6 +512,30 @@ function renderLib() {
   $("wd-lib").innerHTML = html;
   $("wd-lib").querySelectorAll("details").forEach((d) => d.addEventListener("toggle", () => { if (d.open) state.libOpen.add(d.dataset.libOpen); else state.libOpen.delete(d.dataset.libOpen); }));
 }
+/** The name comments are signed with: asked once, then remembered in this browser. */
+async function authorName() {
+  let name = "";
+  try { name = localStorage.getItem("wsd-author") || ""; } catch {}
+  if (name) return name;
+  const v = await askForm({ title: "Your name", hint: "Comments are signed with it.", ok: "Save", fields: [{ key: "name", label: "Name", value: "" }], check: (x) => (x.name.trim() ? null : "Type your name") });
+  if (!v) return "";
+  try { localStorage.setItem("wsd-author", v.name.trim()); } catch {}
+  return v.name.trim();
+}
+/** The Comments list (comments.js): threads, newest first, open before resolved. */
+function commentsHtml() {
+  const all = page().comments || [], open = all.filter((c) => !c.done).length;
+  const shown = sortThreads(all).filter((c) => state.showDone || !c.done);
+  const on = (c) => (c.target ? (byId(c.target)?.text || "a shape").split("\n")[0] : "the page");
+  let html = `<div class="wd-issues wd-comments"><h4>Comments <button data-comments-close title="Close">×</button></h4>`;
+  html += `<p class="hint">${open} open${all.length - open ? `, ${all.length - open} resolved <button data-comments-done>${state.showDone ? "Hide" : "Show"} resolved</button>` : ""}. Select a shape and use Review › New Comment.</p>`;
+  for (const c of shown) {
+    html += `<div class="wd-thread${c.done ? " done" : ""}"><button class="go" data-comment-go="${c.id}" ${c.target ? "" : "disabled"}>On ${esc(on(c))}</button>` +
+      [{ author: c.author, text: c.text, at: c.at }, ...c.replies].map((r) => `<div class="msg"><span class="av" aria-hidden="true">${esc(initials(r.author))}</span><div><b>${esc(r.author)}</b> <span class="hint">${esc(ago(r.at))}</span><div>${esc(r.text)}</div></div></div>`).join("") +
+      (state.readOnly ? "" : `<div class="acts"><button data-comment-reply="${c.id}">Reply</button><button data-comment-done="${c.id}">${c.done ? "Reopen" : "Resolve"}</button><button data-comment-del="${c.id}">Delete</button></div>`) + `</div>`;
+  }
+  return html + `</div>`;
+}
 /** The Issues list (rules.js), checked afresh on every render while it is open. */
 function issuesHtml() {
   const p = page(), set = rulesetOf(p), list = checkPage(p), ignored = checkPage(p, { all: true }).length - list.length;
@@ -509,7 +549,7 @@ function issuesHtml() {
 }
 function renderProps() {
   const ss = selShapes(), conns = state.sel.map(byId).filter((i) => i?.kind === "connector");
-  let html = state.checking ? issuesHtml() : "";
+  let html = (state.checking ? issuesHtml() : "") + (state.commenting ? commentsHtml() : "");
   if (ss.length === 1 && state.sel.length === 1) {
     const s = ss[0];
     html += `<h4>Shape</h4><label>Text<textarea data-prop="text" rows="2">${esc(s.text)}</textarea></label>
@@ -608,6 +648,8 @@ $("wd-canvas").addEventListener("pointerdown", (e) => {
     // preventDefault: the press would otherwise focus the canvas after we focus the text box, closing it at once
     if (hit) { e.preventDefault(); state.drag = null; editText(hit); return; }
   }
+  const badge = e.target.closest("[data-comment-shape]");
+  if (badge) { e.preventDefault(); state.sel = [badge.dataset.commentShape]; state.commenting = true; render(); return; }
   const handle = e.target.closest("[data-handle]");
   const connHit = e.target.closest(".conn-hit");
   const hit = state.model.hitTest(at.x, at.y, state.pageId);
@@ -788,6 +830,16 @@ $("wd-props").addEventListener("click", (e) => {
     if (b.dataset.dataDel !== undefined) data.splice(Number(b.dataset.dataDel), 1);
     else { let n = data.length + 1, label = "Property"; while (data.some((d) => d.label.toLowerCase() === label.toLowerCase())) label = `Property ${++n}`; data.push({ label, value: "" }); }
     run(() => state.model.setData(id, data, state.pageId));
+    return;
+  }
+  if (b.dataset.commentsClose !== undefined) { state.commenting = false; render(); return; }
+  if (b.dataset.commentsDone !== undefined) { state.showDone = !state.showDone; render(); return; }
+  if (b.dataset.commentGo) { const c = (page().comments || []).find((x) => x.id === b.dataset.commentGo); if (c?.target) { state.sel = [c.target]; render(); } return; }
+  if (b.dataset.commentDone) { const c = page().comments.find((x) => x.id === b.dataset.commentDone); run(() => state.model.resolveComment(c.id, !c.done, state.pageId)); return; }
+  if (b.dataset.commentDel) { if (confirm("Delete this comment and its replies?")) run(() => state.model.deleteComment(b.dataset.commentDel, state.pageId)); return; }
+  if (b.dataset.commentReply) {
+    const id = b.dataset.commentReply;
+    authorName().then((author) => author && askText({ title: "Reply", hint: `As ${author}.`, ok: "Reply", rows: 3 }).then((got) => { if (got?.text.trim()) run(() => state.model.replyComment(id, got.text, author, new Date().toISOString(), state.pageId)); }));
     return;
   }
   if (b.dataset.issuesClose !== undefined) { state.checking = false; render(); return; }

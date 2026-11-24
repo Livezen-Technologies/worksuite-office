@@ -1,5 +1,18 @@
 # Change log
 
+## 10.1.95
+
+### New features
+
+#### Diagram
+
+* Comments and review: Review › New Comment comments on the selected shape,
+  or on the page. Comments are threads: reply, resolve, reopen or delete them
+  in the Comments list beside the page, with who wrote each one and when.
+  Shapes with open comments show a badge with the count; click it to see
+  them. A comment on a shape that is removed stays, on the page. Your name is
+  asked once. Comments are saved with the diagram, not printed or exported.
+
 ## 10.1.94
 
 ### New features

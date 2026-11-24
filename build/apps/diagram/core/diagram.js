@@ -31,6 +31,7 @@ import { containerAround, calloutFor } from "./container.js";
 import { themeError, pageLookError } from "./theme.js";
 import { ignoreError, issueKey } from "./rules.js";
 import { scaleError } from "./scale.js";
+import { commentsError } from "./comments.js";
 
 export const APP = "worksuite.diagram";
 export const SCHEMA_VERSION = 1;
@@ -80,6 +81,7 @@ export function validate(doc) {
     if (pageLookError(page)) errs.push(`${at}: ${pageLookError(page)}`);
     if (ignoreError(page.ignore)) errs.push(`${at}: ${ignoreError(page.ignore)}`);
     if (scaleError(page.scale)) errs.push(`${at}: ${scaleError(page.scale)}`);
+    if (commentsError(page.comments, new Set((page.items || []).filter((i) => i.kind === "shape").map((i) => i.id)))) errs.push(`${at}: ${commentsError(page.comments, new Set((page.items || []).filter((i) => i.kind === "shape").map((i) => i.id)))}`);
     if (page.link !== undefined && !(page.link && typeof page.link.key === "string" && page.link.key)) errs.push(`${at}: a data link needs its key column`);
     if (page.jumps !== undefined && page.jumps !== false) errs.push(`${at}: jumps is false or left out`);
     if (!Array.isArray(page.layers) || !page.layers.length) { errs.push(`${at}: needs a layer`); continue; }
@@ -274,6 +276,34 @@ export class DiagramModel {
     });
   }
   /** Ignores a validation issue (rules.js) on its page, or brings it back (ignore false); one undo step. */
+  /* comments and review (comments.js); each change is one undo step */
+  addComment(target, text, author, at = new Date().toISOString(), pageId = this.page().id) {
+    const id = this.id("m");
+    this.edit((d) => {
+      const p = d.pages.find((x) => x.id === pageId);
+      (p.comments ||= []).push({ id, target: target || null, author: String(author || "").trim(), text: String(text || "").trim(), at, done: false, replies: [] });
+    });
+    return id;
+  }
+  replyComment(id, text, author, at = new Date().toISOString(), pageId = this.page().id) {
+    this.edit((d) => { this.#comment(d, id, pageId).replies.push({ author: String(author || "").trim(), text: String(text || "").trim(), at }); });
+  }
+  resolveComment(id, done = true, pageId = this.page().id) {
+    this.edit((d) => { this.#comment(d, id, pageId).done = !!done; });
+  }
+  deleteComment(id, pageId = this.page().id) {
+    this.edit((d) => {
+      const p = d.pages.find((x) => x.id === pageId);
+      this.#comment(d, id, pageId);
+      p.comments = p.comments.filter((c) => c.id !== id);
+      if (!p.comments.length) delete p.comments;
+    });
+  }
+  #comment(d, id, pageId) {
+    const c = (d.pages.find((x) => x.id === pageId)?.comments || []).find((x) => x.id === id);
+    if (!c) throw new Error("no such comment");
+    return c;
+  }
   ignoreIssue(issue, ignore = true, pageId = this.page().id) {
     this.edit((d) => {
       const p = d.pages.find((x) => x.id === pageId), key = issueKey(issue);
@@ -336,6 +366,7 @@ export class DiagramModel {
       page.items = page.items.filter((i) => !gone.has(i.id) && !(i.kind === "connector" && (gone.has(i.from.shape) || gone.has(i.to.shape))));
       for (const g of page.items.filter((i) => i.kind === "group")) g.members = g.members.filter((m) => !gone.has(m));
       for (const c of page.items) if (c.target && gone.has(c.target)) delete c.target; // a callout whose shape goes stays as a note
+      for (const c of page.comments || []) if (c.target && gone.has(c.target)) c.target = null; // its comments stay, on the page
       page.items = page.items.filter((i) => i.kind !== "group" || i.members.length >= 2);
     });
   }
