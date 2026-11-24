@@ -1,5 +1,14 @@
 # Change log
 
+## 10.1.101
+
+### Fixes
+
+#### Diagram
+
+* Visio export keeps a page's background colour and its border and title
+  (frame or band), as shapes behind the drawing.
+
 ## 10.1.100
 
 ### New features
