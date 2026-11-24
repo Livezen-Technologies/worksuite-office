@@ -32,6 +32,7 @@ import { themeError, pageLookError } from "./theme.js";
 import { ignoreError, issueKey } from "./rules.js";
 import { scaleError } from "./scale.js";
 import { commentsError } from "./comments.js";
+import { arrangeLists } from "./lists.js";
 
 export const APP = "worksuite.diagram";
 export const SCHEMA_VERSION = 1;
@@ -100,6 +101,7 @@ export function validate(doc) {
         if (!(it.w > 0 && it.h > 0)) errs.push(`${w}: size must be positive`);
         if (dataError(it.data)) errs.push(`${w}: ${dataError(it.data)}`);
         if (it.target !== undefined && (typeof it.target !== "string" || it.target === it.id)) errs.push(`${w}: a callout's target must be another shape`);
+        if (it.list !== undefined && (it.type !== "container" || !it.list || !(Number(it.list.gap) >= 0 && Number(it.list.gap) <= 100))) errs.push(`${w}: a list is a container with a gap of 0 to 100`);
         if (linkError(it.link, (doc.pages || []).map((pg) => pg.id))) errs.push(`${w}: ${linkError(it.link, (doc.pages || []).map((pg) => pg.id))}`);
       }
     }
@@ -178,6 +180,7 @@ export class DiagramModel {
     const before = structuredClone(this.doc);
     const draft = structuredClone(this.doc);
     const out = fn(draft);
+    for (const p of draft.pages) arrangeLists(p); // lists keep their shapes in a column
     validate(draft);
     this.undoStack.push(before);
     this.redoStack = [];
@@ -237,6 +240,16 @@ export class DiagramModel {
     this.edit((d) => {
       const p = d.pages.find((x) => x.id === pageId), at = Math.min(...shapes.map((s) => p.items.findIndex((i) => i.id === s.id)));
       p.items.splice(Math.max(0, at), 0, { id, kind: "shape", layer: shapes[0].layer, rotate: 0, style: {}, ...f });
+    });
+    return id;
+  }
+  /** Adds a list (lists.js): a titled column the given shapes (if any) go into, in the order they stand. */
+  addList(ids = [], title = "List", at = { x: 60, y: 60 }, pageId = this.page().id) {
+    const page = this.page(pageId), shapes = ids.flatMap((id) => this.shapesIn(page, id)), id = this.id("s");
+    const box = shapes.length ? containerAround(shapes, title) : { type: "container", x: at.x, y: at.y, w: 200, h: 120, text: title };
+    this.edit((d) => {
+      const p = d.pages.find((x) => x.id === pageId), first = shapes.length ? Math.min(...shapes.map((s) => p.items.findIndex((i) => i.id === s.id))) : 0;
+      p.items.splice(Math.max(0, first), 0, { id, kind: "shape", layer: shapes[0]?.layer || p.layers[0].id, rotate: 0, style: {}, ...box, list: { gap: 10 } });
     });
     return id;
   }

@@ -1,5 +1,17 @@
 # Change log
 
+## 10.1.102
+
+### New features
+
+#### Diagram
+
+* Lists: Insert › List makes a titled column that keeps its shapes in order,
+  one under another, lined up on the left, and fits round them. The selected
+  shapes go in, in the order they stand. Drag a shape onto a list and it takes
+  its place; drag it out and the rest close up; drag the list and its shapes
+  come along.
+
 ## 10.1.101
 
 ### Fixes
