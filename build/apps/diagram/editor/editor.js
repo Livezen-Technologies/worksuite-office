@@ -217,8 +217,9 @@ const commands = {
     };
     // the colours each shape is drawn with: its own, else its type's default, as on the canvas
     const themeOf = new Map(state.model.doc.pages.flatMap((p) => p.items.map((it) => [it.id, p.theme])));
+    const doc = withGraphicColours(state.model.doc);
     const styleOf = (sh) => { const t = themeColors(themeOf.get(sh.id), sh.type); return { fill: t?.fill || FILLS[sh.type] || "#dbeafe", line: t?.line || LINES[sh.type] || "#2563eb" }; };
-    download(state.fileName.replace(/\.wsdiagram$/, "") + ".vsdx", toVsdx(state.model.doc, (sh) => (sh.type === "lane" ? lanePath(sh) : sh.type === "container" ? containerPath(sh) : sh.type === "callout" ? shapePath("note", sh.w, sh.h) : shapePath(sh.type, sh.w, sh.h, sh.path)), routeOf, styleOf), "application/vnd.ms-visio.drawing");
+    download(state.fileName.replace(/\.wsdiagram$/, "") + ".vsdx", toVsdx(doc, (sh) => (sh.type === "lane" ? lanePath(sh) : sh.type === "container" ? containerPath(sh) : sh.type === "callout" ? shapePath("note", sh.w, sh.h) : shapePath(sh.type, sh.w, sh.h, sh.path)), routeOf, styleOf), "application/vnd.ms-visio.drawing");
   }),
   print: () => printPage(),
   exportSvg: () => download(state.fileName.replace(/\.wsdiagram$/, "") + ` - ${page().name}.svg`, pageSvg(false), "image/svg+xml"),
@@ -456,6 +457,16 @@ function pageSvg(interactive) {
   }
   if (interactive) out += overlaySvg();
   return out + "</svg>";
+}
+/** A copy of the diagram with each shape's data graphic colour (datagraphics.js) as its own fill, for Visio export. */
+function withGraphicColours(doc) {
+  const out = structuredClone(doc);
+  for (const p of out.pages) for (const it of p.items) {
+    if (it.kind !== "shape") continue;
+    const fill = graphicFor(it, p.graphics).fill;
+    if (fill) it.style = { ...(it.style || {}), fill };
+  }
+  return out;
 }
 /** A page's border and title (theme.js borderParts), behind the shapes. */
 function borderSvg(p) {
