@@ -29,7 +29,7 @@ const SLOT = {
   data: 3, database: 3, document: 3, manual: 3, note: 3, bucket: 3, queue: 3,
 };
 // shapes that keep their own colours whatever the theme
-const OWN = new Set(["lane", "pool", "container", "callout", "room", "wall", "door", "window", "stairs", "table", "desk", "sofa"]);
+const OWN = new Set(["dimension", "lane", "pool", "container", "callout", "room", "wall", "door", "window", "stairs", "table", "desk", "sofa"]);
 
 /** Mixes a colour toward white (k > 0) or black (k < 0) by |k| (0 to 1). */
 export function mix(hex, k) {

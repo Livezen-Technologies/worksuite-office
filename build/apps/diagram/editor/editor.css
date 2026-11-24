@@ -107,3 +107,12 @@ body { font: 13px/1.35 Inter, system-ui, -apple-system, "Segoe UI", sans-serif; 
 .shape-data { fill: var(--ink2, #52525b); }
 .wd-status .note { color: var(--ink2, #52525b); }
 @media print { .issue-mark { display: none; } }
+#wd-print { display: none; }
+@media print {
+  body.wd-printing > *:not(#wd-print) { display: none !important; }
+  body.wd-printing #wd-print { display: block; }
+  .wd-sheet { box-sizing: border-box; position: relative; overflow: hidden; break-after: page; page-break-after: always; }
+  .wd-sheet:last-child { break-after: auto; page-break-after: auto; }
+  .wd-sheet svg { display: block; }
+  .wd-sheet-label { position: absolute; left: 28pt; bottom: 8pt; font: 8pt Inter, system-ui, sans-serif; color: #52525b; }
+}

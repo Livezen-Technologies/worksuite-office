@@ -1,5 +1,23 @@
 # Change log
 
+## 10.1.94
+
+### New features
+
+#### Diagram
+
+* Drawing scale: Design › Drawing Scale says what a length on the page
+  stands for, from common metric and architectural scales (1:50, 1:100,
+  1/4 in = 1 ft and so on) or your own. The status bar shows the scale, and
+  the panel shows and sets a shape's real width and height.
+* Dimension lines: the Floor plan library's Dimension line is labelled with
+  its measured length in real units, and the label follows as it is resized
+  or the scale changes. Typing text replaces the label.
+* Tiled print: File › Print asks for the paper (A4, A3, Letter or Legal) and
+  prints the page fitted on one sheet, or at actual size across as many
+  sheets as it needs. Each sheet is labelled with its row and column, and the
+  paper is turned whichever way takes fewer sheets.
+
 ## 10.1.93
 
 ### New features
