@@ -1,5 +1,30 @@
 # Change log
 
+## 10.1.90
+
+### New features
+
+#### Diagram
+
+* Auto Align & Space, on Home and Arrange: straightens the lines between
+  connected shapes and evens out the gaps along them, for the selected shapes
+  or the whole page. A shape roughly in line with the one before it is lined
+  up with it and moved 40 points from it, taking the shapes after it along.
+  Diagonal lines are left as they are.
+* Align right, middle and bottom, and Distribute down, join align left,
+  centre and top and Distribute across.
+* Re-layout of a page with swimlanes keeps every shape in its lane: the flow
+  runs along the lanes, shapes in the same lane and step share it evenly, and
+  the lanes grow to hold the flow.
+
+### Fixes
+
+#### Diagram
+
+* Top to Bottom and Left to Right no longer move lanes, containers and
+  callouts as if they were flowchart shapes. Containers are fitted round their
+  shapes again afterwards, and callouts stay beside their shape.
+
 ## 10.1.89
 
 ### New features
