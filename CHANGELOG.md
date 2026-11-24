@@ -1,5 +1,16 @@
 # Change log
 
+## 10.1.107
+
+### New features
+
+#### Project
+
+* Split tasks travel through Project XML: saving writes each split task's
+  work day by day, with none on the paused days, as Microsoft Project does,
+  and opening a file reads its splits back. A split task nobody is assigned
+  to keeps its split too.
+
 ## 10.1.106
 
 ### New features

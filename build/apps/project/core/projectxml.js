@@ -7,9 +7,13 @@
  * notes, constraint); links (FS, SS, FF, SF with lag); owners (resource names assigned to a task). Durations and
  * lags use an 8-hour working day, the format's default. What does not travel yet: costs, calendars beyond the
  * default, baselines, custom fields. They come with stage 5 (#90–#94).
+ *
+ * Split tasks travel as the assignments' timephased work (TimephasedData, type 1): a day of work per working day,
+ * and none on the paused days. A split task nobody is assigned to gets an assignment to Project's null resource
+ * (UID -65535), as Microsoft Project and other tools write it.
  */
 import { assignmentsOf, ownerText } from "./resources.js";
-import { ProjectModel, newProject, validate, finishOf } from "./project.js";
+import { ProjectModel, newProject, validate, finishOf, splitsOf, workDays, taskIsWork, toDay, fromDay } from "./project.js";
 import { parseFormula } from "./formula.js";
 import { fieldValue } from "./fields.js";
 import { costs } from "./costs.js";
@@ -178,7 +182,11 @@ export function fromProjectXml(text) {
   }
   const owners = new Map();
   const asgEl = kid(top, "Assignments");
+  const phased = new Map(); // task UID → the first assignment's timephased work: [{ start, finish, hours }]
   for (const a of asgEl ? kids(asgEl, "Assignment") : []) {
+    const rows = kids(a, "TimephasedData").filter((x) => ["1", "2"].includes(val(x, "Type"))).map((x) => ({ start: val(x, "Start").slice(0, 10), finish: val(x, "Finish").slice(0, 10), hours: hoursOf(val(x, "Value")) ?? 0 }))
+      .filter((x) => /^\d{4}-\d{2}-\d{2}$/.test(x.start) && /^\d{4}-\d{2}-\d{2}$/.test(x.finish));
+    if (rows.length && !phased.has(val(a, "TaskUID"))) phased.set(val(a, "TaskUID"), rows);
     const who = resources.get(val(a, "ResourceUID"));
     if (!who) continue;
     const t = val(a, "TaskUID");
@@ -244,6 +252,7 @@ export function fromProjectXml(text) {
     const tc = val(t, "CalendarUID") && val(t, "CalendarUID") !== "-1" ? calendarOf(val(t, "CalendarUID")) : null;
     if (tc === "7d" || tc === "6d") task.calendar = tc;
     else if (tc === "other") problems.push(`task "${task.name}" has its own calendar, which was read as the project calendar`);
+    if (phased.has(uid) && duration > 1) { const sp = splitsFromPhased(phased.get(uid), task, duration); if (sp.length) task.splits = sp; }
     byUid.set(uid, task);
     doc.tasks.push(task);
   }
@@ -266,6 +275,27 @@ export function fromProjectXml(text) {
   if (plans.length) doc.interims = plans;
   validate(doc);
   return { doc, problems };
+}
+
+/** The project's working week when a file does not say otherwise: Monday to Friday. */
+const MON_FRI = (d) => { const w = new Date(d * 86400000).getUTCDay(); return w > 0 && w < 6; };
+/**
+ * A task's splits from its timephased work: runs of working days with no work between days with work, as
+ * [{ after, days }] (after: days worked before the pause; days: working days paused).
+ */
+export function splitsFromPhased(rows, task, duration) {
+  const isWork = taskIsWork(task, MON_FRI) || (() => true);
+  const days = [];
+  for (const r of [...rows].sort((a, b) => a.start.localeCompare(b.start))) for (let d = toDay(r.start); d <= toDay(r.finish); d++) if (isWork(d)) days.push(r.hours > 0);
+  while (days.length && !days.at(-1)) days.pop(); // after the last work is not a pause
+  const out = [];
+  let worked = 0, i = 0;
+  while (i < days.length) {
+    if (days[i]) { worked++; i++; continue; }
+    let n = 0; while (i < days.length && !days[i]) { n++; i++; }
+    if (worked >= 1 && worked < duration) out.push({ after: worked, days: n });
+  }
+  return out;
 }
 
 /* ---- writing ---- */
@@ -321,9 +351,22 @@ export function toProjectXml(doc, isWork = null) {
       (s.rate ? `<StandardRate>${s.rate}</StandardRate><StandardRateFormat>2</StandardRateFormat>` : "") + (s.costPerUse ? `<CostPerUse>${s.costPerUse}</CostPerUse>` : "") + `</Resource>`;
   }).join("\n    ");
   let a = 0;
-  const asgXml = doc.tasks.flatMap((t) => assignmentsOf(t).map((r) =>
-    `<Assignment><UID>${++a}</UID><TaskUID>${uid.get(t.id)}</TaskUID><ResourceUID>${rid.get(r.name)}</ResourceUID>` +
-    (r.amount === undefined ? `<Units>${r.units}</Units>` : sheet.get(r.name)?.type === "cost" ? `<Units>1</Units><Cost>${r.amount}</Cost>` : `<Units>${r.amount}</Units>`) + `</Assignment>`)).join("\n    ");
+  // a split task's work by day: worked days carry the day's hours (× units), paused working days none
+  const phasedXml = (t, asgUid, units) => {
+    if (!splitsOf(t).length) return "";
+    const isWork = taskIsWork(t, isWork_) || (() => true), worked = new Set(workDays(t, isWork_));
+    const first = toDay(t.start), last = Math.max(...worked), out = [];
+    for (let d = first; d <= last; d++) if (isWork(d)) out.push(`<TimephasedData><Type>1</Type><UID>${asgUid}</UID><Start>${fromDay(d)}T08:00:00</Start><Finish>${fromDay(d)}T17:00:00</Finish><Unit>2</Unit><Value>PT${worked.has(d) ? Math.round(HOURS_PER_DAY * units * 100) / 100 : 0}H0M0S</Value></TimephasedData>`);
+    return out.join("");
+  };
+  const isWork_ = isWork;
+  const asgXml = doc.tasks.flatMap((t) => {
+    const list = assignmentsOf(t).map((r) => { const id = ++a; const work = r.amount === undefined;
+      return `<Assignment><UID>${id}</UID><TaskUID>${uid.get(t.id)}</TaskUID><ResourceUID>${rid.get(r.name)}</ResourceUID>` +
+        (work ? `<Units>${r.units}</Units>` : sheet.get(r.name)?.type === "cost" ? `<Units>1</Units><Cost>${r.amount}</Cost>` : `<Units>${r.amount}</Units>`) + (work ? phasedXml(t, id, r.units) : "") + `</Assignment>`; });
+    if (splitsOf(t).length && !assignmentsOf(t).some((r) => r.amount === undefined)) { const id = ++a; list.push(`<Assignment><UID>${id}</UID><TaskUID>${uid.get(t.id)}</TaskUID><ResourceUID>-65535</ResourceUID><Units>1</Units>${phasedXml(t, id, 1)}</Assignment>`); }
+    return list;
+  }).join("\n    ");
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Project xmlns="${NS}">
   ${el("Name", doc.name)}
