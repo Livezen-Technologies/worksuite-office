@@ -9,15 +9,16 @@
  * (the shape's own Geometry or its master's; MoveTo, LineTo, arcs, elliptical arcs, ellipses, splines and the
  * relative rows), stored as a "path" shape whose outline is kept in its own 0..1 box; 1-D shapes (connectors)
  * as connectors, glued to the shapes the drawing connects them to; groups' members as shapes. What a WorkSuite
- * diagram cannot hold yet (themes, layers' Visio properties, data, hyperlinks, images, fields) is left out
+ * diagram cannot hold yet (themes, layers' Visio properties, images, fields) is left out
  * and listed.
  *
  * Writing: one page per page, each shape with its outline as Geometry in relative units (so it resizes in
- * Visio), its text, fill and line; each connector as a 1-D shape along its route, glued with Connect elements.
+ * Visio), its text, fill and line; each connector as a 1-D shape along its route, glued with Connect elements; comments in visio/comments.xml.
  *
  * Units: Visio uses inches with y up from the bottom of the page; WorkSuite uses points with y down.
  */
 import { toPropertySection, fromPropertyRows } from "./shapedata.js";
+import { MAX_TEXT } from "./comments.js";
 import { toHyperlinkSection, fromHyperlinkRows } from "./hyperlink.js";
 import { parseXml } from "../../project/core/projectxml.js";
 import { zip, unzipAsync } from "../../common/zip.js";
@@ -136,6 +137,7 @@ export async function fromVsdx(bytes) {
     }
   }
 
+  const pageByVisioId = new Map();
   const doc = newDiagram("Visio drawing");
   doc.pages = [];
   let n = 0;
@@ -150,6 +152,7 @@ export async function fromVsdx(bytes) {
     const layer = id("l");
     const page = { id: id("p"), name: pageEl.attrs.NameU || pageEl.attrs.Name || `Page ${doc.pages.length + 1}`, width: r3(pw * PT), height: r3(ph * PT), layers: [{ id: layer, name: "Layer 1", visible: true, locked: false }], items: [] };
     const visioToShape = new Map(); // Visio sheet ID → our shape
+    pageByVisioId.set(pageEl.attrs.ID, { page, visioToShape });
     const oneD = []; // connectors to place once every shape is known
 
     const walk = (shapes, offset) => {
@@ -229,6 +232,17 @@ export async function fromVsdx(bytes) {
     doc.pages.push(page);
   }
   if (!doc.pages.length) throw new Error("the drawing has no foreground pages");
+  // comments: visio/comments.xml, by page and shape; each a thread of its own (replies written by WorkSuite stay in its text)
+  const commentsEl = xml("visio/comments.xml");
+  if (commentsEl) {
+    const authors = new Map(kids(kid(commentsEl, "AuthorList"), "AuthorEntry").map((a) => [a.attrs.ID, a.attrs.Name || a.attrs.Initials || "Visio"]));
+    for (const ce of kids(kid(commentsEl, "CommentList"), "CommentEntry")) {
+      const where = pageByVisioId.get(ce.attrs.PageID), text = (ce.text || "").trim();
+      if (!where || !text) continue;
+      const at = Number.isNaN(Date.parse(ce.attrs.Date)) ? new Date(0).toISOString() : new Date(ce.attrs.Date).toISOString();
+      (where.page.comments ||= []).push({ id: id("m"), target: where.visioToShape.get(ce.attrs.ShapeID)?.id || null, author: String(authors.get(ce.attrs.AuthorID) || "Visio").trim() || "Visio", text: text.slice(0, MAX_TEXT), at, done: ce.attrs.Done === "1" || ce.attrs.Done === "true", replies: [] });
+    }
+  }
   for (const { shape, rows } of pendingLinks) { const link = fromHyperlinkRows(rows, doc.pages); if (link) shape.link = link; else problems.add("links to other files are left out"); }
   const name = (xml("docProps/core.xml") && kid(xml("docProps/core.xml"), "title")?.text) || "";
   if (name) doc.name = name;
@@ -302,6 +316,7 @@ export function pathToGeometry(d, w, h) {
  * routeOf(connector, page) gives a connector's route as page points [[x, y], …].
  */
 export function toVsdx(doc, outline, routeOf, styleOf = (sh) => sh.style || {}) {
+  const authors = [], comments = [];
   const pages = doc.pages.map((page, pi) => {
     const ph = page.height / PT;
     const vid = new Map(); // our id → Visio sheet ID
@@ -346,6 +361,13 @@ export function toVsdx(doc, outline, routeOf, styleOf = (sh) => sh.style || {}) 
       if (it.from.shape !== undefined && vid.has(it.from.shape)) connects.push(`<Connect FromSheet="${id}" FromCell="BeginX" FromPart="9" ToSheet="${vid.get(it.from.shape)}" ToCell="PinX" ToPart="3"/>`);
       if (it.to.shape !== undefined && vid.has(it.to.shape)) connects.push(`<Connect FromSheet="${id}" FromCell="EndX" FromPart="12" ToSheet="${vid.get(it.to.shape)}" ToCell="PinX" ToPart="3"/>`);
     }
+    // comments (comments.js): Visio keeps one text per comment, so replies follow in it, one line each
+    for (const c of page.comments || []) {
+      if (!authors.includes(c.author)) authors.push(c.author);
+      const text = [c.text, ...c.replies.map((r) => `— ${r.author}: ${r.text}`)].join("\n");
+      const shapeAttr = c.target && vid.has(c.target) ? ` ShapeID="${vid.get(c.target)}"` : "";
+      comments.push(`<CommentEntry AuthorID="${authors.indexOf(c.author)}" PageID="${pi}"${shapeAttr} Date="${esc(new Date(c.at).toISOString())}" Done="${c.done ? 1 : 0}" CommentID="${comments.length}">${esc(text)}</CommentEntry>`);
+    }
     return {
       name: page.name, w: page.width / PT, h: ph,
       xml: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<PageContents xmlns="${NS}" xmlns:r="${NS_R}" xml:space="preserve"><Shapes>${shapes.join("")}</Shapes>${connects.length ? `<Connects>${connects.join("")}</Connects>` : ""}</PageContents>`,
@@ -354,11 +376,12 @@ export function toVsdx(doc, outline, routeOf, styleOf = (sh) => sh.style || {}) 
   });
   const head = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n';
   return zip([
-    { name: "[Content_Types].xml", data: head + `<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/visio/document.xml" ContentType="application/vnd.ms-visio.drawing.main+xml"/><Override PartName="/visio/pages/pages.xml" ContentType="application/vnd.ms-visio.pages+xml"/>${pages.map((p) => `<Override PartName="/visio/pages/${p.file}" ContentType="application/vnd.ms-visio.page+xml"/>`).join("")}<Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/></Types>` },
+    { name: "[Content_Types].xml", data: head + `<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/visio/document.xml" ContentType="application/vnd.ms-visio.drawing.main+xml"/><Override PartName="/visio/pages/pages.xml" ContentType="application/vnd.ms-visio.pages+xml"/>${pages.map((p) => `<Override PartName="/visio/pages/${p.file}" ContentType="application/vnd.ms-visio.page+xml"/>`).join("")}${comments.length ? '<Override PartName="/visio/comments.xml" ContentType="application/vnd.ms-visio.comments+xml"/>' : ""}<Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/></Types>` },
     { name: "_rels/.rels", data: head + `<Relationships xmlns="${NS_PKG}"><Relationship Id="rId1" Type="http://schemas.microsoft.com/visio/2010/relationships/document" Target="visio/document.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/></Relationships>` },
     { name: "docProps/core.xml", data: head + `<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:title>${esc(doc.name)}</dc:title><dc:creator>WorkSuite Diagram</dc:creator></cp:coreProperties>` },
     { name: "visio/document.xml", data: head + `<VisioDocument xmlns="${NS}" xmlns:r="${NS_R}" xml:space="preserve"><DocumentSettings TopPage="0" DefaultTextStyle="0" DefaultLineStyle="0" DefaultFillStyle="0" DefaultGuideStyle="0"/><StyleSheets><StyleSheet ID="0" NameU="No Style" Name="No Style">${cell("LineWeight", 0.01041666666666667)}${cell("LineColor", "#000000")}${cell("LinePattern", 1)}${cell("FillForegnd", "#ffffff")}${cell("FillPattern", 1)}${cell("Char.Size", 0.1666666666666667)}${cell("Char.Color", "#000000")}</StyleSheet></StyleSheets></VisioDocument>` },
-    { name: "visio/_rels/document.xml.rels", data: head + `<Relationships xmlns="${NS_PKG}"><Relationship Id="rId1" Type="http://schemas.microsoft.com/visio/2010/relationships/pages" Target="pages/pages.xml"/></Relationships>` },
+    { name: "visio/_rels/document.xml.rels", data: head + `<Relationships xmlns="${NS_PKG}"><Relationship Id="rId1" Type="http://schemas.microsoft.com/visio/2010/relationships/pages" Target="pages/pages.xml"/>${comments.length ? '<Relationship Id="rId2" Type="http://schemas.microsoft.com/visio/2010/relationships/comments" Target="comments.xml"/>' : ""}</Relationships>` },
+    ...(comments.length ? [{ name: "visio/comments.xml", data: head + `<Comments xmlns="${NS}" xmlns:r="${NS_R}" xml:space="preserve"><ShowCommentTags>0</ShowCommentTags><AuthorList>${authors.map((a, i) => `<AuthorEntry ID="${i}" Name="${esc(a)}" Initials="${esc(a.split(/\s+/).map((w) => w[0]).join("").slice(0, 3))}" ResolutionID="${esc(a)}"/>`).join("")}</AuthorList><CommentList>${comments.join("")}</CommentList></Comments>` }] : []),
     { name: "visio/pages/pages.xml", data: head + `<Pages xmlns="${NS}" xmlns:r="${NS_R}" xml:space="preserve">${pages.map((p, i) => `<Page ID="${i}" NameU="${esc(p.name)}" Name="${esc(p.name)}"><PageSheet>${cell("PageWidth", p.w, "IN")}${cell("PageHeight", p.h, "IN")}${cell("DrawingScale", 1, "IN")}${cell("PageScale", 1, "IN")}</PageSheet><Rel r:id="rId${i + 1}"/></Page>`).join("")}</Pages>` },
     { name: "visio/pages/_rels/pages.xml.rels", data: head + `<Relationships xmlns="${NS_PKG}">${pages.map((p, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.microsoft.com/visio/2010/relationships/page" Target="${p.file}"/>`).join("")}</Relationships>` },
     ...pages.map((p) => ({ name: `visio/pages/${p.file}`, data: p.xml })),

@@ -1,5 +1,15 @@
 # Change log
 
+## 10.1.104
+
+### New features
+
+#### Diagram
+
+* Comments go to Visio and come back: saving as .vsdx writes each comment on
+  its shape or page, with its author, time and whether it is resolved, and
+  replies follow in its text. Opening a .vsdx brings its comments in.
+
 ## 10.1.103
 
 ### New features
