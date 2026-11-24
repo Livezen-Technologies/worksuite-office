@@ -34,6 +34,7 @@ export function shapePath(type, w, h, path = null) {
     /* floor plan (#87) */
     case "room": return box(w, h);
     case "wall": return box(w, h);
+    case "dimension": { const y = h - 6, t = Math.min(6, w / 4); return `M0 ${r(y)} H${r(w)} M0 ${r(y - 6)} V${r(h)} M${r(w)} ${r(y - 6)} V${r(h)} M${r(t)} ${r(y - 3)} L0 ${r(y)} L${r(t)} ${r(y + 3)} M${r(w - t)} ${r(y - 3)} L${r(w)} ${r(y)} L${r(w - t)} ${r(y + 3)}`; } // a measured line: its length is its label
     case "door": return `M0 ${r(h)} V0 A${r(w)} ${r(h)} 0 0 1 ${r(w)} ${r(h)} Z`; // the leaf, hinged bottom left, and its swing
     case "window": return `${box(w, h)} M0 ${r(h / 2)} H${r(w)}`;
     case "stairs": { let d = box(w, h); for (let i = 1; i < 6; i++) d += ` M${r((w * i) / 6)} 0 V${r(h)}`; return d; }
@@ -103,6 +104,7 @@ export const LIBRARIES = [
     { type: "table", name: "Round table", w: 60, h: 60, text: "" },
     { type: "desk", name: "Desk and chair", w: 70, h: 50, text: "" },
     { type: "sofa", name: "Sofa", w: 90, h: 40, text: "" },
+    { type: "dimension", name: "Dimension line", w: 200, h: 28, text: "" },
   ] },
   { id: "uml", name: "UML", shapes: [
     { type: "class", name: "Class", w: 160, h: 110, text: "ClassName" },

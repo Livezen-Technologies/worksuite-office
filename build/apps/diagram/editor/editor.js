@@ -22,6 +22,7 @@ import { readTableFile } from "../core/linkdata.js";
 import { parseLink, linkText, safeUrl } from "../core/hyperlink.js";
 import { THEMES, VARIANTS, themeColors, themeConnector, borderParts, contrast } from "../core/theme.js";
 import { checkPage, rulesetOf, issueKey } from "../core/rules.js";
+import { PRESETS, PAPERS, UNITS, PAPER_UNITS, toReal, fromReal, unitOf, formatLength, scaleText, tiles } from "../core/scale.js";
 import { decorateRibbon, ribbonStyles } from "../../common/ribbon.js";
 import { aiDraft } from "../../common/aidraft.js";
 import { DiagramModel, newDiagram, parse, serialize, connectionPoints, pointOn, APP } from "../core/diagram.js";
@@ -34,8 +35,8 @@ const $ = (id) => document.getElementById(id);
 const NS = "http://www.w3.org/2000/svg";
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 const GRID = 10;
-const FILLS = { lane: "#ffffff", room: "#fafaf9", wall: "#52525b", door: "#ffffff", window: "#e0f2fe", stairs: "#f5f5f4", table: "#fef3c7", desk: "#fef3c7", sofa: "#e7e5e4", class: "#fffbeb", actor: "#ffffff", usecase: "#ecfccb", component: "#e0e7ff", note: "#fef9c3", package: "#f5f5f4", event: "#dcfce7", endevent: "#fee2e2", task: "#dbeafe", gateway: "#fef3c7", pool: "#ffffff", vm: "#e0f2fe", appcontainer: "#dbeafe", function: "#ffedd5", queue: "#f3e8ff", loadbalancer: "#dcfce7", bucket: "#fee2e2", rect: "#dbeafe", rounded: "#dbeafe", diamond: "#fef3c7", terminator: "#e0f2fe", data: "#ede9fe", document: "#f5f5f4", database: "#dcfce7", manual: "#ffedd5", subprocess: "#dbeafe", ellipse: "#fce7f3", triangle: "#fef9c3", hexagon: "#e0e7ff", person: "#e2e8f0", server: "#e2e8f0", cloud: "#f1f5f9" };
-const LINES = { lane: "#64748b", room: "#57534e", wall: "#27272a", door: "#57534e", window: "#0284c7", stairs: "#78716c", table: "#a16207", desk: "#a16207", sofa: "#78716c", class: "#b45309", actor: "#334155", usecase: "#4d7c0f", component: "#4f46e5", note: "#a16207", package: "#57534e", event: "#16a34a", endevent: "#dc2626", task: "#2563eb", gateway: "#d97706", pool: "#475569", vm: "#0284c7", appcontainer: "#2563eb", function: "#ea580c", queue: "#9333ea", loadbalancer: "#16a34a", bucket: "#dc2626", diamond: "#d97706", terminator: "#0284c7", data: "#7c3aed", database: "#16a34a", manual: "#ea580c", ellipse: "#db2777", triangle: "#ca8a04", hexagon: "#4f46e5", person: "#475569", server: "#475569", cloud: "#64748b", document: "#78716c" };
+const FILLS = { dimension: "none", lane: "#ffffff", room: "#fafaf9", wall: "#52525b", door: "#ffffff", window: "#e0f2fe", stairs: "#f5f5f4", table: "#fef3c7", desk: "#fef3c7", sofa: "#e7e5e4", class: "#fffbeb", actor: "#ffffff", usecase: "#ecfccb", component: "#e0e7ff", note: "#fef9c3", package: "#f5f5f4", event: "#dcfce7", endevent: "#fee2e2", task: "#dbeafe", gateway: "#fef3c7", pool: "#ffffff", vm: "#e0f2fe", appcontainer: "#dbeafe", function: "#ffedd5", queue: "#f3e8ff", loadbalancer: "#dcfce7", bucket: "#fee2e2", rect: "#dbeafe", rounded: "#dbeafe", diamond: "#fef3c7", terminator: "#e0f2fe", data: "#ede9fe", document: "#f5f5f4", database: "#dcfce7", manual: "#ffedd5", subprocess: "#dbeafe", ellipse: "#fce7f3", triangle: "#fef9c3", hexagon: "#e0e7ff", person: "#e2e8f0", server: "#e2e8f0", cloud: "#f1f5f9" };
+const LINES = { dimension: "#334155", lane: "#64748b", room: "#57534e", wall: "#27272a", door: "#57534e", window: "#0284c7", stairs: "#78716c", table: "#a16207", desk: "#a16207", sofa: "#78716c", class: "#b45309", actor: "#334155", usecase: "#4d7c0f", component: "#4f46e5", note: "#a16207", package: "#57534e", event: "#16a34a", endevent: "#dc2626", task: "#2563eb", gateway: "#d97706", pool: "#475569", vm: "#0284c7", appcontainer: "#2563eb", function: "#ea580c", queue: "#9333ea", loadbalancer: "#16a34a", bucket: "#dc2626", diamond: "#d97706", terminator: "#0284c7", data: "#7c3aed", database: "#16a34a", manual: "#ea580c", ellipse: "#db2777", triangle: "#ca8a04", hexagon: "#4f46e5", person: "#475569", server: "#475569", cloud: "#64748b", document: "#78716c" };
 
 const state = {
   model: new DiagramModel(newDiagram("Untitled diagram")),
@@ -124,6 +125,24 @@ const commands = {
     run(() => state.model.setLook({ background, border: v.border ? { style: v.border, title: v.title.trim() } : null }, v.scope === "all" ? state.model.doc.pages.map((x) => x.id) : [state.pageId]));
   },
   checkDiagram: () => { state.checking = true; render(); },
+  drawingScale: async () => {
+    const p = page(), cur = p.scale, preset = cur ? PRESETS.find((x) => JSON.stringify(x.scale) === JSON.stringify(cur))?.id || "custom" : "";
+    const v = await askForm({
+      title: "Drawing scale", ok: "Apply",
+      hint: "For floor and site plans: a length on the page stands for a real length, and sizes and dimension lines read in real units.",
+      fields: [
+        { key: "preset", label: "Scale", type: "select", value: preset, options: [["", "No scale (1:1)"], ...PRESETS.map((x) => [x.id, x.name]), ["custom", "Custom (below)"]] },
+        { key: "paper", label: "On the page", type: "number", value: cur?.paper ?? 1, min: 0 },
+        { key: "paperUnit", label: "Page unit", type: "select", value: cur?.paperUnit || "cm", options: PAPER_UNITS.map((u) => [u, u]) },
+        { key: "real", label: "Stands for", type: "number", value: cur?.real ?? 1, min: 0 },
+        { key: "realUnit", label: "Real unit", type: "select", value: cur?.realUnit || "m", options: Object.keys(UNITS).map((u) => [u, u]) },
+      ],
+      check: (x) => (x.preset === "custom" && !(Number(x.paper) > 0 && Number(x.real) > 0) ? "Both amounts must be more than 0" : null),
+    });
+    if (!v) return;
+    const scale = v.preset === "custom" ? { paper: Number(v.paper), paperUnit: v.paperUnit, real: Number(v.real), realUnit: v.realUnit } : v.preset ? PRESETS.find((x) => x.id === v.preset).scale : null;
+    run(() => state.model.setLook({ scale }, [state.pageId]));
+  },
   dataGraphics: async () => {
     if (state.readOnly) return;
     const labels = dataLabels(page()), g = page().graphics || {};
@@ -189,7 +208,7 @@ const commands = {
     const styleOf = (sh) => { const t = themeColors(themeOf.get(sh.id), sh.type); return { fill: t?.fill || FILLS[sh.type] || "#dbeafe", line: t?.line || LINES[sh.type] || "#2563eb" }; };
     download(state.fileName.replace(/\.wsdiagram$/, "") + ".vsdx", toVsdx(state.model.doc, (sh) => (sh.type === "lane" ? lanePath(sh) : sh.type === "container" ? containerPath(sh) : sh.type === "callout" ? shapePath("note", sh.w, sh.h) : shapePath(sh.type, sh.w, sh.h, sh.path)), routeOf, styleOf), "application/vnd.ms-visio.drawing");
   }),
-  print: () => window.print(),
+  print: () => printPage(),
   exportSvg: () => download(state.fileName.replace(/\.wsdiagram$/, "") + ` - ${page().name}.svg`, pageSvg(false), "image/svg+xml"),
   remove: () => run(() => { if (state.sel.length) state.model.remove(state.sel, state.pageId); state.sel = []; }),
   duplicate: () => run(() => {
@@ -285,6 +304,38 @@ function arrange(fn, min = 2) {
     state.model.edit((d) => fn(d.pages.find((p) => p.id === state.pageId).items.filter((i) => ids.includes(i.id))));
   });
 }
+/**
+ * Print (scale.js): the page fitted on one sheet, or at actual size across as many sheets as it needs, each sheet
+ * labelled with its row and column so they can be put together. Built as sheets of SVG for the browser to print.
+ */
+async function printPage() {
+  const p = page();
+  const v = await askForm({
+    title: "Print", ok: "Print",
+    fields: [
+      { key: "paper", label: "Paper", type: "select", value: "A4", options: Object.keys(PAPERS).map((k) => [k, k]) },
+      { key: "how", label: "Size", type: "select", value: "fit", options: [["fit", "Fit the page on one sheet"], ["tile", "Actual size, across as many sheets as it needs"]] },
+    ],
+  });
+  if (!v) return;
+  const paper = PAPERS[v.paper], margin = 28, svg = pageSvg(false);
+  const sheets = v.how === "tile" ? tiles(p.width, p.height, { paper, margin }) : [{ x: 0, y: 0, w: p.width, h: p.height, row: 1, col: 1 }];
+  const landscape = v.how === "tile" ? sheets.landscape : p.width > p.height;
+  const [pw, ph] = landscape ? [paper.h, paper.w] : [paper.w, paper.h];
+  const view = (t, size) => svg.replace(/width="[^"]*" height="[^"]*" viewBox="[^"]*"/, `${size} viewBox="${t.x} ${t.y} ${t.w} ${t.h}"`);
+  const box = document.createElement("div");
+  box.id = "wd-print";
+  box.innerHTML = `<style>@page { size: ${pw}pt ${ph}pt; margin: 0; }</style>` + sheets.map((t) => `<div class="wd-sheet" style="width:${pw}pt;height:${ph}pt;padding:${margin}pt">` +
+    (v.how === "tile" ? view(t, `width="${t.w}pt" height="${t.h}pt"`) : view(t, `width="100%" height="100%"`)) +
+    (sheets.length > 1 ? `<span class="wd-sheet-label">${esc(p.name)}: row ${t.row} of ${sheets.rows}, column ${t.col} of ${sheets.cols}</span>` : "") + `</div>`).join("");
+  document.body.append(box);
+  document.body.classList.add("wd-printing");
+  const done = () => { box.remove(); document.body.classList.remove("wd-printing"); };
+  window.addEventListener("afterprint", done, { once: true });
+  window.print();
+  state.note = sheets.length > 1 ? `Printed on ${sheets.length} sheets: ${sheets.rows} row${sheets.rows === 1 ? "" : "s"} of ${sheets.cols}` : "";
+  render();
+}
 /** The page as a PNG at twice its size (sharp on high-density screens and in print). */
 function exportPng() {
   const p = page(), scale = 2;
@@ -359,7 +410,7 @@ function shapeSvg(s) {
   const shown = s.style?.showData && s.data?.length ? `<text class="shape-data" text-anchor="middle" style="font-size:10px">${s.data.map((d, i) => `<tspan x="${s.w / 2}" y="${s.h + 12 + i * 12}">${esc(d.label)}: ${esc(formatDataValue(d.value))}</tspan>`).join("")}</text>` : "";
   const tip = s.data?.length ? `<title>${esc([s.text, ...s.data.map((d) => `${d.label}: ${formatDataValue(d.value)}`)].filter(Boolean).join("\n"))}</title>` : "";
   return `<g data-id="${s.id}" transform="${tf}">${tip}<path class="shape-body" d="${shapePath(s.type, s.w, s.h, s.path)}" fill="${fill}" stroke="${line}" stroke-width="${lw}"/>` +
-    `<text class="shape-text" text-anchor="middle" style="font-size:${s.style?.fontSize || 13}px${ink}">${textLines(s.text, 0, s.w / 2, s.h / 2, s.style?.fontSize || 13)}</text>${shown}` +
+    `<text class="shape-text" text-anchor="middle" style="font-size:${s.style?.fontSize || 13}px${ink}">${s.type === "dimension" ? textLines(s.text || formatLength(s.w, page().scale), 0, s.w / 2, (s.h - 12) / 2, s.style?.fontSize || 12) : textLines(s.text, 0, s.w / 2, s.h / 2, s.style?.fontSize || 13)}</text>${shown}` +
     (s.link ? `<text class="link-mark" x="4" y="${s.h - 4}" style="font-size:11px"><title>${esc(s.link.page ? `Go to ${linkText(s.link, state.model.doc.pages)}` : s.link.url)} (Ctrl+click)</title>🔗</text>` : "") +
     (gfx.icon ? `<text class="data-icon" x="${s.w - 4}" y="14" text-anchor="end" style="font-size:13px">${gfx.icon}</text>` : "") +
     (gfx.bar !== undefined ? `<rect class="data-bar-bg" x="6" y="${s.h - 9}" width="${s.w - 12}" height="5" rx="2.5" fill="#e5e7eb"/><rect class="data-bar" x="6" y="${s.h - 9}" width="${(s.w - 12) * gfx.bar}" height="5" rx="2.5" fill="#2a78d6"><title>${esc(gfx.barLabel)}</title></rect>` : "") + `</g>`;
@@ -464,6 +515,7 @@ function renderProps() {
     html += `<h4>Shape</h4><label>Text<textarea data-prop="text" rows="2">${esc(s.text)}</textarea></label>
       <div class="two"><label>Fill<input type="color" data-prop="fill" value="${s.style?.fill || themeColors(page().theme, s.type)?.fill || FILLS[s.type] || "#dbeafe"}"></label><label>Line<input type="color" data-prop="line" value="${s.style?.line || themeColors(page().theme, s.type)?.line || LINES[s.type] || "#2563eb"}"></label></div>
       <div class="two"><label>Width<input type="number" data-prop="w" value="${Math.round(s.w)}" min="10"></label><label>Height<input type="number" data-prop="h" value="${Math.round(s.h)}" min="10"></label></div>
+      ${page().scale ? `<div class="two"><label>Real width (${unitOf(page().scale)})<input type="number" data-prop="rw" value="${+toReal(s.w, page().scale).toFixed(2)}" min="0" step="any"></label><label>Real height (${unitOf(page().scale)})<input type="number" data-prop="rh" value="${+toReal(s.h, page().scale).toFixed(2)}" min="0" step="any"></label></div>` : ""}
       <div class="two"><label>Rotate<input type="number" data-prop="rotate" value="${s.rotate || 0}" step="15"></label><label>Text size<input type="number" data-prop="fontSize" value="${s.style?.fontSize || 13}" min="6" max="72"></label></div>`;
     html += `<h4>Shape data</h4>` + (s.data || []).map((d, i) => `<div class="wd-data"><input data-data-label="${i}" value="${esc(d.label)}" aria-label="Name"><input data-data-value="${i}" value="${esc(formatDataValue(d.value))}" aria-label="Value"><button data-data-del="${i}" title="Remove">×</button></div>`).join("") +
       `<label>Link<input data-prop="link" list="wd-pages-list" value="${esc(linkText(s.link, state.model.doc.pages))}" placeholder="a page, or https://…"></label><datalist id="wd-pages-list">${state.model.doc.pages.map((pg) => `<option value="${esc(pg.name)}">`).join("")}</datalist>` +
@@ -506,7 +558,7 @@ function render() {
     document.querySelectorAll("[data-tool]").forEach((b) => b.classList.toggle("is-on", b.dataset.tool === state.tool));
     $("wd-zoomlabel").textContent = Math.round(state.zoom * 100) + "%";
     const n = shapes().length, c = items().filter((i) => i.kind === "connector").length;
-    $("wd-status").innerHTML = `<span>${page().name} · page ${state.model.doc.pages.findIndex((p) => p.id === state.pageId) + 1} of ${state.model.doc.pages.length}</span><span>${n} shape${n === 1 ? "" : "s"} · ${c} connector${c === 1 ? "" : "s"}</span>${state.sel.length ? `<span>${state.sel.length} selected</span>` : ""}${state.message ? `<span class="err" role="alert">${esc(state.message)}</span>` : state.note ? `<span class="note" role="status">${esc(state.note)}</span>` : ""}`;
+    $("wd-status").innerHTML = `<span>${page().name} · page ${state.model.doc.pages.findIndex((p) => p.id === state.pageId) + 1} of ${state.model.doc.pages.length}</span><span>${n} shape${n === 1 ? "" : "s"} · ${c} connector${c === 1 ? "" : "s"}</span>${page().scale ? `<span>Scale ${esc(scaleText(page().scale))}</span>` : ""}${state.sel.length ? `<span>${state.sel.length} selected</span>` : ""}${state.message ? `<span class="err" role="alert">${esc(state.message)}</span>` : state.note ? `<span class="note" role="status">${esc(state.note)}</span>` : ""}`;
   } finally { rendering = false; }
 }
 
@@ -715,6 +767,7 @@ $("wd-props").addEventListener("change", (e) => {
     if (prop === "text") state.model.set(id, { text: el.value }, state.pageId);
     else if (prop === "fill" || prop === "line" || prop === "fontSize") state.model.set(id, { style: { ...it.style, [prop]: prop === "fontSize" ? Number(el.value) : el.value } }, state.pageId);
     else if (prop === "w" || prop === "h" || prop === "rotate") state.model.set(id, { [prop]: Number(el.value) }, state.pageId);
+    else if (prop === "rw" || prop === "rh") state.model.set(id, { [prop === "rw" ? "w" : "h"]: Math.max(1, Math.round(fromReal(Number(el.value), page().scale) * 100) / 100) }, state.pageId);
     else if (prop === "ctext") state.model.set(id, { text: el.value }, state.pageId);
     else if (prop === "route") state.model.set(id, { route: el.value }, state.pageId);
     else if (prop === "link") {
