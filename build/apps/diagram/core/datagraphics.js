@@ -49,5 +49,22 @@ export function graphicFor(shape, g) {
   return out;
 }
 
+/**
+ * A shape's icon and data bar (graphicFor's) as plain shapes for files that have no data graphics of their own,
+ * such as a Visio export: the icon as borderless text in the shape's top-right corner, the bar as a grey track with
+ * a blue fill along the bottom, as the canvas draws them. Ids are the shape's with "-icon", "-bar-bg", "-bar".
+ */
+export function graphicShapes(shape, gfx) {
+  const out = [];
+  const box = (id, x, y, w, h, style, text = "") => out.push({ id: `${shape.id}-${id}`, kind: "shape", type: "rect", layer: shape.layer, x, y, w, h, rotate: 0, text, style });
+  if (gfx.icon) box("icon", shape.x + shape.w - 20, shape.y + 2, 18, 16, { fill: "none", line: "none", fontSize: 11 }, gfx.icon);
+  if (gfx.bar !== undefined) {
+    const w = Math.max(0, shape.w - 12);
+    box("bar-bg", shape.x + 6, shape.y + shape.h - 9, w, 5, { fill: "#e5e7eb", line: "none" });
+    if (gfx.bar > 0) box("bar", shape.x + 6, shape.y + shape.h - 9, w * gfx.bar, 5, { fill: "#2a78d6", line: "none" }, "");
+  }
+  return out;
+}
+
 /** The shape data labels used on a page, for choosing a field. */
 export const dataLabels = (page) => [...new Set(page.items.flatMap((i) => (i.data || []).map((d) => d.label)))].sort((a, b) => a.localeCompare(b));

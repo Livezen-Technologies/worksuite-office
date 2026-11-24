@@ -1,5 +1,16 @@
 # Change log
 
+## 10.1.105
+
+### New features
+
+#### Diagram
+
+* Data graphic icons and bars go to Visio: saving as .vsdx draws each shape's
+  icon in its top corner and its data bar along its foot, as shapes of their
+  own, beside the colour it already kept. Shapes without a border keep that
+  in .vsdx both ways.
+
 ## 10.1.104
 
 ### New features

@@ -17,7 +17,7 @@ import { askText, askForm } from "../../common/dialog.js";
 import { lanePath, LANE_HEADER } from "../core/swimlane.js";
 import { carried, leader, containerPath, CONTAINER_HEADER } from "../core/container.js";
 import { parseDataValue, formatDataValue } from "../core/shapedata.js";
-import { graphicFor, graphicsError, dataLabels } from "../core/datagraphics.js";
+import { graphicFor, graphicsError, dataLabels, graphicShapes } from "../core/datagraphics.js";
 import { readTableFile } from "../core/linkdata.js";
 import { parseLink, linkText, safeUrl } from "../core/hyperlink.js";
 import { THEMES, VARIANTS, themeColors, themeConnector, borderParts, contrast } from "../core/theme.js";
@@ -490,13 +490,14 @@ function pageSvg(interactive) {
   if (interactive) out += overlaySvg();
   return out + "</svg>";
 }
-/** A copy of the diagram with each shape's data graphic colour (datagraphics.js) as its own fill, for Visio export. */
+/** A copy of the diagram with each shape's data graphic (datagraphics.js) as its own: the colour as its fill, icon and bar as shapes, for Visio export. */
 function withGraphicColours(doc) {
   const out = structuredClone(doc);
-  for (const p of out.pages) for (const it of p.items) {
+  for (const p of out.pages) for (const it of [...p.items]) {
     if (it.kind !== "shape") continue;
-    const fill = graphicFor(withComputed(it, p), p.graphics).fill;
-    if (fill) it.style = { ...(it.style || {}), fill };
+    const gfx = graphicFor(withComputed(it, p), p.graphics);
+    if (gfx.fill) it.style = { ...(it.style || {}), fill: gfx.fill };
+    p.items.splice(p.items.indexOf(it) + 1, 0, ...graphicShapes(it, gfx)); // its icon and bar, just above it
     it.text = shapeText(it, p); // text fields and formulas as they read on the page
     if (it.data?.length) it.data = computeData(it, p).map(({ label, value }) => ({ label, value }));
   }

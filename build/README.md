@@ -106,7 +106,7 @@ locally:
 
 | Variable                          | Meaning                                  | Default                |
 | --------------------------------- | ---------------------------------------- | ---------------------- |
-| `PRODUCT_VERSION`                 | marketing version                        | `10.1.104`                |
+| `PRODUCT_VERSION`                 | marketing version                        | `10.1.105`                |
 | `BUILD_NUMBER`                    | build identifier                         | `dev.1`                |
 | `COMPANY_NAME` / `PRODUCT_NAME`   | shown in the app's About page            | `Euro-Office` / `DesktopEditors` |
 
