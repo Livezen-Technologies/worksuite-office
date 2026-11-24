@@ -51,6 +51,7 @@ const I = {
   comment: "M3 4h14v9h-8l-4 3v-3h-2z M10 6.5v4 M8 8.5h4",
   comments: "M3 4h11v7h-6l-3 3v-3h-2z M16 7h1v7h-2v3l-3-3h-4",
   template: "M3 3h6v6h-6z M11 3h6v6h-6z M3 11h6v6h-6z M11 11h6v6h-6z M5 6h2 M13 5h2v2h-2z",
+  report: "M4 2.5h9l3 3v12h-12z M7 9h6 M7 12h6 M7 15h4",
   check: "M3 3h14v14h-14z M6 10l3 3 5-6",
   theme: "M10 2.5a7.5 7.5 0 1 0 0 15c1.2 0 1.6-.9 1.2-1.8-.5-1 .1-2.2 1.3-2.2h1.6a3.4 3.4 0 0 0 3.4-3.4c0-4.3-3.4-7.6-7.5-7.6z M6 9a1 1 0 1 0 .01 0z M9 5.5a1 1 0 1 0 .01 0z M13 6.5a1 1 0 1 0 .01 0z",
   pageframe: "M3 3h14v14h-14z M3 6.5h14 M10.5 13h4.5v4",

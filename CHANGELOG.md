@@ -1,5 +1,15 @@
 # Change log
 
+## 10.1.99
+
+### New features
+
+#### Diagram
+
+* Shape reports: Review › Shape Report lists the shapes that have data, on
+  this page or all pages, one row each with a column per data name, formulas
+  worked out and totals for number columns. Save it as CSV or Excel.
+
 ## 10.1.98
 
 ### New features
