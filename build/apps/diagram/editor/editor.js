@@ -493,6 +493,18 @@ function withGraphicColours(doc) {
     it.text = shapeText(it, p); // text fields and formulas as they read on the page
     if (it.data?.length) it.data = computeData(it, p).map(({ label, value }) => ({ label, value }));
   }
+  for (const p of out.pages) p.items.unshift(...pageLookShapes(p)); // behind everything
+  return out;
+}
+/** The page's background and border (theme.js) as plain shapes, for Visio export, which has no other way to carry them. */
+function pageLookShapes(p) {
+  const layer = p.layers[0].id, out = [];
+  const box = (id, r, style, text = "") => out.push({ id: `${p.id}-${id}`, kind: "shape", type: "rect", layer, x: r.x, y: r.y, w: r.w, h: r.h, rotate: 0, text, style });
+  if (p.background) box("bg", { x: 0, y: 0, w: p.width, h: p.height }, { fill: p.background, line: p.background });
+  const b = borderParts(p);
+  if (b?.band) box("band", b.band, { fill: b.color, line: b.color }, b.title?.text || "");
+  if (b?.frame) box("frame", b.frame, { fill: "none", line: b.color, lineWidth: 1.5 });
+  if (b?.titleBox) box("title", b.titleBox, { fill: "#ffffff", line: b.color, lineWidth: 1.5 }, b.title?.text || "");
   return out;
 }
 /** A page's border and title (theme.js borderParts), behind the shapes. */
