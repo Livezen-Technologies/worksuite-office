@@ -20,6 +20,7 @@ import { outlineToDoc } from "../core/outline.js";
 import { workOf, unitsOf, TASK_TYPES } from "../core/tasktypes.js";
 import { costs, resourceSheet, formatMoney } from "../core/costs.js";
 import { earnedValue } from "../core/earnedvalue.js";
+import { REPORT_COLUMNS, sortRows } from "../core/reports.js";
 import { BOARD_COLUMNS, board, progressFor, month, network, NODE, usage, FILTERS, filterTasks, timeline, GROUPS, groupRows, overview, teamPlanner, burndown } from "./views.js";
 import { askText, askForm } from "../../common/dialog.js";
 import { FIELD_TYPES, parseValue, formatValue, fieldValue, fieldIcon, fieldError, FORMULA_FIELDS } from "../core/fields.js";
@@ -201,6 +202,7 @@ const commands = {
   viewResUsage: () => showView("ruse"),
   viewTimeline: () => showView("tl"),
   viewReport: () => showView("report"),
+  viewCustom: () => { if (!(state.model.doc.reports || []).length) return designReport(); state.creportId ||= state.model.doc.reports[0].id; showView("creport"); },
   viewTracking: () => showView("tracking"),
   viewTeam: () => showView("team"),
   viewBurn: () => showView("burn"),
@@ -602,7 +604,7 @@ function renderChart(rows) {
 /** One view at a time in the right-hand pane (null: the Gantt chart). */
 function showView(name) {
   if (name === "tracking" && !state.model.baseline(state.baselineName)) state.note = "Set a baseline (Project › Set Baseline) to compare against: the Tracking Gantt draws it under each bar";
-  for (const k of ["workload", "sheet", "ev", "board", "cal", "net", "tuse", "ruse", "tl", "report", "tracking", "team", "burn"]) state[k] = k === name;
+  for (const k of ["workload", "sheet", "ev", "board", "cal", "net", "tuse", "ruse", "tl", "report", "tracking", "team", "burn", "creport"]) state[k] = k === name;
   if (name === "cal" && !state.calMonth) {
     const d = new Date((first() ? state.model.task(first()).start : state.model.doc.start) + "T00:00:00Z");
     state.calMonth = [d.getUTCFullYear(), d.getUTCMonth()];
@@ -721,6 +723,99 @@ function renderNet() {
   $("wp-chart").innerHTML = svg + "</svg>";
 }
 
+/* ---- custom report layouts (core/reports.js) ---- */
+const reportCols = () => [...REPORT_COLUMNS, ...(state.model.doc.fields || []).map((f) => ["c:" + f.key, f.name])];
+/** A cell of a custom report: { sort (number or text), text }. */
+function reportCell(r, key, ctx) {
+  if (key.startsWith("c:")) {
+    const f = (state.model.doc.fields || []).find((x) => "c:" + x.key === key);
+    const cv = f ? customOf(r, f) : { value: "" };
+    return cv.error ? { sort: null, text: "#ERR" } : { sort: typeof cv.value === "number" ? cv.value : cv.value ?? "", text: f ? formatValue(f.type, cv.value, fmt) : "" };
+  }
+  switch (key) {
+    case "wbs": return { sort: ctx.wbs.get(r.id), text: ctx.wbs.get(r.id) };
+    case "duration": return { sort: r.duration, text: r.milestone ? "0 d" : `${r.duration} d` };
+    case "work": { const w = !r.summary && !r.milestone && unitsOf(r) > 0 ? workOf(r) : null; return { sort: w, text: w === null ? "" : `${w} h` }; }
+    case "cost": { const c = ctx.cost.get(r.id) || 0; return { sort: c, text: c ? formatMoney(c) : "" }; }
+    case "fixedCost": return { sort: r.fixedCost || 0, text: r.fixedCost ? formatMoney(r.fixedCost) : "" };
+    case "start": case "finish": case "deadline": return { sort: r[key] || "", text: r[key] ? fmt(r[key]) : "" };
+    case "progress": return { sort: r.progress, text: `${r.progress}%` };
+    case "priority": return { sort: r.summary ? null : r.priority ?? 500, text: r.summary ? "" : String(r.priority ?? 500) };
+    default: return { sort: r[key] ?? "", text: String(r[key] ?? "") };
+  }
+}
+/** The rows of a custom report: filtered, grouped (headings) or sorted. */
+function reportRows(rep) {
+  const doc = state.model.doc, isWork = calendar().isWork;
+  let critical = new Set();
+  try { if (rep.filter === "critical" || rep.group === "critical") critical = new Set(criticalPath(schedule(doc, calendar()))); } catch { /* none */ }
+  const keep = filterTasks(doc, rep.filter, { critical, behind: new Set(state.behind.map((x) => x.id)), deadline: new Set(pastDeadline(doc, isWork).map((x) => x.id)) });
+  const all = state.model.tasks.map((t) => state.model.view(t.id)).filter((r) => !keep || keep.has(r.id));
+  const ctx = { wbs: wbsCodes(state.model.tasks), cost: costs(doc).byId };
+  if (rep.group !== "none") return { rows: groupRows(all.filter((r) => !r.summary), doc, rep.group, { critical }), ctx };
+  return { rows: sortRows(all, rep.sort, (r, k) => reportCell(r, k, ctx).sort), ctx };
+}
+function reportTable(rep) {
+  const { rows, ctx } = reportRows(rep), names = new Map(reportCols());
+  return [rep.columns.map((c) => names.get(c) || c), ...rows.map((r) => (r.group ? [r.name, ...rep.columns.slice(1).map(() => "")] : rep.columns.map((c) => reportCell(r, c, ctx).text)))];
+}
+function renderCustomReport() {
+  const list = state.model.doc.reports || [];
+  const rep = list.find((r) => r.id === state.creportId) || list[0];
+  if (!rep) { $("wp-chart").innerHTML = `<p class="wp-empty">No custom reports yet. <button data-report-new>New report</button></p>`; return; }
+  state.creportId = rep.id;
+  const { rows, ctx } = reportRows(rep), names = new Map(reportCols());
+  const desc = [FILTERS.find((f) => f.key === rep.filter)?.title || rep.filter, rep.group !== "none" ? `grouped by ${GROUPS.find((g) => g.key === rep.group)?.title.toLowerCase()}` : rep.sort ? `sorted by ${names.get(rep.sort.key)}, ${rep.sort.dir === "asc" ? "lowest first" : "highest first"}` : ""].filter(Boolean).join(" · ");
+  let h = `<div class="wp-report wp-creport"><div class="wp-creport-bar"><select data-report-pick aria-label="Report">${list.map((r) => `<option value="${esc(r.id)}" ${r.id === rep.id ? "selected" : ""}>${esc(r.name)}</option>`).join("")}</select>
+    <button data-report-edit>Edit</button><button data-report-new>New</button><button data-report-del>Delete</button><span class="sp"></span><button data-report-csv>CSV</button><button data-report-xlsx>Excel</button><button data-report-print>Print</button></div>
+    <h2>${esc(rep.name)} <span>${esc(state.model.doc.name)} · ${esc(desc)} · ${rows.filter((r) => !r.group).length} tasks</span></h2>
+    <table class="wp-creport-table"><thead><tr>${rep.columns.map((c) => `<th>${esc(names.get(c) || c)}</th>`).join("")}</tr></thead><tbody>`;
+  for (const r of rows) {
+    if (r.group) { h += `<tr class="grp"><td colspan="${rep.columns.length}">${esc(r.name)} <span>${r.count} task${r.count === 1 ? "" : "s"}</span></td></tr>`; continue; }
+    h += `<tr class="${r.summary ? "sum" : ""}" data-card="${r.id}">${rep.columns.map((c) => { const v = reportCell(r, c, ctx); return `<td class="${typeof v.sort === "number" && c !== "wbs" ? "num" : ""}"${c === "name" && rep.group === "none" && !rep.sort ? ` style="padding-inline-start:${8 + r.level * 14}px"` : ""}>${esc(v.text)}</td>`; }).join("")}</tr>`;
+  }
+  $("wp-chart").innerHTML = h + `</tbody></table></div>`;
+}
+/** The report designer: name, columns in order, filter, grouping, sort. */
+function designReport(existing = null) {
+  document.getElementById("wp-designer")?.remove();
+  const r = existing || { id: "r" + Date.now().toString(36), name: "New report", columns: ["name", "start", "finish", "progress", "owner"], filter: "all", group: "none", sort: null };
+  const dlg = document.createElement("dialog");
+  dlg.id = "wp-designer"; dlg.className = "wp-designer";
+  const cols = reportCols(), chosen = [...r.columns];
+  const draw = () => {
+    dlg.innerHTML = `<h3>${existing ? "Edit report" : "New report"}</h3><label>Name<input id="rd-name" value="${esc(r.name)}"></label>
+      <div class="cols"><div><b>Columns</b><ul id="rd-chosen">${chosen.map((k, i) => `<li><span>${esc(new Map(cols).get(k) || k)}</span><button data-up="${i}" ${i ? "" : "disabled"} title="Earlier">↑</button><button data-down="${i}" ${i < chosen.length - 1 ? "" : "disabled"} title="Later">↓</button><button data-out="${i}" title="Remove">×</button></li>`).join("")}</ul></div>
+      <div><b>Add a column</b><ul>${cols.filter(([k]) => !chosen.includes(k)).map(([k, l]) => `<li><button data-in="${esc(k)}">+ ${esc(l)}</button></li>`).join("") || "<li class=hint>All columns are in.</li>"}</ul></div></div>
+      <div class="row"><label>Show<select id="rd-filter">${FILTERS.map((f) => `<option value="${f.key}" ${f.key === r.filter ? "selected" : ""}>${f.title}</option>`).join("")}</select></label>
+      <label>Group by<select id="rd-group">${GROUPS.map((g) => `<option value="${g.key}" ${g.key === r.group ? "selected" : ""}>${g.title}</option>`).join("")}</select></label>
+      <label>Sort by<select id="rd-sort"><option value="">Outline order</option>${chosen.map((k) => `<option value="${esc(k)}" ${r.sort?.key === k ? "selected" : ""}>${esc(new Map(cols).get(k))}</option>`).join("")}</select></label>
+      <label>Order<select id="rd-dir"><option value="asc" ${r.sort?.dir !== "desc" ? "selected" : ""}>Lowest first</option><option value="desc" ${r.sort?.dir === "desc" ? "selected" : ""}>Highest first</option></select></label></div>
+      <p class="err" id="rd-err"></p><div class="foot"><button id="rd-cancel">Cancel</button><button class="primary" id="rd-save">Save report</button></div>`;
+  };
+  const keep = () => { r.name = dlg.querySelector("#rd-name").value; r.filter = dlg.querySelector("#rd-filter").value; r.group = dlg.querySelector("#rd-group").value; const sk = dlg.querySelector("#rd-sort").value; r.sort = sk ? { key: sk, dir: dlg.querySelector("#rd-dir").value } : null; };
+  draw();
+  dlg.addEventListener("click", (e) => {
+    const b = e.target.closest("button");
+    if (!b) return;
+    if (b.id === "rd-cancel") return dlg.remove();
+    keep();
+    if (b.dataset.in) chosen.push(b.dataset.in);
+    else if (b.dataset.out !== undefined) chosen.splice(+b.dataset.out, 1);
+    else if (b.dataset.up !== undefined) { const i = +b.dataset.up; [chosen[i - 1], chosen[i]] = [chosen[i], chosen[i - 1]]; }
+    else if (b.dataset.down !== undefined) { const i = +b.dataset.down; [chosen[i + 1], chosen[i]] = [chosen[i], chosen[i + 1]]; }
+    else if (b.id === "rd-save") {
+      r.columns = [...chosen];
+      if (r.sort && !r.columns.includes(r.sort.key)) r.sort = null;
+      try { state.model.saveReport(r); } catch (err) { dlg.querySelector("#rd-err").textContent = err.message; return; }
+      dlg.remove(); state.creportId = r.id; showView("creport"); return;
+    }
+    draw();
+  });
+  document.body.append(dlg);
+  dlg.showModal();
+  dlg.addEventListener("close", () => dlg.remove());
+}
 /** The Project Overview report: headline figures, milestones ahead, tasks running late and work by person. */
 function renderReport() {
   const doc = state.model.doc, isWork = calendar().isWork;
@@ -777,6 +872,18 @@ function renderCal() {
   $("wp-chart").innerHTML = h + "</div></div>";
 }
 $("wp-chart").addEventListener("click", (e) => {
+  const rb = e.target.closest("[data-report-new],[data-report-edit],[data-report-del],[data-report-csv],[data-report-xlsx],[data-report-print]");
+  if (rb) {
+    const rep = (state.model.doc.reports || []).find((r) => r.id === state.creportId);
+    const base = state.fileName.replace(/\.wsproj$/, "") + (rep ? ` - ${rep.name}` : "");
+    if (rb.hasAttribute("data-report-new")) designReport();
+    else if (rb.hasAttribute("data-report-edit") && rep) designReport(structuredClone(rep));
+    else if (rb.hasAttribute("data-report-del") && rep && confirm(`Delete the report "${rep.name}"?`)) { state.model.removeReport(rep.id); state.creportId = null; render(); }
+    else if (rb.hasAttribute("data-report-csv") && rep) download(base + ".csv", "\ufeff" + reportTable(rep).map((row) => row.map((v) => (/[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v)).join(",")).join("\r\n") + "\r\n", "text/csv");
+    else if (rb.hasAttribute("data-report-xlsx") && rep) download(base + ".xlsx", xlsx(reportTable(rep), rep.name.slice(0, 31)), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    else if (rb.hasAttribute("data-report-print")) window.print();
+    return;
+  }
   const nav = e.target.closest("[data-cal]");
   if (nav && state.cal) {
     const step = Number(nav.dataset.cal);
@@ -839,6 +946,7 @@ function renderSheet() {
     `<p class="wp-hint wp-sheet-help">On a task's Owner, people take a share of their time (<b>Ravi 50%</b>); materials and cost resources take an amount in brackets (<b>Cement [20]</b>, <b>Permit fee [15000]</b>).</p>`;
 }
 $("wp-chart").addEventListener("change", (e) => {
+  if (e.target.matches("[data-report-pick]")) { state.creportId = e.target.value; render(); return; }
   const input = e.target.closest("[data-rate]");
   if (!input) return;
   const v = input.value.trim();
@@ -980,9 +1088,9 @@ function draw() {
   $("wp-type").disabled = $("wp-effort").disabled = state.readOnly || !firstTyped;
   $("wp-task-cal").value = firstTyped?.calendar || "";
   $("wp-task-cal").disabled = state.readOnly || !firstTyped;
-  const view = state.burn ? "viewBurn" : state.team ? "viewTeam" : state.tracking ? "viewTracking" : state.report ? "viewReport" : state.tl ? "viewTimeline" : state.tuse ? "viewTaskUsage" : state.ruse ? "viewResUsage" : state.net ? "viewNet" : state.board ? "viewBoard" : state.cal ? "viewCal" : state.ev ? "viewEv" : state.sheet ? "viewSheet" : state.workload ? "viewWorkload" : "viewGantt";
+  const view = state.burn ? "viewBurn" : state.team ? "viewTeam" : state.tracking ? "viewTracking" : state.report ? "viewReport" : state.creport ? "viewCustom" : state.tl ? "viewTimeline" : state.tuse ? "viewTaskUsage" : state.ruse ? "viewResUsage" : state.net ? "viewNet" : state.board ? "viewBoard" : state.cal ? "viewCal" : state.ev ? "viewEv" : state.sheet ? "viewSheet" : state.workload ? "viewWorkload" : "viewGantt";
   for (const b of document.querySelectorAll('[data-cmd^="view"]')) b.setAttribute("aria-pressed", String(b.dataset.cmd === view));
-  if (state.burn) renderBurn(); else if (state.team) renderTeam(); else if (state.report) renderReport(); else if (state.tl) renderTimeline(); else if (state.tuse) renderUsage("task"); else if (state.ruse) renderUsage("resource"); else if (state.net) renderNet(); else if (state.board) renderBoard(); else if (state.cal) renderCal(); else if (state.ev) renderEv(); else if (state.sheet) renderSheet(); else if (state.workload) renderWorkload(); else renderChart(rows);
+  if (state.burn) renderBurn(); else if (state.team) renderTeam(); else if (state.report) renderReport(); else if (state.creport) renderCustomReport(); else if (state.tl) renderTimeline(); else if (state.tuse) renderUsage("task"); else if (state.ruse) renderUsage("resource"); else if (state.net) renderNet(); else if (state.board) renderBoard(); else if (state.cal) renderCal(); else if (state.ev) renderEv(); else if (state.sheet) renderSheet(); else if (state.workload) renderWorkload(); else renderChart(rows);
   $("wp-title").textContent = state.fileName.replace(/\.wsproj$/, "") + (state.model.undoStack.length !== (state.saved || 0) ? " •" : ""); // • unsaved changes
   $("wp-mode").hidden = !state.readOnly;
   $("wp-mode-text").textContent = reasonText(state.licence || "no_license");
