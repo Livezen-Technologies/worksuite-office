@@ -106,3 +106,23 @@ test("an .mpp is recognised by name or content, and the help says how to save it
   assert.match(MPP_HELP, /Save As/);
   assert.match(MPP_HELP, /XML/);
 });
+
+test("split tasks travel as timephased work, with and without people", async () => {
+  const { splitsFromPhased } = await import("../apps/project/core/projectxml.js");
+  const weekdays = (d) => { const w = new Date(d * 86400000).getUTCDay(); return w > 0 && w < 6; };
+  const m = new ProjectModel(newProject("Splits", "2026-01-05"));
+  const a = m.addTask({ name: "Pour and cure", start: "2026-01-05", duration: 6, owner: "Nimal" });
+  const b = m.addTask({ name: "Paint", start: "2026-01-05", duration: 4 });
+  m.split(a, 2, 3); m.split(a, 4, 1); m.split(b, 1, 2);
+  const xml = toProjectXml(m.doc, weekdays);
+  assert.match(xml, /<ResourceUID>-65535<\/ResourceUID>/, "the unassigned task carries its split on the null resource");
+  assert.match(xml, /<TimephasedData><Type>1<\/Type><UID>\d+<\/UID><Start>2026-01-07T08:00:00<\/Start><Finish>2026-01-07T17:00:00<\/Finish><Unit>2<\/Unit><Value>PT0H0M0S<\/Value>/);
+  const { doc } = fromProjectXml(xml);
+  const byName = (n) => doc.tasks.find((t) => t.name === n);
+  assert.deepEqual(byName("Pour and cure").splits, [{ after: 2, days: 3 }, { after: 4, days: 1 }]);
+  assert.deepEqual(byName("Paint").splits, [{ after: 1, days: 2 }]);
+  assert.equal(byName("Paint").owner, undefined, "the null resource is nobody");
+  // a run of days in one row, the weekend skipped, and no work at the end is not a pause
+  assert.deepEqual(splitsFromPhased([{ start: "2026-01-08", finish: "2026-01-09", hours: 16 }, { start: "2026-01-12", finish: "2026-01-12", hours: 0 }, { start: "2026-01-13", finish: "2026-01-13", hours: 8 }, { start: "2026-01-14", finish: "2026-01-15", hours: 0 }], {}, 3), [{ after: 2, days: 1 }]);
+  assert.doesNotMatch(toProjectXml(new ProjectModel(newProject("Plain", "2026-01-05")).doc, weekdays), /TimephasedData/);
+});
