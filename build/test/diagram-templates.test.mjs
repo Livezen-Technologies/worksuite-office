@@ -20,3 +20,14 @@ test("every template makes a valid page with fresh ids, and the flowchart and BP
   }
   assert.throws(() => templatePage("nope", (x) => x), /no template/);
 });
+
+test("the P&ID has dashed signal lines and the site plan a 1:500 scale", () => {
+  let n = 0; const id = (p) => `${p}${++n}`;
+  const pid = templatePage("pid", id);
+  const signals = pid.items.filter((i) => i.kind === "connector" && i.style.dash);
+  assert.equal(signals.length, 2);
+  assert.ok(["vessel", "pump", "controlvalve", "instrument", "heatexchanger"].every((t) => pid.items.some((i) => i.type === t)));
+  const site = templatePage("siteplan", id);
+  assert.deepEqual(site.scale, { paper: 1, paperUnit: "cm", real: 5, realUnit: "m" });
+  assert.ok(site.items.some((i) => i.type === "building") && site.items.filter((i) => i.type === "tree").length >= 3);
+});

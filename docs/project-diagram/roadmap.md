@@ -90,7 +90,6 @@ Stage 6, shipped:
 Stage 6, left:
 
 - Files: VSDM, stencils (VSSX/VSS) and templates (VSTX/VST); user-built masters and stencils
-- Templates: P&ID, site plans
 
 Alongside (worksuite repository, `ops/document-server`): a terminal and a web setup wizard for the Document Server,
 and its admin panel and API (status, actions, logs, settings, secret rotation, fonts, users and roles,

@@ -228,6 +228,8 @@ export async function fromVsdx(bytes) {
       const line = color(c.LineColor);
       if (line) conn.style.line = line;
       if (num(c.BeginArrow) > 0) conn.style.arrowStart = true;
+      if (c.LineWeight !== undefined) conn.style.lineWidth = r3(num(c.LineWeight) * PT);
+      if (num(c.LinePattern, 1) > 1) conn.style.dash = true;
       page.items.push(conn);
     }
     doc.pages.push(page);
@@ -356,7 +358,7 @@ export function toVsdx(doc, outline, routeOf, styleOf = (sh) => sh.style || {}) 
         (it.text ? cell("TxtAngle", -ang, "RAD") + cell("TxtWidth", Math.max(1, it.text.length * 0.09), "IN") + cell("TxtHeight", 0.25, "IN") +
           cell("TxtPinX", len / 2, "IN") + cell("TxtPinY", 0, "IN") + cell("TxtLocPinX", Math.max(1, it.text.length * 0.09) / 2, "IN") + cell("TxtLocPinY", 0.125, "IN") : "") +
         (it.style?.arrowEnd !== false ? cell("EndArrow", 4) : "") + (it.style?.arrowStart ? cell("BeginArrow", 4) : "") +
-        (it.style?.line ? cell("LineColor", it.style.line) : "") +
+        (it.style?.line ? cell("LineColor", it.style.line) : "") + (it.style?.lineWidth ? cell("LineWeight", it.style.lineWidth / PT, "PT") : "") + (it.style?.dash ? cell("LinePattern", 2) : "") +
         `<Section N="Geometry" IX="0">${cell("NoFill", 1)}` + localPts.map((p, j) => `<Row T="${j ? "LineTo" : "MoveTo"}" IX="${j + 1}">${cell("X", p[0], "IN")}${cell("Y", p[1], "IN")}</Row>`).join("") + "</Section>" +
         (it.text ? `<Text>${esc(it.text)}</Text>` : "") + "</Shape>");
       if (it.from.shape !== undefined && vid.has(it.from.shape)) connects.push(`<Connect FromSheet="${id}" FromCell="BeginX" FromPart="9" ToSheet="${vid.get(it.from.shape)}" ToCell="PinX" ToPart="3"/>`);

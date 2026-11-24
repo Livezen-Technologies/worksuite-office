@@ -67,12 +67,12 @@ test("corner resizing keeps the opposite corner and a minimum size", () => {
   assert.deepEqual(resizeBox(box, "nw", 500, 500), { x: 170, y: 130, w: 10, h: 10 });
 });
 
-test("the floor plan, UML, BPMN and cloud libraries: own types, closed outlines, numbers only, VSDX-ready", async () => {
+test("the floor plan, UML, BPMN, P&ID, site and cloud libraries: own types, closed outlines, numbers only, VSDX-ready", async () => {
   const { pathToGeometry } = await import("../apps/diagram/core/vsdx.js");
   const { OPEN_LIBRARIES } = await import("../apps/diagram/editor/geometry.js");
-  assert.deepEqual(LIBRARIES.map((l) => l.id), ["flowchart", "basic", "org", "network", "floor", "uml", "bpmn", "cloud"]);
+  assert.deepEqual(LIBRARIES.map((l) => l.id), ["flowchart", "basic", "org", "network", "floor", "uml", "bpmn", "pid", "site", "cloud"]);
   assert.ok(OPEN_LIBRARIES.every((id) => LIBRARIES.some((l) => l.id === id)));
-  const fresh = LIBRARIES.filter((l) => ["floor", "uml", "bpmn", "cloud"].includes(l.id)).flatMap((l) => l.shapes);
+  const fresh = LIBRARIES.filter((l) => ["floor", "uml", "bpmn", "pid", "site", "cloud"].includes(l.id)).flatMap((l) => l.shapes);
   const types = fresh.map((s) => s.type);
   assert.equal(new Set(types).size, types.length); // no type shared within the new libraries…
   for (const s of fresh) {

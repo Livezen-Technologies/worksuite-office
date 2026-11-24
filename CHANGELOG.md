@@ -1,5 +1,20 @@
 # Change log
 
+## 10.1.106
+
+### New features
+
+#### Diagram
+
+* Two more templates in File › From Template: piping and instrumentation
+  (P&ID), with a tank, pump, control valve, heat exchanger and a flow loop on
+  dashed signal lines, and a site plan drawn to a 1:500 scale.
+* New shape libraries: Process (P&ID), with a tank, pump, valve, control
+  valve, instrument and heat exchanger, and Site plan, with a building, tree,
+  parking bays and road.
+* Connectors draw their own line width and can be dashed, on the page and in
+  .vsdx both ways.
+
 ## 10.1.105
 
 ### New features
