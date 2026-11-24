@@ -23,6 +23,7 @@ import { parseLink, linkText, safeUrl } from "../core/hyperlink.js";
 import { THEMES, VARIANTS, themeColors, themeConnector, borderParts, contrast } from "../core/theme.js";
 import { checkPage, rulesetOf, issueKey } from "../core/rules.js";
 import { openCounts, sortThreads, ago, initials } from "../core/comments.js";
+import { computeData, shapeText, withComputed, isFormula, formulaError } from "../core/smart.js";
 import { PRESETS, PAPERS, UNITS, PAPER_UNITS, toReal, fromReal, unitOf, formatLength, scaleText, tiles } from "../core/scale.js";
 import { decorateRibbon, ribbonStyles } from "../../common/ribbon.js";
 import { aiDraft } from "../../common/aidraft.js";
@@ -414,16 +415,17 @@ function shapeSvg(s) {
   if (s.type === "lane") return laneSvg(s);
   if (s.type === "container") return containerSvg(s);
   if (s.type === "callout") return calloutSvg(s);
-  const gfx = graphicFor(s, page().graphics);
+  const sc = withComputed(s, page()), label = shapeText(s, page());
+  const gfx = graphicFor(sc, page().graphics);
   const th = themeColors(page().theme, s.type);
   const fill = gfx.fill || s.style?.fill || th?.fill || FILLS[s.type] || "#dbeafe", line = s.style?.line || th?.line || LINES[s.type] || "#2563eb";
   const ink = th && !s.style?.fill && !gfx.fill ? `;fill:${th.text}` : "";
   const lw = s.style?.lineWidth ?? 1.5;
   const tf = `translate(${s.x} ${s.y})${s.rotate ? ` rotate(${s.rotate} ${s.w / 2} ${s.h / 2})` : ""}`;
-  const shown = s.style?.showData && s.data?.length ? `<text class="shape-data" text-anchor="middle" style="font-size:10px">${s.data.map((d, i) => `<tspan x="${s.w / 2}" y="${s.h + 12 + i * 12}">${esc(d.label)}: ${esc(formatDataValue(d.value))}</tspan>`).join("")}</text>` : "";
-  const tip = s.data?.length ? `<title>${esc([s.text, ...s.data.map((d) => `${d.label}: ${formatDataValue(d.value)}`)].filter(Boolean).join("\n"))}</title>` : "";
+  const shown = s.style?.showData && s.data?.length ? `<text class="shape-data" text-anchor="middle" style="font-size:10px">${sc.data.map((d, i) => `<tspan x="${s.w / 2}" y="${s.h + 12 + i * 12}">${esc(d.label)}: ${esc(formatDataValue(d.value))}</tspan>`).join("")}</text>` : "";
+  const tip = s.data?.length ? `<title>${esc([label, ...sc.data.map((d) => `${d.label}: ${formatDataValue(d.value)}`)].filter(Boolean).join("\n"))}</title>` : "";
   return `<g data-id="${s.id}" transform="${tf}">${tip}<path class="shape-body" d="${shapePath(s.type, s.w, s.h, s.path)}" fill="${fill}" stroke="${line}" stroke-width="${lw}"/>` +
-    `<text class="shape-text" text-anchor="middle" style="font-size:${s.style?.fontSize || 13}px${ink}">${s.type === "dimension" ? textLines(s.text || formatLength(s.w, page().scale), 0, s.w / 2, (s.h - 12) / 2, s.style?.fontSize || 12) : textLines(s.text, 0, s.w / 2, s.h / 2, s.style?.fontSize || 13)}</text>${shown}` +
+    `<text class="shape-text" text-anchor="middle" style="font-size:${s.style?.fontSize || 13}px${ink}">${s.type === "dimension" ? textLines(s.text || formatLength(s.w, page().scale), 0, s.w / 2, (s.h - 12) / 2, s.style?.fontSize || 12) : textLines(label, 0, s.w / 2, s.h / 2, s.style?.fontSize || 13)}</text>${shown}` +
     (s.link ? `<text class="link-mark" x="4" y="${s.h - 4}" style="font-size:11px"><title>${esc(s.link.page ? `Go to ${linkText(s.link, state.model.doc.pages)}` : s.link.url)} (Ctrl+click)</title>🔗</text>` : "") +
     (gfx.icon ? `<text class="data-icon" x="${s.w - 4}" y="14" text-anchor="end" style="font-size:13px">${gfx.icon}</text>` : "") +
     (gfx.bar !== undefined ? `<rect class="data-bar-bg" x="6" y="${s.h - 9}" width="${s.w - 12}" height="5" rx="2.5" fill="#e5e7eb"/><rect class="data-bar" x="6" y="${s.h - 9}" width="${(s.w - 12) * gfx.bar}" height="5" rx="2.5" fill="#2a78d6"><title>${esc(gfx.barLabel)}</title></rect>` : "") + `</g>`;
@@ -463,8 +465,10 @@ function withGraphicColours(doc) {
   const out = structuredClone(doc);
   for (const p of out.pages) for (const it of p.items) {
     if (it.kind !== "shape") continue;
-    const fill = graphicFor(it, p.graphics).fill;
+    const fill = graphicFor(withComputed(it, p), p.graphics).fill;
     if (fill) it.style = { ...(it.style || {}), fill };
+    it.text = shapeText(it, p); // text fields and formulas as they read on the page
+    if (it.data?.length) it.data = computeData(it, p).map(({ label, value }) => ({ label, value }));
   }
   return out;
 }
@@ -568,7 +572,10 @@ function renderProps() {
       <div class="two"><label>Width<input type="number" data-prop="w" value="${Math.round(s.w)}" min="10"></label><label>Height<input type="number" data-prop="h" value="${Math.round(s.h)}" min="10"></label></div>
       ${page().scale ? `<div class="two"><label>Real width (${unitOf(page().scale)})<input type="number" data-prop="rw" value="${+toReal(s.w, page().scale).toFixed(2)}" min="0" step="any"></label><label>Real height (${unitOf(page().scale)})<input type="number" data-prop="rh" value="${+toReal(s.h, page().scale).toFixed(2)}" min="0" step="any"></label></div>` : ""}
       <div class="two"><label>Rotate<input type="number" data-prop="rotate" value="${s.rotate || 0}" step="15"></label><label>Text size<input type="number" data-prop="fontSize" value="${s.style?.fontSize || 13}" min="6" max="72"></label></div>`;
-    html += `<h4>Shape data</h4>` + (s.data || []).map((d, i) => `<div class="wd-data"><input data-data-label="${i}" value="${esc(d.label)}" aria-label="Name"><input data-data-value="${i}" value="${esc(formatDataValue(d.value))}" aria-label="Value"><button data-data-del="${i}" title="Remove">×</button></div>`).join("") +
+    const computed = computeData(s, page());
+    html += `<h4>Shape data</h4>` + (s.data || []).map((d, i) => `<div class="wd-data"><input data-data-label="${i}" value="${esc(d.label)}" aria-label="Name"><input data-data-value="${i}" value="${esc(formatDataValue(d.value))}" aria-label="Value" ${isFormula(d.value) ? 'class="formula"' : ""}><button data-data-del="${i}" title="Remove">×</button></div>` +
+      (isFormula(d.value) ? `<p class="hint formula-result${String(computed[i].value).startsWith("#") ? " err" : ""}">= ${esc(formulaError(d.value) || formatDataValue(computed[i].value))}</p>` : "")).join("") +
+      `<p class="hint">A value starting with = is a formula, such as <code>=[Qty] * [Price]</code>. Text can show data: <code>{Name}</code>.</p>` +
       `<label>Link<input data-prop="link" list="wd-pages-list" value="${esc(linkText(s.link, state.model.doc.pages))}" placeholder="a page, or https://…"></label><datalist id="wd-pages-list">${state.model.doc.pages.map((pg) => `<option value="${esc(pg.name)}">`).join("")}</datalist>` +
       `<div class="wd-data-tools"><button data-data-add ${state.readOnly ? "disabled" : ""}>+ Data</button>${s.data?.length ? `<label class="inline"><input type="checkbox" data-prop="showData" ${s.style?.showData ? "checked" : ""}> Show on the shape</label>` : ""}</div>`;
   } else if (conns.length === 1 && state.sel.length === 1) {

@@ -127,3 +127,6 @@ body { font: 13px/1.35 Inter, system-ui, -apple-system, "Segoe UI", sans-serif; 
 .comment-badge text { font-size: 11px; font-weight: 700; fill: #ffffff; pointer-events: none; }
 .comment-badge { cursor: pointer; }
 @media print { .comment-badge { display: none; } }
+.wd-data input.formula { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; }
+.formula-result { margin: -2px 0 6px; font-family: ui-monospace, Menlo, Consolas, monospace; }
+.formula-result.err { color: var(--guide); }
