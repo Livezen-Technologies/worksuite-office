@@ -139,6 +139,13 @@ export function validate(doc) {
 export function migrate(doc) {
   if (!doc || doc.app !== APP) throw new Error("not a WorkSuite diagram");
   if (doc.v > SCHEMA_VERSION) throw new Error(`made by a newer WorkSuite Office (schema ${doc.v}); update to open it`);
+  // 10.1.89 to 10.1.91 gave titled containers the type the cloud library's small Container shape had: a small,
+  // empty "container" is that cloud shape, now "appcontainer"
+  for (const page of doc.pages || []) for (const it of page.items || []) {
+    if (it.kind !== "shape" || it.type !== "container" || it.w > 100 || it.h > 100) continue;
+    const holds = (page.items || []).some((o) => o !== it && o.kind === "shape" && o.x + o.w / 2 > it.x && o.x + o.w / 2 < it.x + it.w && o.y + o.h / 2 > it.y && o.y + o.h / 2 < it.y + it.h);
+    if (!holds) it.type = "appcontainer";
+  }
   return doc; // v1 is the first version
 }
 

@@ -55,7 +55,7 @@ export function shapePath(type, w, h, path = null) {
     case "pool": return `${box(w, h)} M${r(Math.min(30, w * 0.1))} 0 V${r(h)}`;
     /* cloud architecture: our own simple icons */
     case "vm": return `M0 0 H${r(w)} V${r(h * 0.72)} H0 Z M${r(w * 0.4)} ${r(h * 0.72)} V${r(h * 0.88)} M${r(w * 0.6)} ${r(h * 0.72)} V${r(h * 0.88)} M${r(w * 0.25)} ${r(h)} H${r(w * 0.75)} V${r(h * 0.88)} H${r(w * 0.25)} Z`;
-    case "container": { const k = h * 0.25; return `M${r(w / 2)} 0 L${r(w)} ${r(k)} V${r(h - k)} L${r(w / 2)} ${r(h)} L0 ${r(h - k)} V${r(k)} Z M0 ${r(k)} L${r(w / 2)} ${r(2 * k)} L${r(w)} ${r(k)} M${r(w / 2)} ${r(2 * k)} V${r(h)}`; }
+    case "appcontainer": { const k = h * 0.25; return `M${r(w / 2)} 0 L${r(w)} ${r(k)} V${r(h - k)} L${r(w / 2)} ${r(h)} L0 ${r(h - k)} V${r(k)} Z M0 ${r(k)} L${r(w / 2)} ${r(2 * k)} L${r(w)} ${r(k)} M${r(w / 2)} ${r(2 * k)} V${r(h)}`; }
     case "queue": { let d = box(w, h); for (let i = 1; i < 4; i++) d += ` M${r((w * i) / 4)} 0 V${r(h)}`; return d; }
     case "loadbalancer": return `${oval(w / 2, h / 2, w / 2, h / 2)} M${r(w * 0.2)} ${r(h / 2)} H${r(w * 0.8)} M${r(w * 0.5)} ${r(h / 2)} L${r(w * 0.78)} ${r(h * 0.28)} M${r(w * 0.5)} ${r(h / 2)} L${r(w * 0.78)} ${r(h * 0.72)}`;
     case "function": return `${box(w, h)} M${r(w * 0.3)} ${r(h * 0.22)} H${r(w * 0.42)} L${r(w * 0.7)} ${r(h * 0.8)} M${r(w * 0.52)} ${r(h * 0.45)} L${r(w * 0.3)} ${r(h * 0.8)}`;
@@ -121,7 +121,7 @@ export const LIBRARIES = [
   ] },
   { id: "cloud", name: "Cloud architecture", shapes: [
     { type: "vm", name: "Virtual machine", w: 70, h: 70, text: "VM" },
-    { type: "container", name: "Container", w: 64, h: 70, text: "" },
+    { type: "appcontainer", name: "Container", w: 64, h: 70, text: "" },
     { type: "function", name: "Function", w: 60, h: 60, text: "" },
     { type: "queue", name: "Queue", w: 100, h: 40, text: "" },
     { type: "loadbalancer", name: "Load balancer", w: 60, h: 60, text: "" },

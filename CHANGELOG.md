@@ -1,5 +1,15 @@
 # Change log
 
+## 10.1.92
+
+### Fixes
+
+#### Diagram
+
+* The Container shape in the Cloud architecture library was drawn as a
+  titled container box since 10.1.89. It is a shape of its own again, and
+  diagrams saved since then are put right when they open.
+
 ## 10.1.91
 
 ### New features
