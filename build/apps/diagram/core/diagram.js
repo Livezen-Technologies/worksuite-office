@@ -28,6 +28,7 @@ import { graphicsError } from "./datagraphics.js";
 import { matchRows, mergeRow } from "./linkdata.js";
 import { linkError } from "./hyperlink.js";
 import { containerAround, calloutFor } from "./container.js";
+import { themeError, pageLookError } from "./theme.js";
 
 export const APP = "worksuite.diagram";
 export const SCHEMA_VERSION = 1;
@@ -73,6 +74,8 @@ export function validate(doc) {
     seen(page.id, at);
     if (!(page.width > 0 && page.height > 0)) errs.push(`${at}: bad size`);
     if (graphicsError(page.graphics)) errs.push(`${at}: ${graphicsError(page.graphics)}`);
+    if (themeError(page.theme)) errs.push(`${at}: ${themeError(page.theme)}`);
+    if (pageLookError(page)) errs.push(`${at}: ${pageLookError(page)}`);
     if (page.link !== undefined && !(page.link && typeof page.link.key === "string" && page.link.key)) errs.push(`${at}: a data link needs its key column`);
     if (page.jumps !== undefined && page.jumps !== false) errs.push(`${at}: jumps is false or left out`);
     if (!Array.isArray(page.layers) || !page.layers.length) { errs.push(`${at}: needs a layer`); continue; }
@@ -242,6 +245,22 @@ export class DiagramModel {
   /** Sets a page's data graphics (datagraphics.js); null removes them. */
   setGraphics(graphics, pageId = this.page().id) {
     this.edit((d) => { const p = d.pages.find((x) => x.id === pageId); if (graphics) p.graphics = graphics; else delete p.graphics; });
+  }
+  /**
+   * Sets how pages look (theme.js): { theme, background, border }, each null to remove it and left out to keep it.
+   * pageIds: the pages to change (default the current one). One undo step.
+   */
+  setLook(look, pageIds = [this.page().id]) {
+    this.edit((d) => {
+      for (const id of pageIds) {
+        const p = d.pages.find((x) => x.id === id);
+        if (!p) throw new Error(`no page ${id}`);
+        for (const k of ["theme", "background", "border"]) {
+          if (!(k in look)) continue;
+          if (look[k] === null || look[k] === "") delete p[k]; else p[k] = structuredClone(look[k]);
+        }
+      }
+    });
   }
   /** Sets a shape's data (shapedata.js); an empty list removes it. */
   setData(id, data, pageId = this.page().id) {

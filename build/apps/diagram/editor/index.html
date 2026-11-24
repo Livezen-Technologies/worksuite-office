@@ -12,6 +12,7 @@
     <button class="wd-tab" data-tab="file">File</button>
     <button class="wd-tab is-on" data-tab="home">Home</button>
     <button class="wd-tab" data-tab="insert">Insert</button>
+    <button class="wd-tab" data-tab="design">Design</button>
     <button class="wd-tab" data-tab="arrange">Arrange</button>
     <button class="wd-tab" data-tab="view">View</button>
     <span class="wd-title" id="wd-title"></span>
@@ -84,6 +85,14 @@
       <div class="rb-stack"><button data-icon="front" data-cmd="front" data-edit>Bring to front</button><button data-icon="back" data-cmd="back" data-edit>Send to back</button></div>
       <div class="rb-stack"><button data-icon="group" data-cmd="group" data-edit>Group</button><button data-icon="ungroup" data-cmd="ungroup" data-edit>Ungroup</button></div>
       <span class="rb-glabel">Arrange</span>
+    </div>
+    <div class="wd-group rb-group" data-tab="design">
+      <button class="big" data-icon="theme" data-cmd="designTheme" data-edit title="Colours for the shapes and lines, for this page or all pages">Theme</button>
+      <span class="rb-glabel">Themes</span>
+    </div>
+    <div class="wd-group rb-group" data-tab="design">
+      <button class="big" data-icon="pageframe" data-cmd="designPage" data-edit title="A background colour, and a border with the page's title">Background &amp; Border</button>
+      <span class="rb-glabel">Page</span>
     </div>
     <div class="wd-group rb-group" data-tab="view">
       <div class="rb-stack"><label class="rb-field"><input type="checkbox" id="wd-grid" checked> Grid and snap</label><label class="rb-field"><input type="checkbox" id="wd-jumps" checked> Line jumps</label></div>
