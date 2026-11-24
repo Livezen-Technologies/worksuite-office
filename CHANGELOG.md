@@ -1,5 +1,15 @@
 # Change log
 
+## 10.1.96
+
+### Fixes
+
+#### Diagram
+
+* Visio export keeps data graphic colours: a shape coloured by its data (red
+  for late, green for on track, and so on) has that colour in the Visio
+  file too, as it does on the page. Icons and data bars are not exported yet.
+
 ## 10.1.95
 
 ### New features
