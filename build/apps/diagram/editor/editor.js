@@ -207,6 +207,12 @@ const commands = {
     $("wd-data-file").click();
   },
   clearGraphics: () => run(() => state.model.setGraphics(null, state.pageId)),
+  addList: async () => {
+    if (state.readOnly) return;
+    const title = await askText({ title: "List", hint: "A column that keeps its shapes in order, one under another. Drag shapes in and out; they close up. The selected shapes go in.", placeholder: "Steps", value: "List", ok: "Add list", rows: 1 });
+    if (!title) return;
+    run(() => { state.sel = [state.model.addList(selShapes().filter((x) => x.type !== "lane").map((x) => x.id), title.text.trim() || "List", { x: 60, y: 60 }, state.pageId)]; });
+  },
   addContainer: async () => {
     if (state.readOnly) return;
     const ids = state.sel.filter((id) => byId(id) && byId(id).kind !== "connector");
@@ -423,9 +429,10 @@ function laneSvg(s) {
 }
 function containerSvg(s) {
   const line = s.style?.line || "#64748b", fill = s.style?.fill || "#f8fafc", H = CONTAINER_HEADER;
-  return `<g data-id="${s.id}" transform="translate(${s.x} ${s.y})"><path class="shape-body" d="M0 0 H${s.w} V${s.h} H0 Z" fill="${fill}" fill-opacity="0.6" stroke="${line}" stroke-width="${s.style?.lineWidth ?? 1.25}" stroke-dasharray="6 3"/>` +
+  return `<g data-id="${s.id}" transform="translate(${s.x} ${s.y})"><path class="shape-body" d="M0 0 H${s.w} V${s.h} H0 Z" fill="${fill}" fill-opacity="0.6" stroke="${line}" stroke-width="${s.style?.lineWidth ?? 1.25}" ${s.list ? "" : 'stroke-dasharray="6 3"'}/>` +
     `<rect class="container-head" width="${s.w}" height="${H}" fill="${s.style?.headerFill || "#e2e8f0"}" stroke="${line}" stroke-width="1"/>` +
-    `<text class="shape-text" x="10" y="${H / 2 + 4}" style="font-size:${s.style?.fontSize || 12}px;font-weight:600">${esc(s.text)}</text></g>`;
+    `<text class="shape-text" x="10" y="${H / 2 + 4}" style="font-size:${s.style?.fontSize || 12}px;font-weight:600">${esc(s.text)}</text>` +
+    (s.list ? `<path d="M${s.w - 22} ${H / 2 - 5} h12 M${s.w - 22} ${H / 2} h12 M${s.w - 22} ${H / 2 + 5} h12" stroke="${line}" stroke-width="1.5"><title>A list: its shapes stay in a column</title></path>` : "") + `</g>`;
 }
 function calloutSvg(s) {
   const t = s.target && byId(s.target), line = s.style?.line || "#a16207";
