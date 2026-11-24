@@ -23,6 +23,7 @@
  * Stage 2 counts calendar days; working calendars and automatic scheduling come in stage 3 (#83).
  */
 
+import { reportError } from "./reports.js";
 import { recalc, TASK_TYPES, unitsOf, workOf } from "./tasktypes.js";
 import { costs } from "./costs.js";
 import { occurrences, patternError } from "./recurring.js";
@@ -145,6 +146,10 @@ export function validate(doc) {
   if (doc.fields !== undefined) {
     if (!Array.isArray(doc.fields)) errs.push("custom fields must be a list");
     else { const keys = new Set(); for (const f of doc.fields) { if (fieldError(f)) errs.push(fieldError(f)); else if (keys.has(f.key)) errs.push(`duplicate custom field ${f.key}`); keys.add(f?.key); } }
+  }
+  if (doc.reports !== undefined) {
+    if (!Array.isArray(doc.reports)) errs.push("reports must be a list");
+    else { const ids = new Set(); for (const r of doc.reports) { const e = reportError(r, doc.fields || []); if (e) errs.push(e); else if (ids.has(r.id)) errs.push(`duplicate report ${r.id}`); ids.add(r?.id); } }
   }
   const ids = new Set();
   (doc.tasks || []).forEach((t, i) => {
@@ -422,6 +427,17 @@ export class ProjectModel {
   /** Joins a split task's pieces back together. */
   unsplit(id) { return this.edit((d) => { const t = d.tasks.find((x) => x.id === id); if (t) delete t.splits; }); }
   /** Adds a custom field (a column) of a type; returns its key. */
+  /** Saves a custom report layout (reports.js): a new one, or the one with the same id. One undo step. */
+  saveReport(r) {
+    this.edit((d) => {
+      const list = (d.reports ||= []), clean = { id: r.id, name: String(r.name || "").trim(), columns: [...r.columns], filter: r.filter || "all", group: r.group || "none", sort: r.sort || null };
+      const at = list.findIndex((x) => x.id === r.id);
+      if (at >= 0) list[at] = clean; else list.push(clean);
+    });
+  }
+  removeReport(id) {
+    this.edit((d) => { d.reports = (d.reports || []).filter((r) => r.id !== id); if (!d.reports.length) delete d.reports; });
+  }
   addField(name, type, extra = {}) {
     let key;
     this.edit((d) => {

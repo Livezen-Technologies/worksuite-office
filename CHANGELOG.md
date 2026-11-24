@@ -1,5 +1,17 @@
 # Change log
 
+## 10.1.100
+
+### New features
+
+#### Project
+
+* Custom report layouts: View › Custom Report designs your own reports:
+  their columns in the order you want (custom fields too), which tasks
+  (incomplete, late, critical and so on), grouped by phase, person, status,
+  priority or critical, or sorted by any column. Reports are saved with the
+  project, and save as CSV or Excel or print.
+
 ## 10.1.99
 
 ### New features

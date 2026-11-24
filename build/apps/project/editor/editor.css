@@ -260,3 +260,27 @@ table.wp-table { border-collapse: collapse; width: 100%; table-layout: fixed; }
 .wp-legend i.act { width: 9px; height: 9px; border-radius: 50%; background: var(--ink); }
 .wp-burn-table { font-size: 12px; color: var(--ink2); }
 @media screen { #wp-print-pages { display: none; } }
+.wp-creport-bar { display: flex; gap: 6px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
+.wp-creport-bar .sp { flex: 1; }
+.wp-creport-table { width: 100%; border-collapse: collapse; font-size: 13px; background: var(--card, #fff); }
+.wp-creport-table th { text-align: left; padding: 8px 10px; border-bottom: 2px solid var(--line, #e4e4e7); white-space: nowrap; }
+.wp-creport-table td { padding: 6px 10px; border-bottom: 1px solid var(--line, #e4e4e7); }
+.wp-creport-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+.wp-creport-table tr.sum td { font-weight: 600; }
+.wp-creport-table tr.grp td { background: var(--hover, #f4f4f5); font-weight: 600; }
+.wp-creport-table tr.grp span { font-weight: 400; color: var(--ink3, #71717a); margin-left: 6px; }
+.wp-designer { width: min(720px, 94vw); border: 1px solid var(--line, #e4e4e7); border-radius: 12px; padding: 18px 20px; background: var(--card, #fff); color: inherit; }
+.wp-designer::backdrop { background: rgba(0,0,0,.35); }
+.wp-designer h3 { margin: 0 0 12px; }
+.wp-designer label { display: grid; gap: 4px; font-size: 13px; font-weight: 600; }
+.wp-designer .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 14px 0; }
+.wp-designer ul { list-style: none; margin: 6px 0 0; padding: 0; max-height: 240px; overflow: auto; }
+.wp-designer li { display: flex; gap: 4px; align-items: center; padding: 3px 0; font-size: 13px; }
+.wp-designer li span { flex: 1; }
+.wp-designer li button { padding: 1px 7px; }
+.wp-designer .row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.wp-designer .foot { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+.wp-designer .err { color: #b91c1c; min-height: 1.2em; margin: 6px 0 0; font-size: 13px; }
+@media (max-width: 640px) { .wp-designer .cols, .wp-designer .row { grid-template-columns: 1fr; } }
+.wp-creport { overflow-x: auto; }
+.wp-creport-table td { white-space: nowrap; }
