@@ -28,6 +28,7 @@ import { TEMPLATES, templatePage } from "../core/templates.js";
 import { shapeReport, reportTable, toCsv } from "../core/report.js";
 import { PRESETS, PAPERS, UNITS, PAPER_UNITS, toReal, fromReal, unitOf, formatLength, scaleText, tiles } from "../core/scale.js";
 import { mountHeaderbar } from "../../common/headerbar.js";
+import { profiles as siProfiles, toUnicode as siToUnicode, fix as siFix, attachSinglish } from "../../common/sinhala-tools.js";
 import { decorateRibbon, ribbonStyles, iconSvg } from "../../common/ribbon.js";
 import { aiDraft } from "../../common/aidraft.js";
 import { DiagramModel, newDiagram, parse, serialize, connectionPoints, pointOn, APP } from "../core/diagram.js";
@@ -911,6 +912,26 @@ $("wd-status").addEventListener("click", (e) => { const z = e.target.closest(".o
 // the header's quick buttons, as in the editors: save, print, undo, redo
 decorateRibbon($("wd-header"));
 // the right-hand end of the header and tabs, as in the editors: initials, Editing / Viewing, open, search
+// Sinhala Tools (common/sinhala-tools.js): Singlish typing, legacy fonts to Unicode, fixing Sinhala
+const siApply = (fn) => run(() => {
+    const items = state.sel.map(byId).filter((i) => i && (i.kind === "shape" || i.kind === "connector") && i.text);
+    if (!items.length) throw new Error("Select the shapes or connectors whose text to change");
+    let n = 0;
+    state.model.edit((d) => { const p = d.pages.find((x) => x.id === state.pageId); for (const it of p.items) if (items.some((x) => x.id === it.id)) { const t = fn(it.text); if (t !== it.text) { it.text = t; n++; } } });
+    state.note = `Sinhala Tools: ${n} of ${items.length} changed`;
+  });
+let singlishOn = false;
+try { singlishOn = localStorage.getItem("ws-singlish") === "1"; } catch (e) { /* storage blocked */ }
+attachSinglish(document, () => singlishOn && !state.readOnly);
+const siFontSel = $("wd-si-font");
+siFontSel.innerHTML = siProfiles().map((p) => `<option value="${p.id}">${p.name}</option>`).join("");
+const siShow = () => { $("wd-singlish").classList.toggle("is-on", singlishOn); $("wd-singlish").setAttribute("aria-pressed", String(singlishOn)); };
+Object.assign(commands, {
+  singlish: () => { singlishOn = !singlishOn; try { localStorage.setItem("ws-singlish", singlishOn ? "1" : "0"); } catch (e) { /* storage blocked */ } siShow(); },
+  siConvert: () => siApply((t) => siToUnicode(t, siFontSel.value).text),
+  siFix: () => siApply((t) => siFix(t)),
+});
+siShow();
 var refreshHeaderbar = null; // var: render() may run before this line
 refreshHeaderbar = mountHeaderbar({
   header: $("wd-header"), tabs: document.querySelector(".wd-tabs"),

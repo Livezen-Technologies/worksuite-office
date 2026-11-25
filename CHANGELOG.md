@@ -1,5 +1,17 @@
 # Change log
 
+## 10.1.113
+
+### New features
+
+#### Project and Diagram
+
+* Sinhala Tools, as in the document editors: Singlish typing (ammaa becomes
+  අම්මා as each word ends) in shape text, labels and task names; converting
+  text typed in a legacy Sinhala font (FM Abhaya, DL Manel, Kaputa, Lastech,
+  Kandy) to Unicode in the selected shapes or tasks; and fixing badly formed
+  Sinhala.
+
 ## 10.1.112
 
 ### New features
