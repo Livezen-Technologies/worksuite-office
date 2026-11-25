@@ -131,3 +131,23 @@ html .wp-table td { border-color: color-mix(in srgb, var(--ink) 9%, transparent)
 html .os-title { margin: 0; color: var(--ink); font-size: 13px; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 50vw; }
 .os-header-end { justify-self: end; }
 html .wd-tabs, html .wp-tabs { padding-top: 0; }
+
+/* the end of the tab bar and header: Editing ▾, open, search, initials */
+.os-tab-end { margin-inline-start: auto; display: flex; align-items: center; gap: 6px; position: relative; }
+.os-mode { position: relative; }
+.os-mode-btn, .os-icon { display: flex; align-items: center; gap: 6px; height: 26px; padding: 0 8px; border: 0; border-radius: 4px; background: none; color: var(--ink); font: inherit; font-size: 12.5px; cursor: pointer; }
+.os-icon { width: 30px; padding: 0; justify-content: center; }
+.os-mode-btn:hover, .os-icon:hover { background: var(--hover); }
+.os-caret { font-size: 11px; opacity: .7; margin-top: -4px; }
+.os-menu { position: absolute; right: 0; top: 30px; z-index: 30; min-width: 150px; background: var(--card); border: 1px solid color-mix(in srgb, var(--ink) 18%, transparent); border-radius: 4px; box-shadow: 0 6px 20px rgba(0,0,0,.3); padding: 4px 0; }
+.os-menu button { display: flex; align-items: center; gap: 8px; width: 100%; border: 0; background: none; color: var(--ink); font: inherit; font-size: 12px; padding: 6px 12px; text-align: start; cursor: pointer; }
+.os-menu button:hover:not(:disabled) { background: var(--hover); }
+.os-menu button[aria-checked="true"] { background: var(--pressed); }
+.os-menu button:disabled { opacity: .45; cursor: default; }
+.os-find { position: relative; display: flex; align-items: center; }
+.os-find-box { position: absolute; right: 0; top: 30px; z-index: 30; display: flex; align-items: center; gap: 8px; background: var(--card); border: 1px solid color-mix(in srgb, var(--ink) 18%, transparent); border-radius: 4px; padding: 6px 8px; box-shadow: 0 6px 20px rgba(0,0,0,.3); }
+.os-find-box input { width: 200px; height: 22px; border-radius: 2px; border: 1px solid color-mix(in srgb, var(--ink) 25%, transparent); background: var(--card); color: var(--ink); padding: 0 6px; }
+.os-find-count { color: var(--ink2); font-size: 11.5px; white-space: nowrap; }
+.os-avatar { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: #ffffff; color: #222; font-size: 11px; font-weight: 700; }
+:root[data-theme="light"] .os-avatar { background: #444; color: #fff; }
+.os-find-box[hidden], .os-menu[hidden] { display: none; }

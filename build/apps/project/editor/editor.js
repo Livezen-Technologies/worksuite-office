@@ -25,6 +25,7 @@ import { BOARD_COLUMNS, board, progressFor, month, network, NODE, usage, FILTERS
 import { askText, askForm } from "../../common/dialog.js";
 import { FIELD_TYPES, parseValue, formatValue, fieldValue, fieldIcon, fieldError, FORMULA_FIELDS } from "../core/fields.js";
 import { describe as describeRecurring, patternError } from "../core/recurring.js";
+import { mountHeaderbar } from "../../common/headerbar.js";
 import { decorateRibbon, ribbonStyles } from "../../common/ribbon.js";
 import { aiDraft } from "../../common/aidraft.js";
 import { checkEdit, reasonText, openUpgrade } from "../../common/licence.js";
@@ -1126,6 +1127,23 @@ function showTab(name) {
 }
 // the header's quick buttons, as in the editors: save, print, undo, redo
 decorateRibbon($("wp-header"));
+// the right-hand end of the header and tabs, as in the editors: initials, Editing / Viewing, open, search
+var refreshHeaderbar = null; // var: render() may run before this line
+refreshHeaderbar = mountHeaderbar({
+  header: $("wp-header"), tabs: document.querySelector(".wp-tabs"),
+  isViewing: () => !!state.readOnly,
+  canEdit: () => state.licensed !== false,
+  setViewing: (on) => { if (on) window.WorkSuiteProject.setReadOnly(true); else if (state.licensed === false) return; else window.WorkSuiteProject.setReadOnly(false); },
+  open: () => commands.open(),
+  search: (q) => {
+    const low = q.toLowerCase(), ids = state.model.tasks.filter((t) => String(t.name || "").toLowerCase().includes(low)).map((t) => t.id);
+    if (!ids.length) return 0;
+    state.sel = ids; render();
+    $("wp-grid").querySelector(`tr[data-id="${ids[0]}"]`)?.scrollIntoView({ block: "nearest" });
+    return ids.length;
+  },
+});
+
 $("wp-header").addEventListener("click", (e) => { const b = e.target.closest("[data-cmd]"); if (b && !b.disabled) commands[b.dataset.cmd](); });
 $("wp-ribbon").addEventListener("click", (e) => { const b = e.target.closest("[data-cmd]"); if (b && !b.disabled) commands[b.dataset.cmd](); });
 $("wp-zoom").addEventListener("change", (e) => { state.zoom = e.target.value; render(); });
@@ -1175,7 +1193,9 @@ $("wp-retry").addEventListener("click", () => applyLicence());
 async function applyLicence() {
   const r = await checkEdit("project.edit");
   state.licence = r.reason;
+  state.licensed = r.edit;
   window.WorkSuiteProject.setReadOnly(!r.edit);
+  refreshHeaderbar?.();
 }
 
 $("wp-grid").addEventListener("click", (e) => {
@@ -1372,7 +1392,7 @@ window.WorkSuiteProject = {
   load,
   text: () => serialize(state.model.doc),
   bytes: () => packDocument(APP, serialize(state.model.doc)),
-  setReadOnly(on) { state.readOnly = !!on; state.editing = null; render(); },
+  setReadOnly(on) { state.readOnly = !!on; queueMicrotask(() => refreshHeaderbar?.()); state.editing = null; render(); },
   onUpgrade: null,
 };
 

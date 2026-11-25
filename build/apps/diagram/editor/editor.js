@@ -27,6 +27,7 @@ import { computeData, shapeText, withComputed, isFormula, formulaError } from ".
 import { TEMPLATES, templatePage } from "../core/templates.js";
 import { shapeReport, reportTable, toCsv } from "../core/report.js";
 import { PRESETS, PAPERS, UNITS, PAPER_UNITS, toReal, fromReal, unitOf, formatLength, scaleText, tiles } from "../core/scale.js";
+import { mountHeaderbar } from "../../common/headerbar.js";
 import { decorateRibbon, ribbonStyles, iconSvg } from "../../common/ribbon.js";
 import { aiDraft } from "../../common/aidraft.js";
 import { DiagramModel, newDiagram, parse, serialize, connectionPoints, pointOn, APP } from "../core/diagram.js";
@@ -909,6 +910,23 @@ function showTab(name) {
 $("wd-status").addEventListener("click", (e) => { const z = e.target.closest(".os-zoom [data-cmd]"); if (z) commands[z.dataset.cmd](); });
 // the header's quick buttons, as in the editors: save, print, undo, redo
 decorateRibbon($("wd-header"));
+// the right-hand end of the header and tabs, as in the editors: initials, Editing / Viewing, open, search
+var refreshHeaderbar = null; // var: render() may run before this line
+refreshHeaderbar = mountHeaderbar({
+  header: $("wd-header"), tabs: document.querySelector(".wd-tabs"),
+  isViewing: () => !!state.readOnly,
+  canEdit: () => state.licensed !== false,
+  setViewing: (on) => { if (on) window.WorkSuiteDiagram.setReadOnly(true); else if (state.licensed === false) return; else window.WorkSuiteDiagram.setReadOnly(false); },
+  open: () => commands.open(),
+  search: (q) => {
+    const low = q.toLowerCase(), hit = (p) => p.items.filter((i) => i.kind === "shape" && String(i.text || "").toLowerCase().includes(low));
+    const on = state.model.doc.pages.find((p) => p.id === state.pageId), where = hit(on).length ? on : state.model.doc.pages.find((p) => hit(p).length);
+    if (!where) return 0;
+    state.pageId = where.id; state.sel = hit(where).map((i) => i.id); render();
+    return state.sel.length;
+  },
+});
+
 $("wd-header").addEventListener("click", (e) => { const b = e.target.closest("[data-cmd]"); if (b && !b.disabled) commands[b.dataset.cmd](); });
 $("wd-ribbon").addEventListener("click", (e) => {
   const b = e.target.closest("button");
@@ -924,7 +942,9 @@ $("wd-retry").addEventListener("click", () => applyLicence());
 async function applyLicence() {
   const r = await checkEdit("diagram.edit");
   state.licence = r.reason;
+  state.licensed = r.edit;
   window.WorkSuiteDiagram.setReadOnly(!r.edit);
+  refreshHeaderbar?.();
 }
 $("wd-lib").addEventListener("click", (e) => {
   const k = e.target.closest("[data-stencil]");
@@ -1104,7 +1124,7 @@ window.WorkSuiteDiagram = {
     const svg = pageSvg(false).replace(/^<svg([^>]*) width="[^"]*" height="[^"]*" viewBox="[^"]*"/, `<svg$1 width="${w}" height="${h}" viewBox="${x} ${y} ${w} ${h}"`);
     return { svg, width: w, height: h };
   },
-  setReadOnly(on) { state.readOnly = !!on; state.tool = "select"; render(); },
+  setReadOnly(on) { state.readOnly = !!on; queueMicrotask(() => refreshHeaderbar?.()); state.tool = "select"; render(); },
   onUpgrade: null,
 };
 

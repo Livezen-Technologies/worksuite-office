@@ -14,6 +14,9 @@
   side panels with bold headings and, in Diagram, a strip of icons
   for the settings sections; dialogs, fields and buttons as the editors draw
   them; and the zoom in the status bar.
+* The editors' own toolbar icons, and at the end of the tabs an Editing /
+  Viewing switch, a button to open a file, search (shapes or tasks), and
+  your initials.
 
 ## 10.1.111
 

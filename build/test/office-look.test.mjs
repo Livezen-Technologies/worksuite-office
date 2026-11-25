@@ -36,3 +36,17 @@ test("the theme is read from the address, the desktop shell, then the editors' s
   assert.deepEqual(run({ store: { "ui-theme-id": "theme-system" } }), {}, "the system's: left to prefers-color-scheme");
   assert.deepEqual(run({}), {});
 });
+
+test("the header's end: initials, the Editing / Viewing switch, and the editors' own icons in the toolbar", async () => {
+  const { initials } = await import("../apps/common/headerbar.js");
+  assert.equal(initials("Mia Silva"), "MS");
+  assert.equal(initials(" hasa "), "H");
+  assert.equal(initials(""), "");
+  const { iconSvg } = await import("../apps/common/ribbon.js");
+  const { EDITOR_ICONS } = await import("../apps/common/editor-icons.js");
+  assert.ok(Object.keys(EDITOR_ICONS).length >= 40);
+  assert.match(iconSvg("undo"), /currentColor/);
+  assert.doesNotMatch(iconSvg("undo"), /#000/, "drawn in the theme's colour");
+  assert.match(iconSvg("gantt"), /stroke="currentColor"/, "our own where the editors have none");
+  for (const app of ["project", "diagram"]) assert.match(read(`${app}/editor/editor.js`), /mountHeaderbar\(/, app);
+});
