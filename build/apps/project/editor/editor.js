@@ -1114,7 +1114,8 @@ function draw() {
   $("wp-ribbon").querySelector('[data-cmd="redo"]').disabled ||= !state.model.redoStack.length;
   const all = state.model.tasks.map((t) => state.model.view(t.id));
   const finish = all.length ? all.reduce((m, v) => (v.finish > m ? v.finish : m), all[0].finish) : null;
-  $("wp-status").innerHTML = `<span>${state.model.tasks.length} task${state.model.tasks.length === 1 ? "" : "s"}</span>${finish ? `<span>Finish: ${fmt(finish)}</span>` : ""}<span>${state.model.doc.links.length} link${state.model.doc.links.length === 1 ? "" : "s"}</span>${costText()}${deadlineText()}${behindText()}${overText()}${state.message ? `<span class="err" role="alert">${esc(state.message)}</span>` : state.note ? `<span>${esc(state.note)}</span>` : slipText()}`;
+  $("wp-status").innerHTML = `<span>${state.model.tasks.length} task${state.model.tasks.length === 1 ? "" : "s"}</span>${finish ? `<span>Finish: ${fmt(finish)}</span>` : ""}<span>${state.model.doc.links.length} link${state.model.doc.links.length === 1 ? "" : "s"}</span>${costText()}${deadlineText()}${behindText()}${overText()}${state.message ? `<span class="err" role="alert">${esc(state.message)}</span>` : state.note ? `<span>${esc(state.note)}</span>` : slipText()}` +
+    `<div class="os-zoom"><button type="button" data-zoom-step="-1" title="Zoom out" aria-label="Zoom out">−</button><span class="os-zoom-label">${{ day: "Days", week: "Weeks", month: "Months", quarter: "Quarters" }[state.zoom] || state.zoom}</span><button type="button" data-zoom-step="1" title="Zoom in" aria-label="Zoom in">+</button></div>`;
 }
 
 /* ---- events ---- */
@@ -1125,6 +1126,15 @@ function showTab(name) {
 }
 $("wp-ribbon").addEventListener("click", (e) => { const b = e.target.closest("[data-cmd]"); if (b && !b.disabled) commands[b.dataset.cmd](); });
 $("wp-zoom").addEventListener("change", (e) => { state.zoom = e.target.value; render(); });
+// the status bar's zoom, as in the editors: − shows a longer span (weeks → months), + a shorter one
+$("wp-status").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-zoom-step]");
+  if (!b) return;
+  const levels = ["day", "week", "month", "quarter"], i = levels.indexOf(state.zoom);
+  state.zoom = levels[Math.max(0, Math.min(levels.length - 1, i - Number(b.dataset.zoomStep)))];
+  $("wp-zoom").value = state.zoom;
+  render();
+});
 $("wp-group").addEventListener("change", (e) => { state.group = e.target.value; render(); });
 $("wp-filter").addEventListener("change", (e) => { state.filter = e.target.value; render(); });
 $("wp-cal").addEventListener("change", (e) => { state.cal = e.target.value; render(); });

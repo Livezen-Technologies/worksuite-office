@@ -1,5 +1,19 @@
 # Change log
 
+## 10.1.112
+
+### New features
+
+#### Project and Diagram
+
+* They look like the document, spreadsheet and presentation editors: the
+  same colours in light, dark and contrast dark, following the theme chosen
+  in WorkSuite Office; a tab bar of words with the open tab underlined; the
+  toolbar in a rounded panel, small buttons as icons with their names on
+  hover; side panels with bold headings and, in Diagram, a strip of icons
+  for the settings sections; dialogs, fields and buttons as the editors draw
+  them; and the zoom in the status bar.
+
 ## 10.1.111
 
 ### New features

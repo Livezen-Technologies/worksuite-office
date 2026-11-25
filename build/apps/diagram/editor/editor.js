@@ -27,7 +27,7 @@ import { computeData, shapeText, withComputed, isFormula, formulaError } from ".
 import { TEMPLATES, templatePage } from "../core/templates.js";
 import { shapeReport, reportTable, toCsv } from "../core/report.js";
 import { PRESETS, PAPERS, UNITS, PAPER_UNITS, toReal, fromReal, unitOf, formatLength, scaleText, tiles } from "../core/scale.js";
-import { decorateRibbon, ribbonStyles } from "../../common/ribbon.js";
+import { decorateRibbon, ribbonStyles, iconSvg } from "../../common/ribbon.js";
 import { aiDraft } from "../../common/aidraft.js";
 import { DiagramModel, newDiagram, parse, serialize, connectionPoints, pointOn, APP } from "../core/diagram.js";
 import { checkEdit, reasonText, openUpgrade } from "../../common/licence.js";
@@ -651,6 +651,20 @@ function issuesHtml() {
   if (ignored) html += `<p class="hint">${ignored} ignored. <button data-issues-unignore ${state.readOnly ? "disabled" : ""}>Show them again</button></p>`;
   return html + `</div>`;
 }
+/** The strip of setting icons beside the panel, as in the document editors: one per section, a click goes to it. */
+const STRIP_ICONS = { Shape: "outline", Connector: "connector", Selection: "group", "Shape data": "table", Layers: "front", Page: "page" };
+function renderStrip() {
+  const heads = [...$("wd-props").querySelectorAll("h4")];
+  $("wd-strip").innerHTML = heads.map((h, i) => `<button type="button" data-strip="${i}" title="${esc(h.textContent)}" aria-label="${esc(h.textContent)}"${i === 0 ? ' class="is-on"' : ""}>${iconSvg(STRIP_ICONS[h.textContent] || "outline", 18)}</button>`).join("");
+}
+$("wd-strip").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-strip]");
+  if (!b) return;
+  const h = $("wd-props").querySelectorAll("h4")[Number(b.dataset.strip)];
+  if (h) $("wd-props").scrollTo({ top: h.offsetTop - $("wd-props").offsetTop - 8, behavior: "smooth" });
+  $("wd-strip").querySelectorAll("button").forEach((x) => x.classList.toggle("is-on", x === b));
+});
+
 function renderProps() {
   const ss = selShapes(), conns = state.sel.map(byId).filter((i) => i?.kind === "connector");
   let html = (state.checking ? issuesHtml() : "") + (state.commenting ? commentsHtml() : "");
@@ -695,6 +709,7 @@ function render() {
     $("wd-canvas").innerHTML = pageSvg(true);
     renderLib();
     renderProps();
+    renderStrip();
     renderPages();
     $("wd-title").textContent = state.fileName.replace(/\.wsdiagram$/, "") + (state.model.undoStack.length !== (state.saved || 0) ? " •" : ""); // • unsaved changes
     $("wd-mode").hidden = !state.readOnly;
@@ -705,7 +720,8 @@ function render() {
     document.querySelectorAll("[data-tool]").forEach((b) => b.classList.toggle("is-on", b.dataset.tool === state.tool));
     $("wd-zoomlabel").textContent = Math.round(state.zoom * 100) + "%";
     const n = shapes().length, c = items().filter((i) => i.kind === "connector").length;
-    $("wd-status").innerHTML = `<span>${page().name} · page ${state.model.doc.pages.findIndex((p) => p.id === state.pageId) + 1} of ${state.model.doc.pages.length}</span><span>${n} shape${n === 1 ? "" : "s"} · ${c} connector${c === 1 ? "" : "s"}</span>${page().scale ? `<span>Scale ${esc(scaleText(page().scale))}</span>` : ""}${state.sel.length ? `<span>${state.sel.length} selected</span>` : ""}${state.message ? `<span class="err" role="alert">${esc(state.message)}</span>` : state.note ? `<span class="note" role="status">${esc(state.note)}</span>` : ""}`;
+    $("wd-status").innerHTML = `<span>${page().name} · page ${state.model.doc.pages.findIndex((p) => p.id === state.pageId) + 1} of ${state.model.doc.pages.length}</span><span>${n} shape${n === 1 ? "" : "s"} · ${c} connector${c === 1 ? "" : "s"}</span>${page().scale ? `<span>Scale ${esc(scaleText(page().scale))}</span>` : ""}${state.sel.length ? `<span>${state.sel.length} selected</span>` : ""}${state.message ? `<span class="err" role="alert">${esc(state.message)}</span>` : state.note ? `<span class="note" role="status">${esc(state.note)}</span>` : ""}` +
+      `<div class="os-zoom"><button type="button" data-cmd="zoomOut" title="Zoom out" aria-label="Zoom out">−</button><span class="os-zoom-label" data-cmd="zoomFit" title="Fit the page">Zoom ${Math.round(state.zoom * 100)}%</span><button type="button" data-cmd="zoomIn" title="Zoom in" aria-label="Zoom in">+</button></div>`;
   } finally { rendering = false; }
 }
 
@@ -890,6 +906,7 @@ function showTab(name) {
   document.querySelectorAll(".wd-tab").forEach((t) => t.classList.toggle("is-on", t.dataset.tab === name));
   document.querySelectorAll(".wd-group").forEach((g) => g.classList.toggle("is-on", g.dataset.tab === name));
 }
+$("wd-status").addEventListener("click", (e) => { const z = e.target.closest(".os-zoom [data-cmd]"); if (z) commands[z.dataset.cmd](); });
 $("wd-ribbon").addEventListener("click", (e) => {
   const b = e.target.closest("button");
   if (!b || b.disabled) return;
