@@ -395,3 +395,66 @@ export function toVsdx(doc, outline, routeOf, styleOf = (sh) => sh.style || {}, 
     ...pages.map((p) => ({ name: `visio/pages/${p.file}`, data: p.xml })),
   ]);
 }
+
+/* ---- stencils (.vssx): masters only, as My shapes (stencils.js) ---- */
+
+/** A stencil from a .vssx (or the masters of any Visio file): { stencil: { name, shapes }, problems }. */
+export async function fromVssx(bytes, name = "Stencil") {
+  const files = await unzipAsync(bytes);
+  const xml = (path) => { const f = files[path]; return f ? parseXml(dec.decode(f)) : null; };
+  const mastersEl = xml("visio/masters/masters.xml");
+  if (!mastersEl) throw new Error(files["visio/document.xml"] ? "the stencil has no shapes" : "not a Visio stencil (.vssx)");
+  const relsEl = xml("visio/masters/_rels/masters.xml.rels"), rels = {};
+  for (const r of kids(relsEl, "Relationship")) rels[r.attrs.Id] = new URL(r.attrs.Target, "http://x/visio/masters/masters.xml").pathname.slice(1);
+  const problems = new Set(), shapes = [];
+  let n = 0;
+  for (const m of kids(mastersEl, "Master")) {
+    const content = xml(rels[kid(m, "Rel")?.attrs["r:id"]] || "");
+    const top = kids(kid(content, "Shapes"), "Shape")[0];
+    if (!top) continue;
+    if (top.attrs.Type === "Group") problems.add("grouped masters come in as their outline only");
+    const c = cellsOf(top), w = num(c.Width, 1), h = num(c.Height, 1);
+    if (c.BeginX !== undefined && c.EndX !== undefined) { problems.add("connector masters are left out"); continue; }
+    const geoms = kids(top, "Section").filter((x) => x.attrs.N === "Geometry");
+    const paths = geoms.map((g) => geometryToPath(g, w, h)).filter(Boolean);
+    const style = {};
+    if (paths.length && !paths.some((p) => p.filled)) style.fill = "none";
+    else if (color(c.FillForegnd)) style.fill = color(c.FillForegnd);
+    if (color(c.LineColor)) style.line = color(c.LineColor);
+    const label = m.attrs.NameU || m.attrs.Name || `Shape ${n + 1}`;
+    const shape = { type: paths.length ? "path" : "rect", w: r3(Math.max(0.1, w) * PT), h: r3(Math.max(0.1, h) * PT), text: textOf(top) || "", style };
+    if (paths.length) shape.path = paths.map((p) => p.d).join(" ");
+    shapes.push({ id: `k${++n}`, name: label.slice(0, 80), shape });
+    if (shapes.length >= 500) { problems.add("only the first 500 shapes were kept"); break; }
+  }
+  if (!shapes.length) throw new Error("the stencil has no shapes WorkSuite can use");
+  const title = (xml("docProps/core.xml") && kid(xml("docProps/core.xml"), "title")?.text) || name;
+  return { stencil: { name: title.slice(0, 120), shapes }, problems: [...problems] };
+}
+
+/** The bytes of a .vssx for a stencil. outline(shape) gives a stencil shape's SVG path in its w×h box. */
+export function toVssx(stencil, outline) {
+  const head = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n';
+  const masters = stencil.shapes.map((e, i) => {
+    const s = e.shape, w = s.w / PT, h = s.h / PT;
+    const geo = pathToGeometry(outline(s), s.w, s.h).map((sec, k) =>
+      `<Section N="Geometry" IX="${k}">${cell("NoFill", sec.closed && s.style?.fill !== "none" ? 0 : 1)}${cell("NoLine", s.style?.line === "none" ? 1 : 0)}` +
+      sec.rows.map((r, j) => `<Row T="${r.t}" IX="${j + 1}">${cell("X", r.p[0])}${cell("Y", r.p[1])}</Row>`).join("") + "</Section>").join("");
+    const fill = s.style?.fill && s.style.fill !== "none" ? s.style.fill : null;
+    const shape = `<Shape ID="1" Type="Shape" LineStyle="0" FillStyle="0" TextStyle="0">` +
+      cell("PinX", w / 2, "IN") + cell("PinY", h / 2, "IN") + cell("Width", w, "IN") + cell("Height", h, "IN") + cell("LocPinX", w / 2, "IN") + cell("LocPinY", h / 2, "IN") +
+      (fill ? cell("FillForegnd", fill) + cell("FillPattern", 1) : "") + (s.style?.line === "none" ? cell("LinePattern", 0) : s.style?.line ? cell("LineColor", s.style.line) : "") +
+      geo + toPropertySection(s.data, cell) + (s.text ? `<Text>${esc(s.text)}</Text>` : "") + "</Shape>";
+    return { id: i + 1, name: e.name, file: `master${i + 1}.xml`, xml: head + `<MasterContents xmlns="${NS}" xmlns:r="${NS_R}" xml:space="preserve"><Shapes>${shape}</Shapes></MasterContents>` };
+  });
+  return zip([
+    { name: "[Content_Types].xml", data: head + `<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/visio/document.xml" ContentType="application/vnd.ms-visio.stencil.main+xml"/><Override PartName="/visio/masters/masters.xml" ContentType="application/vnd.ms-visio.masters+xml"/>${masters.map((m) => `<Override PartName="/visio/masters/${m.file}" ContentType="application/vnd.ms-visio.master+xml"/>`).join("")}<Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/></Types>` },
+    { name: "_rels/.rels", data: head + `<Relationships xmlns="${NS_PKG}"><Relationship Id="rId1" Type="http://schemas.microsoft.com/visio/2010/relationships/document" Target="visio/document.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/></Relationships>` },
+    { name: "docProps/core.xml", data: head + `<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:title>${esc(stencil.name)}</dc:title><dc:creator>WorkSuite Diagram</dc:creator></cp:coreProperties>` },
+    { name: "visio/document.xml", data: head + `<VisioDocument xmlns="${NS}" xmlns:r="${NS_R}" xml:space="preserve"><DocumentSettings DefaultTextStyle="0" DefaultLineStyle="0" DefaultFillStyle="0" DefaultGuideStyle="0"/><StyleSheets><StyleSheet ID="0" NameU="No Style" Name="No Style">${cell("LineWeight", 0.01041666666666667)}${cell("LineColor", "#000000")}${cell("LinePattern", 1)}${cell("FillForegnd", "#ffffff")}${cell("FillPattern", 1)}${cell("Char.Size", 0.1666666666666667)}${cell("Char.Color", "#000000")}</StyleSheet></StyleSheets></VisioDocument>` },
+    { name: "visio/_rels/document.xml.rels", data: head + `<Relationships xmlns="${NS_PKG}"><Relationship Id="rId1" Type="http://schemas.microsoft.com/visio/2010/relationships/masters" Target="masters/masters.xml"/></Relationships>` },
+    { name: "visio/masters/masters.xml", data: head + `<Masters xmlns="${NS}" xmlns:r="${NS_R}" xml:space="preserve">${masters.map((m) => `<Master ID="${m.id}" NameU="${esc(m.name)}" Name="${esc(m.name)}" IsCustomNameU="1" IsCustomName="1"><PageSheet>${cell("PageWidth", 1, "IN")}${cell("PageHeight", 1, "IN")}</PageSheet><Rel r:id="rId${m.id}"/></Master>`).join("")}</Masters>` },
+    { name: "visio/masters/_rels/masters.xml.rels", data: head + `<Relationships xmlns="${NS_PKG}">${masters.map((m) => `<Relationship Id="rId${m.id}" Type="http://schemas.microsoft.com/visio/2010/relationships/master" Target="${m.file}"/>`).join("")}</Relationships>` },
+    ...masters.map((m) => ({ name: `visio/masters/${m.file}`, data: m.xml })),
+  ]);
+}

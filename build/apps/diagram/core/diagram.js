@@ -5,7 +5,7 @@
  * which patch-pdf-convert.py copies over web-apps.
  *
  * The document (schema version 1), saved as canonical JSON inside the .wsdiagram zip:
- *   { app: "worksuite.diagram", v: 1, name, pages: [Page] }
+ *   { app: "worksuite.diagram", v: 1, name, pages: [Page], stencil? }   (stencil: My shapes, stencils.js)
  *   Page:      { id, name, width, height, layers: [Layer], items: [Shape | Connector | Group], graphics? }   (items: back to front;
  *              link?: { source, key, at } (the table last linked, linkdata.js);
  *              graphics: data graphics, datagraphics.js; jumps: false to draw crossing connectors without hops)
@@ -33,6 +33,7 @@ import { ignoreError, issueKey } from "./rules.js";
 import { scaleError } from "./scale.js";
 import { commentsError } from "./comments.js";
 import { arrangeLists } from "./lists.js";
+import { stencilError, entryFrom } from "./stencils.js";
 
 export const APP = "worksuite.diagram";
 export const SCHEMA_VERSION = 1;
@@ -71,6 +72,7 @@ export function validate(doc) {
   if (doc.app !== APP) errs.push("not a WorkSuite diagram");
   if (doc.v !== SCHEMA_VERSION) errs.push(`schema version ${doc.v} is not ${SCHEMA_VERSION}`);
   if (!Array.isArray(doc.pages) || !doc.pages.length) errs.push("a diagram needs at least one page");
+  if (stencilError(doc.stencil)) errs.push(stencilError(doc.stencil));
   const ids = new Set();
   const seen = (id, at) => { if (typeof id !== "string" || !id) errs.push(`${at}: no id`); else if (ids.has(id)) errs.push(`${at}: duplicate id ${id}`); ids.add(id); };
   for (const [pi, page] of (doc.pages || []).entries()) {
@@ -171,7 +173,7 @@ export class DiagramModel {
     this.doc = validate(structuredClone(migrate(doc)));
     this.undoStack = [];
     this.redoStack = [];
-    const nums = this.doc.pages.flatMap((p) => [p.id, ...p.layers.map((l) => l.id), ...p.items.map((i) => i.id)]).map((id) => Number(String(id).replace(/\D/g, "")) || 0);
+    const nums = [...this.doc.pages.flatMap((p) => [p.id, ...p.layers.map((l) => l.id), ...p.items.map((i) => i.id), ...(p.comments || []).map((c) => c.id)]), ...(this.doc.stencil?.shapes || []).map((e) => e.id)].map((id) => Number(String(id).replace(/\D/g, "")) || 0);
     this.seq = Math.max(0, ...nums);
   }
   id(prefix) { return prefix + ++this.seq; }
@@ -289,6 +291,34 @@ export class DiagramModel {
     });
   }
   /** Ignores a validation issue (rules.js) on its page, or brings it back (ignore false); one undo step. */
+  /* My shapes (stencils.js); each change is one undo step */
+  /** Adds copies of shapes on a page to the stencil (made "My shapes" if there is none); returns their ids. */
+  addToStencil(shapeIds, pageId = this.page().id) {
+    const page = this.doc.pages.find((p) => p.id === pageId);
+    const shapes = shapeIds.map((id) => page?.items.find((i) => i.id === id && i.kind === "shape")).filter(Boolean);
+    if (!shapes.length) throw new Error("Select the shapes to add to My shapes");
+    const ids = shapes.map(() => this.id("k"));
+    this.edit((d) => {
+      d.stencil ||= { name: "My shapes", shapes: [] };
+      shapes.forEach((s, i) => d.stencil.shapes.push(entryFrom(s, ids[i])));
+    });
+    return ids;
+  }
+  removeFromStencil(id) {
+    this.edit((d) => {
+      if (!d.stencil) return;
+      d.stencil.shapes = d.stencil.shapes.filter((e) => e.id !== id);
+      if (!d.stencil.shapes.length) delete d.stencil;
+    });
+  }
+  /** Puts in a whole stencil (one opened from a .vssx), replacing the one there; null removes it. */
+  setStencil(stencil) {
+    this.edit((d) => {
+      if (!stencil) { delete d.stencil; return; }
+      d.stencil = { name: stencil.name, shapes: stencil.shapes.map((e) => ({ ...structuredClone(e), id: this.id("k") })) };
+    });
+  }
+
   /* comments and review (comments.js); each change is one undo step */
   addComment(target, text, author, at = new Date().toISOString(), pageId = this.page().id) {
     const id = this.id("m");

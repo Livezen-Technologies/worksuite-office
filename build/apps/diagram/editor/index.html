@@ -25,7 +25,7 @@
       <span class="rb-glabel">File</span>
     </div>
     <div class="wd-group rb-group" data-tab="file">
-      <div class="rb-stack"><button data-icon="export" data-cmd="exportVsdx">Visio (VSDX)</button><button data-icon="export" data-cmd="exportVstx" title="A Visio template: Visio starts new drawings from it">Visio template (VSTX)</button><button data-icon="export" data-cmd="exportPng">Picture (PNG)</button><button data-icon="export" data-cmd="exportSvg">Vector (SVG)</button></div>
+      <div class="rb-stack"><button data-icon="export" data-cmd="exportVsdx">Visio (VSDX)</button><button data-icon="export" data-cmd="exportVstx" title="A Visio template: Visio starts new drawings from it">Visio template (VSTX)</button><button data-icon="export" data-cmd="saveStencil" title="My shapes as a Visio stencil">Stencil (VSSX)</button><button data-icon="export" data-cmd="exportPng">Picture (PNG)</button><button data-icon="export" data-cmd="exportSvg">Vector (SVG)</button></div>
       <button class="big" data-icon="print" data-cmd="print">Print / PDF</button>
       <span class="rb-glabel">Export and print</span>
     </div>
@@ -59,7 +59,7 @@
     </div>
     <div class="wd-group rb-group" data-tab="insert">
       <button class="big" data-icon="group" data-cmd="addContainer" data-edit title="A titled box around the selected shapes">Container</button><button class="big" data-icon="list" data-cmd="addList" data-edit title="A column that keeps its shapes in order">List</button>
-      <div class="rb-stack"><button data-icon="table" data-cmd="addCallout" data-edit title="A note pointing at the selected shape">Callout</button></div>
+      <div class="rb-stack"><button data-icon="table" data-cmd="addCallout" data-edit title="A note pointing at the selected shape">Callout</button><button data-icon="list" data-cmd="addToStencil" data-edit title="Keep copies of the selected shapes in My shapes, to use again">Add to My shapes</button><button data-icon="open" data-cmd="openStencil" data-edit title="Open a Visio stencil (.vssx) as My shapes">Open stencil</button></div>
       <span class="rb-glabel">Diagram parts</span>
     </div>
     <div class="wd-group rb-group" data-tab="insert">
@@ -128,6 +128,7 @@
     <aside class="wd-props" id="wd-props" aria-label="Properties"></aside>
   </main>
   <footer class="wd-status" id="wd-status"></footer>
+  <input type="file" id="wd-stencil-file" accept=".vssx" hidden>
   <input type="file" id="wd-data-file" accept=".csv,.tsv,.txt,.xlsx" hidden>
   <input type="file" id="wd-file" accept=".wsdiagram,.vsdx,.vsdm,.vstx,.json" hidden>
 </div>
