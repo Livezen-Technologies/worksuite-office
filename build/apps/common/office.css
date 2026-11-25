@@ -120,3 +120,14 @@ html .wd-pages button.is-on, html .wd-pages button[aria-current="page"] { backgr
 /* the Project task table and chart headers, as the spreadsheet's column headers */
 html .wp-table th, html .wp-scale { background: color-mix(in srgb, var(--ink) 5%, var(--card)); color: var(--ink2); font-weight: 400; border-bottom: 1px solid color-mix(in srgb, var(--ink) 14%, transparent); }
 html .wp-table td { border-color: color-mix(in srgb, var(--ink) 9%, transparent); }
+
+/* the header above the tabs, as in the editors: quick save, print, undo and redo on the left, the file name in the middle */
+.os-header { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; height: 30px; padding: 0 12px; background: var(--bg); color: var(--ink); }
+.os-quick { display: flex; gap: 2px; }
+.os-quick button { width: 26px; height: 24px; border: 0; border-radius: 3px; background: none; color: var(--ink); display: grid; place-items: center; padding: 0; cursor: pointer; }
+.os-quick button > span { display: none; }
+.os-quick button:hover:not(:disabled) { background: var(--hover); }
+.os-quick button:disabled { opacity: .4; cursor: default; }
+html .os-title { margin: 0; color: var(--ink); font-size: 13px; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 50vw; }
+.os-header-end { justify-self: end; }
+html .wd-tabs, html .wp-tabs { padding-top: 0; }

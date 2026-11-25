@@ -1124,6 +1124,9 @@ function showTab(name) {
   document.querySelectorAll(".wp-tab").forEach((t) => t.classList.toggle("is-on", t.dataset.tab === name));
   document.querySelectorAll(".wp-group").forEach((g) => g.classList.toggle("is-on", g.dataset.tab === name));
 }
+// the header's quick buttons, as in the editors: save, print, undo, redo
+decorateRibbon($("wp-header"));
+$("wp-header").addEventListener("click", (e) => { const b = e.target.closest("[data-cmd]"); if (b && !b.disabled) commands[b.dataset.cmd](); });
 $("wp-ribbon").addEventListener("click", (e) => { const b = e.target.closest("[data-cmd]"); if (b && !b.disabled) commands[b.dataset.cmd](); });
 $("wp-zoom").addEventListener("change", (e) => { state.zoom = e.target.value; render(); });
 // the status bar's zoom, as in the editors: − shows a longer span (weeks → months), + a shorter one

@@ -10,7 +10,8 @@
   same colours in light, dark and contrast dark, following the theme chosen
   in WorkSuite Office; a tab bar of words with the open tab underlined; the
   toolbar in a rounded panel, small buttons as icons with their names on
-  hover; side panels with bold headings and, in Diagram, a strip of icons
+  hover; a header with quick save, print, undo and redo and the file name;
+  side panels with bold headings and, in Diagram, a strip of icons
   for the settings sections; dialogs, fields and buttons as the editors draw
   them; and the zoom in the status bar.
 

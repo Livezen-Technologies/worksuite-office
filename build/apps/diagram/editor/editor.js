@@ -907,6 +907,9 @@ function showTab(name) {
   document.querySelectorAll(".wd-group").forEach((g) => g.classList.toggle("is-on", g.dataset.tab === name));
 }
 $("wd-status").addEventListener("click", (e) => { const z = e.target.closest(".os-zoom [data-cmd]"); if (z) commands[z.dataset.cmd](); });
+// the header's quick buttons, as in the editors: save, print, undo, redo
+decorateRibbon($("wd-header"));
+$("wd-header").addEventListener("click", (e) => { const b = e.target.closest("[data-cmd]"); if (b && !b.disabled) commands[b.dataset.cmd](); });
 $("wd-ribbon").addEventListener("click", (e) => {
   const b = e.target.closest("button");
   if (!b || b.disabled) return;
