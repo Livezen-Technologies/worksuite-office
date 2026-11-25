@@ -136,6 +136,19 @@ const commands = {
   new: () => { if (confirmDiscard()) { state.model = new ProjectModel(newProject("Untitled project", mondayOf(new Date()))); state.sel = []; state.fileName = "Untitled project.wsproj"; render(); } },
   open: () => $("wp-file").click(),
   insertProject: () => { if (!state.readOnly) $("wp-insert-file").click(); },
+  refreshSubproject: () => {
+    const t = selectedSubproject();
+    if (t) { state.refreshing = t.id; $("wp-subproject-file").click(); }
+  },
+  saveSubproject: () => {
+    const t = selectedSubproject();
+    if (!t) return;
+    const doc = state.model.subprojectDoc(t.id), file = /\.wsproj$/i.test(t.subproject.file) ? t.subproject.file : t.subproject.file.replace(/\.[^.]*$/, "") + ".wsproj";
+    download(file, packDocument(APP, serialize(doc)), "application/zip");
+    state.note = `Saved ${t.name}'s ${doc.tasks.length} tasks as ${file}: replace the file it came from with it`;
+    render();
+  },
+  unlinkSubproject: () => { const t = selectedSubproject(); if (t) run(() => state.model.unlinkSubproject(t.id)); },
   fromOutline: () => fromOutline(),
   viewGantt: () => showView(null),
   viewWorkload: () => showView("workload"),
@@ -453,7 +466,7 @@ function renderGrid(rows) {
       if (c.key === "deadline") return `<td class="${r.deadline && !r.inactive && r.finish > r.deadline ? "is-late" : ""}">${r.deadline ? fmt(r.deadline) : ""}</td>`;
       if (c.key === "name") {
         const tw = r.summary ? `<span class="tw" data-toggle="${r.id}">${state.collapsed.has(r.id) ? "▸" : "▾"}</span>` : `<span class="tw"></span>`;
-        const rec = r.recurring ? ` <span class="rec" title="${esc(describeRecurring(r.recurring))}">↻</span>` : "";
+        const rec = (r.recurring ? ` <span class="rec" title="${esc(describeRecurring(r.recurring))}">↻</span>` : "") + (r.subproject ? ` <span class="rec" title="${esc(`Subproject linked to ${r.subproject.file}, read ${r.subproject.at}`)}">⧉</span>` : "");
         return `<td class="name" style="padding-inline-start:${8 + r.level * 16}px">${tw}${esc(r.name)}${rec}</td>`;
       }
       if (c.key === "duration") {
@@ -1243,12 +1256,38 @@ $("wp-insert-file").addEventListener("change", async (e) => {
     const { doc, problems } = readProject(new Uint8Array(await f.arrayBuffer()), f.name);
     const name = doc.name && doc.name !== "Imported project" ? doc.name : f.name.replace(/\.(wsproj|xml)$/i, "");
     run(() => {
-      const id = state.model.insertProject(doc, name);
+      const id = state.model.insertProject(doc, name, { file: f.name }); // linked: refreshed from and saved back to its file
       state.sel = [id];
-      state.note = `Inserted ${name}: ${doc.tasks.length} task${doc.tasks.length === 1 ? "" : "s"} under one summary. Link them to your tasks, then Auto Schedule`;
+      state.note = `Inserted ${name} as a subproject linked to ${f.name}: ${doc.tasks.length} task${doc.tasks.length === 1 ? "" : "s"} under one summary. Link them to your tasks, then Auto Schedule. Project › Refresh subproject brings in a newer copy of the file; Save subproject writes its tasks back out`;
     });
     if (problems.length) { state.message = problems.join("; "); render(); }
   } catch (err) { state.message = "Could not insert " + f.name + ": " + err.message; render(); }
+});
+
+/** The selected task when it is a linked subproject; otherwise says what to select, and returns null. */
+function selectedSubproject() {
+  const t = state.sel.length === 1 ? state.model.doc.tasks.find((x) => x.id === state.sel[0]) : null;
+  if (t?.subproject) return t;
+  state.message = "Select a subproject: a summary inserted with Insert › Project (marked ⧉)";
+  render();
+  return null;
+}
+
+$("wp-subproject-file").addEventListener("change", async (e) => {
+  const f = e.target.files[0], id = state.refreshing;
+  e.target.value = "";
+  state.refreshing = null;
+  if (!f || !id) return;
+  try {
+    const t = state.model.task(id);
+    if (f.name !== t.subproject.file && !window.confirm(`${t.name} came from ${t.subproject.file}. Refresh it from ${f.name}?`)) return;
+    const { doc, problems } = readProject(new Uint8Array(await f.arrayBuffer()), f.name);
+    run(() => {
+      state.model.refreshSubproject(id, doc);
+      state.note = `Refreshed ${t.name} from ${f.name}: ${doc.tasks.length} task${doc.tasks.length === 1 ? "" : "s"}. Links to its old tasks were removed; links to the summary stay`;
+    });
+    if (problems.length) { state.message = problems.join("; "); render(); }
+  } catch (err) { state.message = "Could not refresh from " + f.name + ": " + err.message; render(); }
 });
 
 /** A project's document from a file's bytes: a .wsproj (or its JSON) or Project XML; { doc, problems }. */

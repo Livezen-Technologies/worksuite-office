@@ -70,7 +70,7 @@ About 87% of the roadmap has shipped.
 | 2. First editors | 100% | |
 | 3. Industry files | 100% | Project XML, VSDX edit and save, VSD read |
 | 4. Team and AI | ~95% | |
-| 5. Full project management | ~96% | Left: linked subprojects |
+| 5. Full project management | 100% | Linked subprojects in 10.1.111 |
 | 6. Full diagramming | ~65% | See below |
 
 Stage 6, shipped:
