@@ -60,9 +60,9 @@ How it works:
   lapsed licence still opens every file read-only.
 - Today (stage 1) nothing changes: opening Visio drawings to view and print stays free.
 
-## Status (November 2026, 10.1.101)
+## Status (November 2026, 10.1.111)
 
-About 87% of the roadmap has shipped.
+Every stage of the roadmap has shipped, apart from the last of stage 4.
 
 | Stage | Done | Notes |
 |---|---|---|
@@ -70,30 +70,41 @@ About 87% of the roadmap has shipped.
 | 2. First editors | 100% | |
 | 3. Industry files | 100% | Project XML, VSDX edit and save, VSD read |
 | 4. Team and AI | ~95% | |
-| 5. Full project management | 100% | Linked subprojects in 10.1.111 |
-| 6. Full diagramming | ~65% | See below |
+| 5. Full project management | 100% | Split tasks in Project XML (10.1.107), linked subprojects (10.1.111) |
+| 6. Full diagramming | 100% | See below |
 
 Stage 6, shipped:
 
-- Swimlanes, containers and callouts; hyperlinks between pages and to web addresses
+- Swimlanes, containers, lists and callouts; hyperlinks between pages and to web addresses
 - Themes and variants; backgrounds and borders
 - Line jumps, re-layout of a page (swimlanes kept), auto align and spacing
 - Shape data, linking to XLSX and CSV with refresh, data graphics
 - Smart shapes: shape data formulas and text fields
-- Ten templates: flowchart, cross-functional, BPMN, org chart, timeline, UML use case and class, ERD, network,
-  mind map
+- Seventeen templates: flowchart, cross-functional, BPMN, org chart, timeline, UML use case and class, ERD, network,
+  mind map, brainstorm, cloud architecture, equipment rack, office floor plan, value stream map, P&ID, site plan
+- Shape libraries for floor plans, UML, BPMN, cloud architecture, process (P&ID) and site plans; dashed connectors
 - Diagram validation for flowcharts and BPMN; comments and review
 - Drawing scale, dimension lines and print tiling
 - Shape reports to CSV and Excel
-- Visio export of data graphic colours, backgrounds and borders
+- Visio: data graphic colours, icons and bars, backgrounds, borders and comments in VSDX; Visio templates (VSTX)
+  opened and saved; macro drawings (VSDM) opened, without their macros; stencils (VSSX) opened and saved
+- My shapes: shapes kept to use again, saved with the diagram and as a stencil
 
-Stage 6, left:
+Not planned: the older binary Visio files (VSD written, VSS, VST). Visio saves them as VSDX, VSSX and VSTX.
 
-- Nothing else planned. The older binary Visio files (VSD, VSS, VST) are not: Visio saves them as VSDX, VSSX and VSTX.
+In documents, spreadsheets and presentations, Insert › Diagram (10.1.108) opens the Diagram editor and puts the drawing
+in the file; double-clicking it opens it again.
+
+Online, in WorkSuite (worksuite repository): a desktop .wsdiagram opens in Drive in the online Diagram editor, for
+people to edit together, and is saved back into its file (Diagram 1.4.0); Visio drawings open there as an online
+copy (Diagram 1.5.0). A desktop .wsproj or a Microsoft Project XML plan opens as a project people work on together
+(Project 2.17.0), and its plan is saved back into the .wsproj (Project 2.18.0). Left: saving online edits back into
+Visio files, and a trial of all of it on a real server.
 
 Alongside (worksuite repository, `ops/document-server`): a terminal and a web setup wizard for the Document Server,
 and its admin panel and API (status, actions, logs, settings, secret rotation, fonts, users and roles,
-collaboration, features). They have been tried as dry runs and against stand-ins, not yet on a real server.
+collaboration, features, dashboard, backups, two-step sign-in). They have been tried as dry runs and against
+stand-ins, not yet on a real server.
 
 ## Roadmap
 
