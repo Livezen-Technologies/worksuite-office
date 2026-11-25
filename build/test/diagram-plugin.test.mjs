@@ -53,3 +53,26 @@ test("the build adds the plugin next to the AI plugin, on every platform", () =>
   assert.match(readFileSync(join(root, "build", "v10", "prepare.sh"), "utf8"), /diagram-plugin\.sh/);
   assert.match(readFileSync(join(root, ".github", "workflows", "build-mac.yml"), "utf8"), /diagram-plugin\.sh/);
 });
+
+test("Insert › Diagram: a background part puts the button on the Insert tab, and its window inserts the drawing", async () => {
+  const { toolbarItems, TOOLBAR_ITEM, INSERT_TAB, WINDOW } = await import("../../diagram-plugin/ribbon.js");
+  const bg = config.variations[1];
+  assert.equal(bg.type, "background");
+  assert.equal(bg.url, "toolbar.html");
+  assert.deepEqual(bg.events, ["onToolbarMenuClick"]);
+  assert.deepEqual(bg.EditorsSupport, ["word", "cell", "slide"]);
+  assert.equal(config.variations[0].initDataType, "ole", "the modal editor stays first: double-clicking an object opens it");
+  const t = toolbarItems(config.guid);
+  assert.equal(t.guid, config.guid);
+  assert.equal(t.tabs[0].id, INSERT_TAB);
+  assert.equal(t.tabs[0].items[0].id, TOOLBAR_ITEM);
+  assert.equal(t.tabs[0].items[0].lockInViewMode, true);
+  assert.ok(existsSync(join(root, "diagram-plugin", "resources", "light", "icon@2x.png")) && existsSync(join(root, "diagram-plugin", "resources", "dark", "icon.png")));
+  assert.equal(WINDOW.url, "index.html?window");
+  for (const f of ["toolbar.html", "toolbar.js"]) assert.ok(existsSync(join(root, "diagram-plugin", f)), f);
+  const js = readFileSync(join(root, "diagram-plugin", "toolbar.js"), "utf8");
+  assert.match(js, /AddToolbarMenuItem/);
+  assert.match(js, /attachToolbarMenuClickEvent\(TOOLBAR_ITEM/);
+  assert.match(js, /"AddOleObject"/);
+  assert.match(readFileSync(join(root, "diagram-plugin", "plugin.js"), "utf8"), /sendToPlugin\("onDiagramInsert"/);
+});

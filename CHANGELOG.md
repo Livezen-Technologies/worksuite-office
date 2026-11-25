@@ -1,5 +1,22 @@
 # Change log
 
+## 10.1.108
+
+### New features
+
+#### Documents, spreadsheets and presentations
+
+* Insert › Diagram: a Diagram button on the Insert tab of the three editors
+  opens the Diagram editor, and Insert puts the drawing in the file.
+  Double-clicking it later opens it to change, as before.
+
+### Fixes
+
+#### Builds
+
+* The builds check that the Diagram plugin is in the editors, and a change
+  to the plugin starts them.
+
 ## 10.1.107
 
 ### New features

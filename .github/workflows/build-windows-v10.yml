@@ -19,7 +19,7 @@ on:
   # a new workflow can only be dispatched once it is on the default branch: until then, pushes to office-v10 run it
   push:
     branches: [office-v10]
-    paths: ['.github/workflows/build-windows-v10.yml', 'build/v10/**', 'sinhala/**', 'ai-service/**', 'ai-plugin/**']
+    paths: ['.github/workflows/build-windows-v10.yml', 'build/v10/**', 'sinhala/**', 'ai-service/**', 'ai-plugin/**', 'diagram-plugin/**']
   workflow_dispatch:
     inputs:
       build_number:
@@ -41,7 +41,7 @@ env:
   BUILD_TOOLS_REF: release/v9.4.0
   BUILD_TOOLS_SHA: cf4cac0846d03e2e00a6fec5d1ecd4e9463086d5
   DESKTOP_APPS_REF: 61c124b29c2e6f310f1c2c81f6c7f2d3a4367fc0
-  PRODUCT_VERSION: 10.1.107
+  PRODUCT_VERSION: 10.1.108
   # depot_tools (V8) stays at the pinned commit: its self-update collides with build_tools' bootstrap edits
   DEPOT_TOOLS_UPDATE: '0'
   # build/v10/prepare.sh: CMake builds use VS 2022's generator with the 2019 toolset (v142)
@@ -196,6 +196,9 @@ jobs:
           }
           if (-not (Test-Path "out\win_64\onlyoffice\DesktopEditors\editors\sdkjs-plugins\{7A1E5C0D-3B2F-4D6A-9E81-5C4F2B7D0A11}\config.json")) {
             Write-Error "WorkSuite Local AI is not in the editors"; exit 1
+          }
+          if (-not (Test-Path "out\win_64\onlyoffice\DesktopEditors\editors\sdkjs-plugins\{C24643F7-B1B5-4DEB-A903-2A145E12F325}\config.json")) {
+            Write-Error "WorkSuite Diagram is not in the editors"; exit 1
           }
           Get-ChildItem out\win_64\onlyoffice\DesktopEditors\fonts\worksuite-sinhala | Select-Object Name
 

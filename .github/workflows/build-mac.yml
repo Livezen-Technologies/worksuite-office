@@ -27,7 +27,7 @@ on:
   # a new workflow can only be dispatched once it is on the default branch: until then, pushes to office-v10 run it
   push:
     branches: [office-v10]
-    paths: ['.github/workflows/build-mac.yml', 'build/v10/**', 'sinhala/**', 'ai-service/**', 'ai-plugin/**']
+    paths: ['.github/workflows/build-mac.yml', 'build/v10/**', 'sinhala/**', 'ai-service/**', 'ai-plugin/**', 'diagram-plugin/**']
   workflow_dispatch:
     inputs:
       channel:
@@ -46,7 +46,7 @@ env:
   BUILD_TOOLS_SHA: cf4cac0846d03e2e00a6fec5d1ecd4e9463086d5
   # desktop-apps' v10 branch, the same commit as the Windows and Linux 10 builds
   DESKTOP_APPS_REF: 61c124b29c2e6f310f1c2c81f6c7f2d3a4367fc0
-  PRODUCT_VERSION: 10.1.107
+  PRODUCT_VERSION: 10.1.108
   COMPANY_NAME: WorkSuite
   UPDATE_CENTER: https://download.worksuitecloud.com
   UPDATE_APP_ID: lk.worksuite.office
@@ -228,6 +228,7 @@ jobs:
           ls -la "$out"
           test -f "$out/editors/sdkjs-plugins/{B50BAEE2-4EAC-4298-9DD2-73CC3223FFFA}/config.json" || { echo "::error::Sinhala Tools is not in the editors"; exit 1; }
           test -f "$out/editors/sdkjs-plugins/{7A1E5C0D-3B2F-4D6A-9E81-5C4F2B7D0A11}/config.json" || { echo "::error::WorkSuite Local AI is not in the editors"; exit 1; }
+          test -f "$out/editors/sdkjs-plugins/{C24643F7-B1B5-4DEB-A903-2A145E12F325}/config.json" || { echo "::error::WorkSuite Diagram is not in the editors"; exit 1; }
           ls "$out/fonts/worksuite-sinhala"
 
       - name: Developer ID certificate
