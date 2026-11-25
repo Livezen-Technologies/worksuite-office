@@ -25,6 +25,7 @@ import { BOARD_COLUMNS, board, progressFor, month, network, NODE, usage, FILTERS
 import { askText, askForm } from "../../common/dialog.js";
 import { FIELD_TYPES, parseValue, formatValue, fieldValue, fieldIcon, fieldError, FORMULA_FIELDS } from "../core/fields.js";
 import { describe as describeRecurring, patternError } from "../core/recurring.js";
+import { mountHeaderbar } from "../../common/headerbar.js";
 import { decorateRibbon, ribbonStyles } from "../../common/ribbon.js";
 import { aiDraft } from "../../common/aidraft.js";
 import { checkEdit, reasonText, openUpgrade } from "../../common/licence.js";
@@ -1114,7 +1115,8 @@ function draw() {
   $("wp-ribbon").querySelector('[data-cmd="redo"]').disabled ||= !state.model.redoStack.length;
   const all = state.model.tasks.map((t) => state.model.view(t.id));
   const finish = all.length ? all.reduce((m, v) => (v.finish > m ? v.finish : m), all[0].finish) : null;
-  $("wp-status").innerHTML = `<span>${state.model.tasks.length} task${state.model.tasks.length === 1 ? "" : "s"}</span>${finish ? `<span>Finish: ${fmt(finish)}</span>` : ""}<span>${state.model.doc.links.length} link${state.model.doc.links.length === 1 ? "" : "s"}</span>${costText()}${deadlineText()}${behindText()}${overText()}${state.message ? `<span class="err" role="alert">${esc(state.message)}</span>` : state.note ? `<span>${esc(state.note)}</span>` : slipText()}`;
+  $("wp-status").innerHTML = `<span>${state.model.tasks.length} task${state.model.tasks.length === 1 ? "" : "s"}</span>${finish ? `<span>Finish: ${fmt(finish)}</span>` : ""}<span>${state.model.doc.links.length} link${state.model.doc.links.length === 1 ? "" : "s"}</span>${costText()}${deadlineText()}${behindText()}${overText()}${state.message ? `<span class="err" role="alert">${esc(state.message)}</span>` : state.note ? `<span>${esc(state.note)}</span>` : slipText()}` +
+    `<div class="os-zoom"><button type="button" data-zoom-step="-1" title="Zoom out" aria-label="Zoom out">−</button><span class="os-zoom-label">${{ day: "Days", week: "Weeks", month: "Months", quarter: "Quarters" }[state.zoom] || state.zoom}</span><button type="button" data-zoom-step="1" title="Zoom in" aria-label="Zoom in">+</button></div>`;
 }
 
 /* ---- events ---- */
@@ -1123,8 +1125,37 @@ function showTab(name) {
   document.querySelectorAll(".wp-tab").forEach((t) => t.classList.toggle("is-on", t.dataset.tab === name));
   document.querySelectorAll(".wp-group").forEach((g) => g.classList.toggle("is-on", g.dataset.tab === name));
 }
+// the header's quick buttons, as in the editors: save, print, undo, redo
+decorateRibbon($("wp-header"));
+// the right-hand end of the header and tabs, as in the editors: initials, Editing / Viewing, open, search
+var refreshHeaderbar = null; // var: render() may run before this line
+refreshHeaderbar = mountHeaderbar({
+  header: $("wp-header"), tabs: document.querySelector(".wp-tabs"),
+  isViewing: () => !!state.readOnly,
+  canEdit: () => state.licensed !== false,
+  setViewing: (on) => { if (on) window.WorkSuiteProject.setReadOnly(true); else if (state.licensed === false) return; else window.WorkSuiteProject.setReadOnly(false); },
+  open: () => commands.open(),
+  search: (q) => {
+    const low = q.toLowerCase(), ids = state.model.tasks.filter((t) => String(t.name || "").toLowerCase().includes(low)).map((t) => t.id);
+    if (!ids.length) return 0;
+    state.sel = ids; render();
+    $("wp-grid").querySelector(`tr[data-id="${ids[0]}"]`)?.scrollIntoView({ block: "nearest" });
+    return ids.length;
+  },
+});
+
+$("wp-header").addEventListener("click", (e) => { const b = e.target.closest("[data-cmd]"); if (b && !b.disabled) commands[b.dataset.cmd](); });
 $("wp-ribbon").addEventListener("click", (e) => { const b = e.target.closest("[data-cmd]"); if (b && !b.disabled) commands[b.dataset.cmd](); });
 $("wp-zoom").addEventListener("change", (e) => { state.zoom = e.target.value; render(); });
+// the status bar's zoom, as in the editors: − shows a longer span (weeks → months), + a shorter one
+$("wp-status").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-zoom-step]");
+  if (!b) return;
+  const levels = ["day", "week", "month", "quarter"], i = levels.indexOf(state.zoom);
+  state.zoom = levels[Math.max(0, Math.min(levels.length - 1, i - Number(b.dataset.zoomStep)))];
+  $("wp-zoom").value = state.zoom;
+  render();
+});
 $("wp-group").addEventListener("change", (e) => { state.group = e.target.value; render(); });
 $("wp-filter").addEventListener("change", (e) => { state.filter = e.target.value; render(); });
 $("wp-cal").addEventListener("change", (e) => { state.cal = e.target.value; render(); });
@@ -1162,7 +1193,9 @@ $("wp-retry").addEventListener("click", () => applyLicence());
 async function applyLicence() {
   const r = await checkEdit("project.edit");
   state.licence = r.reason;
+  state.licensed = r.edit;
   window.WorkSuiteProject.setReadOnly(!r.edit);
+  refreshHeaderbar?.();
 }
 
 $("wp-grid").addEventListener("click", (e) => {
@@ -1359,7 +1392,7 @@ window.WorkSuiteProject = {
   load,
   text: () => serialize(state.model.doc),
   bytes: () => packDocument(APP, serialize(state.model.doc)),
-  setReadOnly(on) { state.readOnly = !!on; state.editing = null; render(); },
+  setReadOnly(on) { state.readOnly = !!on; queueMicrotask(() => refreshHeaderbar?.()); state.editing = null; render(); },
   onUpgrade: null,
 };
 

@@ -1,0 +1,153 @@
+/*
+ * WorkSuite Project and Diagram in the look of the document, spreadsheet and presentation editors: their colours
+ * (light, dark and contrast dark, as chosen in WorkSuite Office: theme.js), a tab bar of plain words with the open one
+ * underlined, the toolbar in a rounded panel with monochrome icons and no group captions, rounded side panels on the
+ * window's background, and a status bar with the zoom on the right. Loaded after each editor's own stylesheet; the
+ * `html` in front of a selector outweighs the ribbon styles ribbon.js adds at run time.
+ */
+:root {
+  --bg: #f3f3f3; --card: #ffffff; --line: #e0e0e0; --ink: rgba(0, 0, 0, .8); --ink2: rgba(0, 0, 0, .65); --ink3: rgba(0, 0, 0, .45);
+  --hover: #e0e0e0; --pressed: #cbcbcb; --brand: #446995; --brand-soft: #cbcbcb; --focus: #4a87e7;
+  --canvas: #e8e8e8; --tab-line: #444444;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #222222; --card: #333333; --line: #2a2a2a; --ink: rgba(255, 255, 255, .85); --ink2: rgba(255, 255, 255, .7); --ink3: rgba(255, 255, 255, .45);
+    --hover: #444444; --pressed: #555555; --brand: #6ea2e8; --brand-soft: #555555; --focus: #4a87e7;
+    --canvas: #2b2b2b; --tab-line: #e0e0e0;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #222222; --card: #333333; --line: #2a2a2a; --ink: rgba(255, 255, 255, .85); --ink2: rgba(255, 255, 255, .7); --ink3: rgba(255, 255, 255, .45);
+  --hover: #444444; --pressed: #555555; --brand: #6ea2e8; --brand-soft: #555555; --focus: #4a87e7;
+  --canvas: #2b2b2b; --tab-line: #e0e0e0;
+}
+:root[data-theme="dark"][data-contrast] { --bg: #121212; --card: #1e1e1e; --line: #616161; --ink: #e8e8e8; --hover: #424242; --pressed: #666666; --canvas: #1a1a1a; }
+
+html body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; font-size: 12px; background: var(--bg); }
+
+/* the tab bar: words on the window, the open one in full ink and underlined */
+html .wd-tabs, html .wp-tabs { background: var(--bg); border: 0; padding: 2px 14px 0; min-height: 34px; }
+html .wd-tab, html .wp-tab { color: var(--ink2); font-size: 13.5px; font-weight: 400; padding: 7px 11px 6px; }
+html .wd-tab:hover, html .wp-tab:hover { color: var(--ink); }
+html .wd-tab.is-on, html .wp-tab.is-on { color: var(--ink); font-weight: 400; box-shadow: inset 0 -2px var(--tab-line); }
+html .wd-title, html .wp-title { color: var(--ink2); font-size: 13px; }
+
+/* the toolbar: one rounded panel, monochrome icons, no group captions */
+html .wd-ribbon, html .wp-ribbon { background: var(--card); border: 0; border-radius: 8px; margin: 2px 10px 8px; padding: 6px 8px; min-height: 0; box-shadow: 0 0 0 1px var(--line); }
+html .rb-group { height: 72px; padding: 2px 10px; border-inline-end: 1px solid color-mix(in srgb, var(--ink) 14%, transparent); }
+html .rb-group:last-child { border-inline-end: 0; }
+html .rb-glabel { display: none !important; }
+html .rb-group button { color: var(--ink); border-radius: 4px; font-size: 12px; }
+html .rb-group button .rb-ic, html .rb-group button.big .rb-ic { color: var(--ink); }
+html .rb-group button:hover:not(:disabled) { background: var(--hover); border-color: transparent; }
+html .rb-group button.is-on, html .rb-group button[aria-pressed="true"] { background: var(--pressed); color: var(--ink); }
+html .rb-group .rb-field { color: var(--ink2); }
+html .rb-group .rb-field select, html .rb-group .rb-field input { background: var(--card); color: var(--ink); border-color: color-mix(in srgb, var(--ink) 25%, transparent); border-radius: 2px; }
+
+/* the work area: side panels as rounded panels on the window, the drawing or plan in between */
+html .wd-main, html .wp-main { background: var(--bg); gap: 8px; padding: 0 10px; }
+html .wd-lib, html .wd-props { background: var(--card); border: 0; border-radius: 8px; box-shadow: 0 0 0 1px var(--line); }
+html .wd-canvas-wrap { background: var(--canvas); border-radius: 8px; overflow: hidden; }
+html .wd-canvas { background: var(--canvas); }
+html .wd-pages { background: var(--card); border: 0; border-top: 1px solid var(--line); }
+html .wp-grid, html .wp-chart { background: var(--card); }
+html .wp-split { border-radius: 8px; overflow: hidden; box-shadow: 0 0 0 1px var(--line); }
+html .wd-props h3, html .wd-props .wd-h, html .wd-lib summary { color: var(--ink); font-weight: 600; text-transform: none; letter-spacing: 0; font-size: 12px; }
+
+/* the status bar: on the window, items set apart, the zoom on the right */
+html .wd-status, html .wp-status { background: var(--bg); border: 0; min-height: 28px; padding: 0 12px; display: flex; align-items: center; gap: 0; font-size: 12px; color: var(--ink); }
+html .wd-status > span, html .wp-status > span { padding: 0 12px; border-inline-end: 1px solid color-mix(in srgb, var(--ink) 18%, transparent); }
+html .wd-status > span:first-child, html .wp-status > span:first-child { padding-inline-start: 0; }
+.os-zoom { margin-inline-start: auto; display: flex; align-items: center; gap: 4px; padding-inline-start: 12px; }
+.os-zoom button { border: 0; background: none; color: var(--ink); width: 22px; height: 22px; border-radius: 3px; font: 16px/1 inherit; cursor: pointer; }
+.os-zoom button:hover { background: var(--hover); }
+.os-zoom .os-zoom-label { min-width: 74px; text-align: center; cursor: pointer; border-radius: 3px; padding: 2px 4px; }
+.os-zoom .os-zoom-label:hover { background: var(--hover); }
+
+/* focus and form controls as the editors draw them */
+html input:focus-visible, html select:focus-visible, html textarea:focus-visible, html button:focus-visible { outline: 1px solid var(--focus); outline-offset: 0; }
+html .wd-props input, html .wd-props select, html .wd-props textarea { background: var(--card); color: var(--ink); border: 1px solid color-mix(in srgb, var(--ink) 25%, transparent); border-radius: 2px; }
+
+/* the toolbar as the editors lay it out: small buttons are icons only, two to a column (the name shows on hover);
+   big buttons keep their label under the icon; it scrolls sideways rather than wrapping onto a second row */
+html .wd-ribbon, html .wp-ribbon { flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; }
+html .rb-group { flex: none; height: 64px; align-items: center; }
+html .rb-group > .rb-stack { grid-template-rows: repeat(2, 28px); gap: 4px 2px; align-content: center; }
+html .rb-stack > button[data-icon] { width: 28px; height: 28px; padding: 0; justify-content: center; }
+html .rb-stack > button[data-icon] > span { display: none; }
+html .rb-group button.big { min-width: 0; max-width: 72px; padding: 4px 6px; font-size: 11px; gap: 2px; }
+html .rb-group button.big .rb-ic { width: 24px; height: 24px; }
+html .rb-stack > .rb-field { height: 28px; }
+
+/* the settings panel as the editors draw it: bold headings in normal case, a line between sections, compact fields,
+   and beside it a strip of icons, one per section */
+html .wd-props { width: 256px; padding: 10px 12px; gap: 8px; margin-inline-end: 0; }
+html .wd-props h4 { color: var(--ink); text-transform: none; letter-spacing: 0; font-size: 12px; font-weight: 700; margin: 6px 0 0; padding-top: 10px; border-top: 1px solid color-mix(in srgb, var(--ink) 14%, transparent); }
+html .wd-props h4:first-child { border-top: 0; padding-top: 0; margin-top: 0; }
+html .wd-props label { color: var(--ink); font-size: 11.5px; gap: 3px; }
+html .wd-props input, html .wd-props select { height: 22px; padding: 1px 6px; font-size: 11.5px; }
+html .wd-props textarea { padding: 3px 6px; font-size: 11.5px; }
+html .wd-props input[type="color"] { height: 22px; padding: 1px; }
+.os-strip { width: 36px; flex: none; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px 0; background: var(--bg); }
+.os-strip:empty { display: none; }
+.os-strip button { width: 28px; height: 28px; border: 0; border-radius: 4px; background: none; color: var(--ink2); display: grid; place-items: center; cursor: pointer; padding: 0; }
+.os-strip button:hover { background: var(--hover); color: var(--ink); }
+.os-strip button.is-on { background: var(--pressed); color: var(--ink); }
+html .wd-main { padding-inline-end: 4px; }
+
+/* dialogs and buttons as the editors draw them: a square-ish window with its title in a header bar, compact fields,
+   buttons 22px high, the main one in the editors' blue */
+:root { --primary: #446995; --primary-ink: #fff; }
+:root[data-theme="dark"] { --primary: #3f7bd9; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --primary: #3f7bd9; } }
+html dialog.ws-ask, html dialog.wd-report, html dialog { border: 1px solid color-mix(in srgb, var(--ink) 18%, transparent); border-radius: 5px; padding: 0 16px 14px; background: var(--card); color: var(--ink); box-shadow: 0 8px 30px rgba(0, 0, 0, .35); }
+html dialog.ws-ask h2, html dialog h3 { margin: 0 -16px 12px; padding: 9px 16px; font-size: 12px; font-weight: 700; background: color-mix(in srgb, var(--ink) 6%, var(--card)); border-bottom: 1px solid color-mix(in srgb, var(--ink) 12%, transparent); border-radius: 5px 5px 0 0; }
+html dialog.ws-ask .hint { font-size: 11.5px; color: var(--ink2); }
+html dialog textarea, html dialog input, html dialog select { border-radius: 2px; border: 1px solid color-mix(in srgb, var(--ink) 25%, transparent); background: var(--card); color: var(--ink); font-size: 11.5px; }
+html dialog button, html .wd-props button, html .wd-pages button { font-size: 12px; height: 22px; padding: 0 12px; border-radius: 2px; border: 1px solid color-mix(in srgb, var(--ink) 25%, transparent); background: var(--card); color: var(--ink); cursor: pointer; }
+html dialog button:hover, html .wd-props button:hover { background: var(--hover); }
+html .wd-props button[data-layer-vis], html .wd-props button[data-layer-lock], html .wd-props button[data-data-del] { border: 0; background: none; padding: 0 4px; }
+html dialog button.primary { background: var(--primary); border-color: var(--primary); color: var(--primary-ink); }
+html dialog button.primary:hover { filter: brightness(1.1); }
+html dialog button.link { border: 0; background: none; color: var(--primary); padding: 0; text-decoration: underline dotted; }
+
+/* the page tabs under the drawing, as the spreadsheet's sheet tabs */
+html .wd-pages { background: var(--bg); border-top: 0; }
+html .wd-pages button { border: 0; border-radius: 0; height: 26px; background: none; color: var(--ink2); }
+html .wd-pages button.is-on, html .wd-pages button[aria-current="page"] { background: var(--card); color: var(--ink); box-shadow: inset 0 2px var(--primary); }
+
+/* the Project task table and chart headers, as the spreadsheet's column headers */
+html .wp-table th, html .wp-scale { background: color-mix(in srgb, var(--ink) 5%, var(--card)); color: var(--ink2); font-weight: 400; border-bottom: 1px solid color-mix(in srgb, var(--ink) 14%, transparent); }
+html .wp-table td { border-color: color-mix(in srgb, var(--ink) 9%, transparent); }
+
+/* the header above the tabs, as in the editors: quick save, print, undo and redo on the left, the file name in the middle */
+.os-header { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; height: 30px; padding: 0 12px; background: var(--bg); color: var(--ink); }
+.os-quick { display: flex; gap: 2px; }
+.os-quick button { width: 26px; height: 24px; border: 0; border-radius: 3px; background: none; color: var(--ink); display: grid; place-items: center; padding: 0; cursor: pointer; }
+.os-quick button > span { display: none; }
+.os-quick button:hover:not(:disabled) { background: var(--hover); }
+.os-quick button:disabled { opacity: .4; cursor: default; }
+html .os-title { margin: 0; color: var(--ink); font-size: 13px; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 50vw; }
+.os-header-end { justify-self: end; }
+html .wd-tabs, html .wp-tabs { padding-top: 0; }
+
+/* the end of the tab bar and header: Editing ▾, open, search, initials */
+.os-tab-end { margin-inline-start: auto; display: flex; align-items: center; gap: 6px; position: relative; }
+.os-mode { position: relative; }
+.os-mode-btn, .os-icon { display: flex; align-items: center; gap: 6px; height: 26px; padding: 0 8px; border: 0; border-radius: 4px; background: none; color: var(--ink); font: inherit; font-size: 12.5px; cursor: pointer; }
+.os-icon { width: 30px; padding: 0; justify-content: center; }
+.os-mode-btn:hover, .os-icon:hover { background: var(--hover); }
+.os-caret { font-size: 11px; opacity: .7; margin-top: -4px; }
+.os-menu { position: absolute; right: 0; top: 30px; z-index: 30; min-width: 150px; background: var(--card); border: 1px solid color-mix(in srgb, var(--ink) 18%, transparent); border-radius: 4px; box-shadow: 0 6px 20px rgba(0,0,0,.3); padding: 4px 0; }
+.os-menu button { display: flex; align-items: center; gap: 8px; width: 100%; border: 0; background: none; color: var(--ink); font: inherit; font-size: 12px; padding: 6px 12px; text-align: start; cursor: pointer; }
+.os-menu button:hover:not(:disabled) { background: var(--hover); }
+.os-menu button[aria-checked="true"] { background: var(--pressed); }
+.os-menu button:disabled { opacity: .45; cursor: default; }
+.os-find { position: relative; display: flex; align-items: center; }
+.os-find-box { position: absolute; right: 0; top: 30px; z-index: 30; display: flex; align-items: center; gap: 8px; background: var(--card); border: 1px solid color-mix(in srgb, var(--ink) 18%, transparent); border-radius: 4px; padding: 6px 8px; box-shadow: 0 6px 20px rgba(0,0,0,.3); }
+.os-find-box input { width: 200px; height: 22px; border-radius: 2px; border: 1px solid color-mix(in srgb, var(--ink) 25%, transparent); background: var(--card); color: var(--ink); padding: 0 6px; }
+.os-find-count { color: var(--ink2); font-size: 11.5px; white-space: nowrap; }
+.os-avatar { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: #ffffff; color: #222; font-size: 11px; font-weight: 700; }
+:root[data-theme="light"] .os-avatar { background: #444; color: #fff; }
+.os-find-box[hidden], .os-menu[hidden] { display: none; }

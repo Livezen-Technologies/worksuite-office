@@ -2,6 +2,7 @@
  * WorkSuite Project and Diagram: the ribbon's icons (own drawings, 20×20, stroked in currentColor so they follow
  * the light and dark themes). A button with data-icon gets its icon; class "big" stacks icon over label.
  */
+import { EDITOR_ICONS } from "./editor-icons.js";
 
 const I = {
   new: "M5 2.5h7l3.5 3.5v11.5h-10.5z M12 2.5v3.5h3.5",
@@ -75,8 +76,11 @@ const I = {
 
 export const ICONS = I;
 
-/** The SVG for an icon name, or "" when there is none. */
+/** The SVG for an icon name, or "" when there is none: the document editors' own icon where there is one
+ * (editor-icons.js; its big version for big buttons), else ours. */
 export function iconSvg(name, size = 20) {
+  const e = EDITOR_ICONS[name], v = e && (size > 20 && e.big ? e.big : e.small || e.big);
+  if (v) return `<svg class="rb-ic" width="${size}" height="${size}" viewBox="${v.viewBox}" fill="none" aria-hidden="true">${v.body}</svg>`;
   const d = I[name];
   return d ? `<svg class="rb-ic" width="${size}" height="${size}" viewBox="0 0 20 20" aria-hidden="true"><path d="${d}" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>` : "";
 }

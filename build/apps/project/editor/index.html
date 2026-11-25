@@ -4,17 +4,23 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>WorkSuite Project</title>
+<script src="../../common/theme.js"></script>
 <link rel="stylesheet" href="editor.css">
+<link rel="stylesheet" href="../../common/office.css">
 </head>
 <body>
 <div class="wp-app">
+  <header class="os-header" id="wp-header">
+    <div class="os-quick"><button type="button" data-cmd="save" data-icon="save" title="Save">Save</button><button type="button" data-cmd="print" data-icon="print" title="Print">Print</button><button type="button" data-cmd="undo" data-icon="undo" title="Undo">Undo</button><button type="button" data-cmd="redo" data-icon="redo" title="Redo">Redo</button></div>
+    <span class="wp-title os-title" id="wp-title"></span>
+    <div class="os-header-end"></div>
+  </header>
   <nav class="wp-tabs" role="tablist">
     <button class="wp-tab" data-tab="file">File</button>
     <button class="wp-tab is-on" data-tab="task">Task</button>
     <button class="wp-tab" data-tab="resource">Resource</button>
     <button class="wp-tab" data-tab="project">Project</button>
     <button class="wp-tab" data-tab="view">View</button>
-    <span class="wp-title" id="wp-title"></span>
     <span class="wp-mode" id="wp-mode" role="status" hidden><span id="wp-mode-text">Read-only</span> · <button type="button" id="wp-upgrade">Upgrade to Pro</button><button type="button" id="wp-retry" hidden>Try again</button></span>
   </nav>
   <div class="wp-ribbon" id="wp-ribbon">
