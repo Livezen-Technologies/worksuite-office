@@ -1,5 +1,19 @@
 # Change log
 
+## 10.1.110
+
+### New features
+
+#### Diagram
+
+* My shapes: Insert › Add to My shapes keeps copies of the selected shapes,
+  with their look, text and shape data, in a panel at the top of the shape
+  libraries, saved with the diagram. Click one or drag it onto the page for
+  a copy; right-click one to remove it.
+* Visio stencils: Insert › Open stencil puts the shapes of a Visio stencil
+  (.vssx) in My shapes, and File › Stencil (VSSX) saves My shapes as a
+  stencil for Visio or another diagram.
+
 ## 10.1.109
 
 ### New features

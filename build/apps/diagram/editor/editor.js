@@ -32,7 +32,8 @@ import { aiDraft } from "../../common/aidraft.js";
 import { DiagramModel, newDiagram, parse, serialize, connectionPoints, pointOn, APP } from "../core/diagram.js";
 import { checkEdit, reasonText, openUpgrade } from "../../common/licence.js";
 import { packDocument, unpackDocument, xlsx } from "../../common/zip.js";
-import { fromVsdx, toVsdx } from "../core/vsdx.js";
+import { fromVsdx, toVsdx, fromVssx, toVssx } from "../core/vsdx.js";
+import { shapeFrom } from "../core/stencils.js";
 import { shapePath, LIBRARIES, OPEN_LIBRARIES, libraryShape, snap, alignGuides, route, midpoint, resizeBox, lineJumps, jumpPath } from "./geometry.js";
 
 const $ = (id) => document.getElementById(id);
@@ -234,6 +235,18 @@ const commands = {
   aiDiagram: () => aiDiagram(),
   save: () => { download(state.fileName, packDocument(APP, serialize(state.model.doc)), "application/zip"); state.saved = state.model.undoStack.length; render(); },
   exportPng: () => exportPng(),
+  addToStencil: () => run(() => {
+    const ids = selShapes().map((x) => x.id);
+    if (!ids.length) throw new Error("Select the shapes to add to My shapes");
+    state.model.addToStencil(ids, state.pageId);
+    state.message = `Added ${ids.length} shape${ids.length === 1 ? "" : "s"} to ${state.model.doc.stencil.name}`;
+  }),
+  openStencil: () => { if (!state.readOnly) $("wd-stencil-file").click(); },
+  saveStencil: () => {
+    const st = state.model.doc.stencil;
+    if (!st) { state.message = "My shapes is empty: select shapes and choose Insert › Add to My shapes"; render(); return; }
+    download(`${st.name}.vssx`, toVssx(st, (sh) => shapePath(sh.type, sh.w, sh.h, sh.path)), "application/vnd.ms-visio.stencil");
+  },
   exportVsdx: () => exportVisio(false),
   exportVstx: () => exportVisio(true),
   print: () => printPage(),
@@ -569,6 +582,12 @@ function overlaySvg() {
 /* ---- panels ---- */
 function renderLib() {
   let html = "";
+  const st = state.model.doc.stencil;
+  if (st) { // My shapes: from the page or a Visio stencil (stencils.js)
+    html += `<details data-lib-open="stencil" open><summary>${esc(st.name)}</summary><div class="wd-shapes">`;
+    for (const e of st.shapes) html += `<button type="button" draggable="true" data-stencil="${e.id}" title="${esc(e.name)} (right-click to remove)" ${state.readOnly ? "disabled" : ""}><svg viewBox="-2 -2 34 28"><path d="${shapePath(e.shape.type, 30, 24 * Math.min(1, Math.max(0.35, e.shape.h / e.shape.w * 1.25)), e.shape.path)}" fill="none" stroke="currentColor" stroke-width="1.5"/></svg></button>`;
+    html += "</div></details>";
+  }
   for (const lib of LIBRARIES) {
     html += `<details data-lib-open="${lib.id}" ${state.libOpen.has(lib.id) ? "open" : ""}><summary>${lib.name}</summary><div class="wd-shapes">`;
     for (const s of lib.shapes) html += `<button type="button" draggable="true" data-shape="${s.type}" data-lib="${lib.id}" title="${s.name}" ${state.readOnly ? "disabled" : ""}><svg viewBox="-2 -2 34 28"><path d="${shapePath(s.type, 30, 24 * Math.min(1, Math.max(0.35, s.h / s.w * 1.25)))}" fill="none" stroke="currentColor" stroke-width="1.5"/></svg></button>`;
@@ -691,6 +710,21 @@ function render() {
 }
 
 /* ---- adding shapes ---- */
+/** A copy of a My shapes entry on the page, centred on `at` or in the middle. */
+function addFromStencil(id, at) {
+  const entry = state.model.doc.stencil?.shapes.find((x) => x.id === id);
+  if (!entry) return;
+  run(() => {
+    const p = page();
+    const where = at || { x: p.width / 2 + (shapes().length % 5) * 20, y: p.height / 2 + (shapes().length % 5) * 20 };
+    const visibleLayer = [...p.layers].reverse().find((l) => l.visible && !l.locked) || p.layers[0];
+    const fields = shapeFrom(entry, where);
+    if (state.grid) { fields.x = snap(fields.x, GRID); fields.y = snap(fields.y, GRID); }
+    state.sel = [state.model.addShape({ ...fields, layer: visibleLayer.id }, state.pageId)];
+    state.tool = "select";
+  });
+}
+
 function addFromLibrary(type, at) {
   const def = libraryShape(type);
   run(() => {
@@ -872,10 +906,41 @@ async function applyLicence() {
   state.licence = r.reason;
   window.WorkSuiteDiagram.setReadOnly(!r.edit);
 }
-$("wd-lib").addEventListener("click", (e) => { const b = e.target.closest("[data-shape]"); if (b && !b.disabled) addFromLibrary(b.dataset.shape); });
-$("wd-lib").addEventListener("dragstart", (e) => { const b = e.target.closest("[data-shape]"); if (b) e.dataTransfer.setData("text/x-worksuite-shape", b.dataset.shape); });
-$("wd-canvas").addEventListener("dragover", (e) => { if (e.dataTransfer.types.includes("text/x-worksuite-shape")) e.preventDefault(); });
-$("wd-canvas").addEventListener("drop", (e) => { const t = e.dataTransfer.getData("text/x-worksuite-shape"); if (t) { e.preventDefault(); addFromLibrary(t, toPage(e)); } });
+$("wd-lib").addEventListener("click", (e) => {
+  const k = e.target.closest("[data-stencil]");
+  if (k && !k.disabled) { addFromStencil(k.dataset.stencil); return; }
+  const b = e.target.closest("[data-shape]"); if (b && !b.disabled) addFromLibrary(b.dataset.shape);
+});
+$("wd-lib").addEventListener("contextmenu", (e) => {
+  const k = e.target.closest("[data-stencil]");
+  if (!k || k.disabled) return;
+  e.preventDefault();
+  const entry = state.model.doc.stencil?.shapes.find((x) => x.id === k.dataset.stencil);
+  if (entry && window.confirm(`Remove “${entry.name}” from ${state.model.doc.stencil.name}?`)) run(() => state.model.removeFromStencil(entry.id));
+});
+$("wd-lib").addEventListener("dragstart", (e) => {
+  const k = e.target.closest("[data-stencil]");
+  if (k) { e.dataTransfer.setData("text/x-worksuite-stencil", k.dataset.stencil); return; }
+  const b = e.target.closest("[data-shape]"); if (b) e.dataTransfer.setData("text/x-worksuite-shape", b.dataset.shape);
+});
+$("wd-canvas").addEventListener("dragover", (e) => { if (e.dataTransfer.types.includes("text/x-worksuite-shape") || e.dataTransfer.types.includes("text/x-worksuite-stencil")) e.preventDefault(); });
+$("wd-canvas").addEventListener("drop", (e) => {
+  const k = e.dataTransfer.getData("text/x-worksuite-stencil");
+  if (k) { e.preventDefault(); addFromStencil(k, toPage(e)); return; }
+  const t = e.dataTransfer.getData("text/x-worksuite-shape"); if (t) { e.preventDefault(); addFromLibrary(t, toPage(e)); }
+});
+$("wd-stencil-file").addEventListener("change", async (e) => {
+  const f = e.target.files[0];
+  e.target.value = "";
+  if (!f) return;
+  try {
+    const { stencil, problems } = await fromVssx(new Uint8Array(await f.arrayBuffer()), f.name.replace(/\.vssx$/i, ""));
+    if (state.model.doc.stencil && !window.confirm(`Replace ${state.model.doc.stencil.name} with ${stencil.name}?`)) return;
+    run(() => state.model.setStencil(stencil));
+    state.message = `${stencil.name}: ${stencil.shapes.length} shape${stencil.shapes.length === 1 ? "" : "s"} in the panel` + (problems.length ? ` (${problems.join("; ")})` : "");
+    render();
+  } catch (err) { state.message = `Could not open ${f.name}: ${err.message}`; render(); }
+});
 $("wd-pages").addEventListener("click", (e) => {
   const b = e.target.closest("button");
   if (!b) return;
