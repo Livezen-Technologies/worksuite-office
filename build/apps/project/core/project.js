@@ -12,7 +12,8 @@
  *           custom? ({ fieldKey: value } for the document's custom fields),
  *           calendar? ("7d" every day, "6d" the project's days and Saturdays; default the project calendar),
  *           splits? ([{ after, days }]: pauses of `days` working days after `after` days of work),
- *           recurring? (on a summary: the pattern its occurrences were made from, recurring.js) }
+ *           recurring? (on a summary: the pattern its occurrences were made from, recurring.js),
+ *           subproject? ({ file, at }: on a summary, the plan file its tasks came from, refreshed from it and saved back to it) }
  *   resources: [{ name, rate (per hour), costPerUse }]   the Resource Sheet, by the names in Owner (costs.js)
  *         type: fixedUnits (default) | fixedWork | fixedDuration; work: person-hours; see tasktypes.js
  *         deadline: a date the task should finish by (it does not move the task; missing it is flagged);
@@ -172,6 +173,7 @@ export function validate(doc) {
     if (t.priority !== undefined && !(Number.isInteger(t.priority) && t.priority >= 0 && t.priority <= 1000)) errs.push(`${at}: priority must be a whole number from 0 to 1000`);
     if (t.levelDelay !== undefined && !(Number.isInteger(t.levelDelay) && t.levelDelay >= 0)) errs.push(`${at}: levelling delay must be whole working days`);
     if (t.recurring !== undefined && patternError(t.recurring)) errs.push(`${at}: ${patternError(t.recurring)}`);
+    if (t.subproject !== undefined && !(t.subproject && typeof t.subproject.file === "string" && t.subproject.file.trim() && t.subproject.file.length <= 255 && /^\d{4}-\d{2}-\d{2}$/.test(t.subproject.at))) errs.push(`${at}: a subproject names its file and the day it was read`);
     if (t.actualStart && t.actualFinish && t.actualFinish < t.actualStart) errs.push(`${at}: actual finish is before actual start`);
     if (splitsError(t)) errs.push(`${at}: ${splitsError(t)}`);
     if (t.fixedCostAccrual !== undefined && !["start", "prorated", "end"].includes(t.fixedCostAccrual)) errs.push(`${at}: fixed cost accrual must be start, prorated or end`);
@@ -319,7 +321,7 @@ export class ProjectModel {
    * name; a field of the same name but another type is added as a new field). Its baselines, interim plans, budget and
    * status date stay behind. Returns the summary's id; one undo step.
    */
-  insertProject(other, name = other.name || "Inserted project") {
+  insertProject(other, name = other.name || "Inserted project", { file = null, at = new Date().toISOString().slice(0, 10) } = {}) {
     validate(other);
     const sum = "t" + ++this.seq;
     const ids = new Map(other.tasks.map((t) => [t.id, "t" + ++this.seq]));
@@ -337,7 +339,7 @@ export class ProjectModel {
         keyOf.set(f.key, key);
       }
       const start = other.tasks.length ? other.tasks.reduce((m, t) => (t.start < m ? t.start : m), other.tasks[0].start) : other.start;
-      d.tasks.push({ id: sum, name: String(name).trim() || "Inserted project", level: 0, start, duration: 1, progress: 0 });
+      d.tasks.push({ id: sum, name: String(name).trim() || "Inserted project", level: 0, start, duration: 1, progress: 0, ...(file ? { subproject: { file: String(file).slice(0, 255), at } } : {}) });
       for (const t of other.tasks) {
         const copy = { ...structuredClone(t), id: ids.get(t.id), level: t.level + 1 };
         if (copy.custom) copy.custom = Object.fromEntries(Object.entries(copy.custom).filter(([k]) => keyOf.has(k)).map(([k, v]) => [keyOf.get(k), v]));
@@ -351,6 +353,42 @@ export class ProjectModel {
     });
     return sum;
   }
+  /* ---- linked subprojects: an inserted plan that remembers its file ---- */
+  /**
+   * Replaces a subproject's tasks with the plan as it is in its file now: the summary keeps its name, place and
+   * links; its old tasks, and links to them, go; the plan's tasks and links come in under it. One undo step.
+   */
+  refreshSubproject(id, other, at = new Date().toISOString().slice(0, 10)) {
+    validate(other);
+    if (!this.task(id).subproject) throw new Error("That task is not a linked subproject");
+    const ids = new Map(other.tasks.map((t) => [t.id, "t" + ++this.seq]));
+    return this.edit((d) => {
+      const i = d.tasks.findIndex((t) => t.id === id), end = this.endOf(d.tasks, i), base = d.tasks[i].level;
+      const gone = new Set(d.tasks.slice(i + 1, end).map((t) => t.id));
+      const fresh = other.tasks.map((t) => ({ ...structuredClone(t), id: ids.get(t.id), level: base + 1 + t.level }));
+      fresh.forEach((t) => delete t.custom); // fields are matched when a plan is first inserted, not on refresh
+      d.tasks.splice(i + 1, end - i - 1, ...fresh);
+      d.links = d.links.filter((l) => !gone.has(l.from) && !gone.has(l.to)).concat(other.links.map((l) => ({ ...l, from: ids.get(l.from), to: ids.get(l.to) })));
+      d.tasks[i].subproject = { ...d.tasks[i].subproject, at };
+      for (const r of other.resources || []) {
+        d.resources = d.resources || [];
+        if (!d.resources.some((x) => x.name === r.name)) d.resources.push({ ...r });
+      }
+    });
+  }
+  /** A subproject's tasks as a plan of their own, to save back to its file: a project document. */
+  subprojectDoc(id) {
+    const i = this.indexOf(id), sum = this.doc.tasks[i];
+    const tasks = this.doc.tasks.slice(i + 1, this.endOf(this.doc.tasks, i)).map((t) => ({ ...structuredClone(t), level: t.level - sum.level - 1 }));
+    const ids = new Set(tasks.map((t) => t.id));
+    const names = new Set(tasks.flatMap((t) => (t.owner || "").split(",").map((x) => x.replace(/\[.*\]|\d+(\.\d+)?\s*%/g, "").trim())));
+    tasks.forEach((t) => delete t.custom);
+    const start = tasks.length ? tasks.reduce((m, t) => (t.start < m ? t.start : m), tasks[0].start) : sum.start;
+    return validate({ app: APP, v: SCHEMA_VERSION, name: sum.name, start, tasks, links: this.doc.links.filter((l) => ids.has(l.from) && ids.has(l.to)).map((l) => ({ ...l })), calendars: [], resources: (this.doc.resources || []).filter((r) => names.has(r.name)).map((r) => ({ ...r })) });
+  }
+  /** Keeps a subproject's tasks but forgets its file (a plain inserted plan from now on). */
+  unlinkSubproject(id) { return this.edit((d) => { const t = d.tasks.find((x) => x.id === id); if (t) delete t.subproject; }); }
+
   /**
    * A recurring task: a summary named `name`, keeping `pattern`, with one subtask per occurrence from `start`
    * (recurring.js). `fields` go on every occurrence (duration, owner…). Returns the summary's id; one undo step.

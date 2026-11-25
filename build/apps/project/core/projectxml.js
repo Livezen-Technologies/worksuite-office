@@ -252,7 +252,9 @@ export function fromProjectXml(text) {
     const tc = val(t, "CalendarUID") && val(t, "CalendarUID") !== "-1" ? calendarOf(val(t, "CalendarUID")) : null;
     if (tc === "7d" || tc === "6d") task.calendar = tc;
     else if (tc === "other") problems.push(`task "${task.name}" has its own calendar, which was read as the project calendar`);
-    if (phased.has(uid) && duration > 1) { const sp = splitsFromPhased(phased.get(uid), task, duration); if (sp.length) task.splits = sp; }
+    // an inserted subproject: Microsoft Project names its file; its tasks, if the file has them, are the ones under it
+    if (val(t, "IsSubproject") === "1" && val(t, "SubprojectName")) task.subproject = { file: val(t, "SubprojectName").split(/[\\/]/).pop().slice(0, 255), at: (val(t, "Start") || "").slice(0, 10) || new Date().toISOString().slice(0, 10) };
+        if (phased.has(uid) && duration > 1) { const sp = splitsFromPhased(phased.get(uid), task, duration); if (sp.length) task.splits = sp; }
     byUid.set(uid, task);
     doc.tasks.push(task);
   }
@@ -341,6 +343,7 @@ export function toProjectXml(doc, isWork = null) {
       `<Milestone>${v.milestone ? 1 : 0}</Milestone><Summary>${v.summary ? 1 : 0}</Summary><PercentComplete>${v.progress}</PercentComplete>` +
       (t.actualStart ? `<ActualStart>${t.actualStart}T08:00:00</ActualStart>` : "") +
       (t.deadline ? `<Deadline>${t.deadline}T17:00:00</Deadline>` : "") + (t.inactive ? "<Active>0</Active>" : "") + (t.actualFinish ? `<ActualFinish>${t.actualFinish}T17:00:00</ActualFinish>` : "") +
+      (t.subproject ? `<IsSubproject>1</IsSubproject><IsSubprojectReadOnly>0</IsSubprojectReadOnly>${el("SubprojectName", t.subproject.file)}` : "") +
       `${con}${t.calendar && calUid.has(t.calendar) ? `<CalendarUID>${calUid.get(t.calendar)}</CalendarUID>` : ""}${el("Notes", t.notes)}${links}${custom(t)}${interimXml(t)}</Task>`;
   }).join("\n    ");
   const sheet = new Map((doc.resources || []).map((r) => [r.name, r]));

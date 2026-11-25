@@ -1,5 +1,18 @@
 # Change log
 
+## 10.1.111
+
+### New features
+
+#### Project
+
+* Linked subprojects: a plan brought in with Insert › Project is now a
+  subproject linked to its file, marked ⧉. Task › Refresh subproject brings
+  in a newer copy of the file, keeping the links to the subproject's
+  summary; Save subproject writes its tasks out as a .wsproj to replace the
+  file; Unlink subproject keeps the tasks and forgets the file. In Project
+  XML a subproject is Microsoft Project's subproject, by its file name.
+
 ## 10.1.110
 
 ### New features
