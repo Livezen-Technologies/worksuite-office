@@ -12,6 +12,9 @@
  * diagram cannot hold yet (themes, layers' Visio properties, images, fields) is left out
  * and listed.
  *
+ * Also opens macro drawings (.vsdm: the drawing, not its macros) and Visio templates (.vstx: a new drawing from it),
+ * and writes a template (.vstx) as well as a drawing.
+ *
  * Writing: one page per page, each shape with its outline as Geometry in relative units (so it resizes in
  * Visio), its text, fill and line; each connector as a 1-D shape along its route, glued with Connect elements; comments in visio/comments.xml.
  *
@@ -118,6 +121,7 @@ export async function fromVsdx(bytes) {
     return out;
   };
   const pagesEl = xml("visio/pages/pages.xml");
+  const macros = Object.keys(files).some((f) => /vbaProject\.bin$/i.test(f)); // a .vsdm: the drawing opens, its macros do not
   if (!pagesEl) throw new Error(files["visio/document.xml"] ? "the drawing has no pages" : "not a Visio drawing (.vsdx)");
   const pagesRels = rels("visio/pages/pages.xml");
   const problems = new Set();
@@ -250,6 +254,7 @@ export async function fromVsdx(bytes) {
   const name = (xml("docProps/core.xml") && kid(xml("docProps/core.xml"), "title")?.text) || "";
   if (name) doc.name = name;
   validate(doc);
+  if (macros) problems.add("macros are left out (WorkSuite does not run them)");
   return { doc, problems: [...problems] };
 }
 
@@ -318,7 +323,7 @@ export function pathToGeometry(d, w, h) {
  * The bytes of a .vsdx for a WorkSuite diagram. outline(shape) gives a shape's SVG path in its w×h box;
  * routeOf(connector, page) gives a connector's route as page points [[x, y], …].
  */
-export function toVsdx(doc, outline, routeOf, styleOf = (sh) => sh.style || {}) {
+export function toVsdx(doc, outline, routeOf, styleOf = (sh) => sh.style || {}, { template = false } = {}) {
   const authors = [], comments = [];
   const pages = doc.pages.map((page, pi) => {
     const ph = page.height / PT;
@@ -379,7 +384,7 @@ export function toVsdx(doc, outline, routeOf, styleOf = (sh) => sh.style || {}) 
   });
   const head = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n';
   return zip([
-    { name: "[Content_Types].xml", data: head + `<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/visio/document.xml" ContentType="application/vnd.ms-visio.drawing.main+xml"/><Override PartName="/visio/pages/pages.xml" ContentType="application/vnd.ms-visio.pages+xml"/>${pages.map((p) => `<Override PartName="/visio/pages/${p.file}" ContentType="application/vnd.ms-visio.page+xml"/>`).join("")}${comments.length ? '<Override PartName="/visio/comments.xml" ContentType="application/vnd.ms-visio.comments+xml"/>' : ""}<Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/></Types>` },
+    { name: "[Content_Types].xml", data: head + `<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/visio/document.xml" ContentType="application/vnd.ms-visio.${template ? "template" : "drawing"}.main+xml"/><Override PartName="/visio/pages/pages.xml" ContentType="application/vnd.ms-visio.pages+xml"/>${pages.map((p) => `<Override PartName="/visio/pages/${p.file}" ContentType="application/vnd.ms-visio.page+xml"/>`).join("")}${comments.length ? '<Override PartName="/visio/comments.xml" ContentType="application/vnd.ms-visio.comments+xml"/>' : ""}<Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/></Types>` },
     { name: "_rels/.rels", data: head + `<Relationships xmlns="${NS_PKG}"><Relationship Id="rId1" Type="http://schemas.microsoft.com/visio/2010/relationships/document" Target="visio/document.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/></Relationships>` },
     { name: "docProps/core.xml", data: head + `<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:title>${esc(doc.name)}</dc:title><dc:creator>WorkSuite Diagram</dc:creator></cp:coreProperties>` },
     { name: "visio/document.xml", data: head + `<VisioDocument xmlns="${NS}" xmlns:r="${NS_R}" xml:space="preserve"><DocumentSettings TopPage="0" DefaultTextStyle="0" DefaultLineStyle="0" DefaultFillStyle="0" DefaultGuideStyle="0"/><StyleSheets><StyleSheet ID="0" NameU="No Style" Name="No Style">${cell("LineWeight", 0.01041666666666667)}${cell("LineColor", "#000000")}${cell("LinePattern", 1)}${cell("FillForegnd", "#ffffff")}${cell("FillPattern", 1)}${cell("Char.Size", 0.1666666666666667)}${cell("Char.Color", "#000000")}</StyleSheet></StyleSheets></VisioDocument>` },
