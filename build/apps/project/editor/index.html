@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>WorkSuite Project</title>
 <script src="../../common/theme.js"></script>
+<script src="../../common/sinhala-core.js"></script>
 <link rel="stylesheet" href="editor.css">
 <link rel="stylesheet" href="../../common/office.css">
 </head>
@@ -21,6 +22,7 @@
     <button class="wp-tab" data-tab="resource">Resource</button>
     <button class="wp-tab" data-tab="project">Project</button>
     <button class="wp-tab" data-tab="view">View</button>
+    <button class="wp-tab" data-tab="sinhala">Sinhala Tools</button>
     <span class="wp-mode" id="wp-mode" role="status" hidden><span id="wp-mode-text">Read-only</span> · <button type="button" id="wp-upgrade">Upgrade to Pro</button><button type="button" id="wp-retry" hidden>Try again</button></span>
   </nav>
   <div class="wp-ribbon" id="wp-ribbon">
@@ -105,6 +107,16 @@
     <div class="wp-group rb-group" data-tab="project">
       <div class="rb-stack"><label class="rb-field">Status date <input type="date" id="wp-status-date" data-edit></label><label class="rb-field"><input type="checkbox" id="wp-progressline"> Progress line</label></div>
       <span class="rb-glabel">Status</span>
+    </div>
+    <div class="wp-group rb-group" data-tab="sinhala">
+      <button class="big" data-icon="text" id="wp-singlish" data-cmd="singlish" title="Type Sinhala in English letters: ammaa becomes අම්මා as you finish each word">Singlish Typing</button>
+      <span class="rb-glabel">Typing</span>
+    </div>
+    <div class="wp-group rb-group" data-tab="sinhala">
+      <div class="rb-stack"><label class="rb-field">Legacy font <select id="wp-si-font" data-latin title="The font the old text was typed in"></select></label></div>
+      <button class="big" data-icon="update" data-cmd="siConvert" data-edit title="Convert the selected tasks' names and notes from a legacy Sinhala font to Unicode">Convert to Unicode</button>
+      <button class="big" data-icon="check" data-cmd="siFix" data-edit title="Put right badly formed Sinhala in the selected tasks' names and notes">Fix Sinhala</button>
+      <span class="rb-glabel">Text</span>
     </div>
     <div class="wp-group rb-group" data-tab="view">
       <button class="big" data-icon="gantt" data-cmd="viewGantt">Gantt Chart</button><button class="big" data-icon="baseline" data-cmd="viewTracking">Tracking Gantt</button><button class="big" data-icon="team" data-cmd="viewTeam">Team Planner</button><button class="big" data-icon="workload" data-cmd="viewWorkload">Workload</button><button class="big" data-icon="board" data-cmd="viewBoard">Task Board</button><button class="big" data-icon="calendar" data-cmd="viewCal">Calendar</button><button class="big" data-icon="network" data-cmd="viewNet">Network Diagram</button><button class="big" data-icon="gantt" data-cmd="viewTaskUsage">Task Usage</button><button class="big" data-icon="workload" data-cmd="viewResUsage">Resource Usage</button><button class="big" data-icon="calendar" data-cmd="viewTimeline">Timeline</button><button class="big" data-icon="page" data-cmd="viewReport">Project Overview</button><button class="big" data-icon="page" data-cmd="viewCustom" title="Your own report layouts: columns, filter, grouping and sort">Custom Report</button><button class="big" data-icon="workload" data-cmd="viewBurn">Burndown</button><button class="big" data-icon="team" data-cmd="viewSheet">Resource Sheet</button><button class="big" data-icon="money" data-cmd="viewEv">Earned Value</button>

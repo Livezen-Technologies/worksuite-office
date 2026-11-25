@@ -26,6 +26,7 @@ import { askText, askForm } from "../../common/dialog.js";
 import { FIELD_TYPES, parseValue, formatValue, fieldValue, fieldIcon, fieldError, FORMULA_FIELDS } from "../core/fields.js";
 import { describe as describeRecurring, patternError } from "../core/recurring.js";
 import { mountHeaderbar } from "../../common/headerbar.js";
+import { profiles as siProfiles, toUnicode as siToUnicode, fix as siFix, attachSinglish } from "../../common/sinhala-tools.js";
 import { decorateRibbon, ribbonStyles } from "../../common/ribbon.js";
 import { aiDraft } from "../../common/aidraft.js";
 import { checkEdit, reasonText, openUpgrade } from "../../common/licence.js";
@@ -1128,6 +1129,26 @@ function showTab(name) {
 // the header's quick buttons, as in the editors: save, print, undo, redo
 decorateRibbon($("wp-header"));
 // the right-hand end of the header and tabs, as in the editors: initials, Editing / Viewing, open, search
+// Sinhala Tools (common/sinhala-tools.js): Singlish typing, legacy fonts to Unicode, fixing Sinhala
+const siApply = (fn) => run(() => {
+    const ids = state.sel.filter((id) => state.model.doc.tasks.some((t) => t.id === id));
+    if (!ids.length) throw new Error("Select the tasks whose names to change");
+    let n = 0;
+    state.model.edit((d) => { for (const t of d.tasks) if (ids.includes(t.id)) { for (const k of ["name", "notes"]) if (t[k]) { const v = fn(t[k]); if (v !== t[k]) { t[k] = v; n++; } } } });
+    state.note = `Sinhala Tools: ${n} change${n === 1 ? "" : "s"} in ${ids.length} task${ids.length === 1 ? "" : "s"}`;
+  });
+let singlishOn = false;
+try { singlishOn = localStorage.getItem("ws-singlish") === "1"; } catch (e) { /* storage blocked */ }
+attachSinglish(document, () => singlishOn && !state.readOnly);
+const siFontSel = $("wp-si-font");
+siFontSel.innerHTML = siProfiles().map((p) => `<option value="${p.id}">${p.name}</option>`).join("");
+const siShow = () => { $("wp-singlish").classList.toggle("is-on", singlishOn); $("wp-singlish").setAttribute("aria-pressed", String(singlishOn)); };
+Object.assign(commands, {
+  singlish: () => { singlishOn = !singlishOn; try { localStorage.setItem("ws-singlish", singlishOn ? "1" : "0"); } catch (e) { /* storage blocked */ } siShow(); },
+  siConvert: () => siApply((t) => siToUnicode(t, siFontSel.value).text),
+  siFix: () => siApply((t) => siFix(t)),
+});
+siShow();
 var refreshHeaderbar = null; // var: render() may run before this line
 refreshHeaderbar = mountHeaderbar({
   header: $("wp-header"), tabs: document.querySelector(".wp-tabs"),
