@@ -234,17 +234,8 @@ const commands = {
   aiDiagram: () => aiDiagram(),
   save: () => { download(state.fileName, packDocument(APP, serialize(state.model.doc)), "application/zip"); state.saved = state.model.undoStack.length; render(); },
   exportPng: () => exportPng(),
-  exportVsdx: () => run(() => {
-    const routeOf = (c, pg) => {
-      const e = state.model.endpoints(c.id, pg.id);
-      return route(c.route, e.from, e.to, sideOf(c.from), sideOf(c.to));
-    };
-    // the colours each shape is drawn with: its own, else its type's default, as on the canvas
-    const themeOf = new Map(state.model.doc.pages.flatMap((p) => p.items.map((it) => [it.id, p.theme])));
-    const doc = withGraphicColours(state.model.doc);
-    const styleOf = (sh) => { const t = themeColors(themeOf.get(sh.id), sh.type); return { fill: t?.fill || FILLS[sh.type] || "#dbeafe", line: t?.line || LINES[sh.type] || "#2563eb" }; };
-    download(state.fileName.replace(/\.wsdiagram$/, "") + ".vsdx", toVsdx(doc, (sh) => (sh.type === "lane" ? lanePath(sh) : sh.type === "container" ? containerPath(sh) : sh.type === "callout" ? shapePath("note", sh.w, sh.h) : shapePath(sh.type, sh.w, sh.h, sh.path)), routeOf, styleOf), "application/vnd.ms-visio.drawing");
-  }),
+  exportVsdx: () => exportVisio(false),
+  exportVstx: () => exportVisio(true),
   print: () => printPage(),
   exportSvg: () => download(state.fileName.replace(/\.wsdiagram$/, "") + ` - ${page().name}.svg`, pageSvg(false), "image/svg+xml"),
   remove: () => run(() => { if (state.sel.length) state.model.remove(state.sel, state.pageId); state.sel = []; }),
@@ -490,6 +481,21 @@ function pageSvg(interactive) {
   }
   if (interactive) out += overlaySvg();
   return out + "</svg>";
+}
+/** File › Visio (VSDX), or Visio template (VSTX): the diagram as Visio opens it. */
+function exportVisio(template) {
+  run(() => {
+    const routeOf = (c, pg) => {
+      const e = state.model.endpoints(c.id, pg.id);
+      return route(c.route, e.from, e.to, sideOf(c.from), sideOf(c.to));
+    };
+    // the colours each shape is drawn with: its own, else its type's default, as on the canvas
+    const themeOf = new Map(state.model.doc.pages.flatMap((p) => p.items.map((it) => [it.id, p.theme])));
+    const doc = withGraphicColours(state.model.doc);
+    const styleOf = (sh) => { const t = themeColors(themeOf.get(sh.id), sh.type); return { fill: t?.fill || FILLS[sh.type] || "#dbeafe", line: t?.line || LINES[sh.type] || "#2563eb" }; };
+    const outline = (sh) => (sh.type === "lane" ? lanePath(sh) : sh.type === "container" ? containerPath(sh) : sh.type === "callout" ? shapePath("note", sh.w, sh.h) : shapePath(sh.type, sh.w, sh.h, sh.path));
+    download(state.fileName.replace(/\.wsdiagram$/, "") + (template ? ".vstx" : ".vsdx"), toVsdx(doc, outline, routeOf, styleOf, { template }), template ? "application/vnd.ms-visio.template" : "application/vnd.ms-visio.drawing");
+  });
 }
 /** A copy of the diagram with each shape's data graphic (datagraphics.js) as its own: the colour as its fill, icon and bar as shapes, for Visio export. */
 function withGraphicColours(doc) {
@@ -965,7 +971,7 @@ $("wd-file").addEventListener("change", async (e) => {
   if (!f) return;
   try {
     const bytes = new Uint8Array(await f.arrayBuffer());
-    if (/\.vsdx$/i.test(f.name)) await openVsdx(bytes, f.name);
+    if (/\.(vsdx|vsdm|vstx)$/i.test(f.name)) await openVsdx(bytes, f.name);
     else load(bytes, f.name);
   } catch (err) { state.message = "Could not open " + f.name + ": " + err.message; render(); }
   e.target.value = "";
@@ -976,7 +982,7 @@ async function openVsdx(bytes, name) {
   const { doc, problems } = await fromVsdx(bytes);
   state.model = new DiagramModel(doc);
   state.pageId = state.model.doc.pages[0].id;
-  state.fileName = name.replace(/\.vsdx$/i, "") + ".wsdiagram";
+  state.fileName = name.replace(/\.(vsdx|vsdm|vstx)$/i, "") + ".wsdiagram"; // a template's drawing is a new file
   state.saved = -1; // not saved as .wsdiagram yet
   state.sel = [];
   state.message = problems.length ? `Opened ${name}: ${problems.join("; ")}` : "";

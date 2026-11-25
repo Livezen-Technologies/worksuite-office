@@ -178,3 +178,22 @@ test("data graphic icons and bars go to .vsdx as shapes; borderless shapes stay 
   const { doc } = await fromVsdx(toVsdx(m.doc, (s) => shapePath(s.type, s.w, s.h, s.path), routeOf(m)));
   assert.equal(doc.pages[0].items[0].style.line, "none");
 });
+
+test("a Visio template (.vstx) is written and opens; a macro drawing's macros are named as left out", async () => {
+  const { zip, unzipAsync } = await import("../apps/common/zip.js");
+  const m = sampleDiagram();
+  const outline = (s) => shapePath(s.type, s.w, s.h, s.path);
+  const vstx = toVsdx(m.doc, outline, routeOf(m), undefined, { template: true });
+  const types = new TextDecoder().decode((await unzipAsync(vstx))["[Content_Types].xml"]);
+  assert.match(types, /application\/vnd\.ms-visio\.template\.main\+xml/);
+  assert.doesNotMatch(new TextDecoder().decode((await unzipAsync(toVsdx(m.doc, outline, routeOf(m))))["[Content_Types].xml"]), /template\.main/);
+  const { doc, problems } = await fromVsdx(vstx);
+  assert.equal(doc.pages[0].items.filter((i) => i.kind === "shape").length, 3);
+  assert.deepEqual(problems, []);
+  // a .vsdm: the same parts plus visio/vbaProject.bin
+  const files = await unzipAsync(toVsdx(m.doc, outline, routeOf(m)));
+  const vsdm = zip([...Object.entries(files).map(([name, data]) => ({ name, data })), { name: "visio/vbaProject.bin", data: new Uint8Array([1, 2, 3]) }]);
+  const opened = await fromVsdx(vsdm);
+  assert.equal(opened.doc.pages[0].items.filter((i) => i.kind === "shape").length, 3);
+  assert.ok(opened.problems.some((p) => /macros are left out/.test(p)));
+});

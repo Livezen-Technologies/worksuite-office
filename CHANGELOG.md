@@ -1,5 +1,17 @@
 # Change log
 
+## 10.1.109
+
+### New features
+
+#### Diagram
+
+* Visio templates and macro drawings: File › Open takes a Visio template
+  (.vstx), which opens as a new drawing, and a macro-enabled drawing (.vsdm),
+  whose drawing opens and whose macros are left out, as the message says.
+  File › Visio template (VSTX) saves the diagram as a template Visio starts
+  new drawings from.
+
 ## 10.1.108
 
 ### New features
