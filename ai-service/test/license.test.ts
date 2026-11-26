@@ -199,3 +199,46 @@ describe("WorkSuite Project and Diagram: viewing free, creating and editing Pro"
     } finally { rmSync(dir, { recursive: true, force: true }); }
   });
 });
+
+describe("LicenseStore — activation keys (WSO-…) redeemed at the Update Center", () => {
+  const KEY = "WSO-7H2KQ-ENXNX-QN54K-ZCP9J";
+  it("a typed key is swapped for this computer's signed licence, then works offline", async () => {
+    const { seed, pub } = keypair();
+    const calls: { url: string; body: Record<string, unknown> }[] = [];
+    const fetcher = (async (url: string, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body));
+      calls.push({ url, body });
+      if (url.endsWith("/redeem")) return new Response(JSON.stringify({ status: "active", license_id: "L-9", license: license(seed, { licenseId: "L-9", device: deviceId() }) }), { status: 200 });
+      return new Response(JSON.stringify({ status: "active" }), { status: 200 });
+    }) as typeof fetch;
+    const { s, dir } = store({ pub, fetcher });
+    const st = await s.activate(" wso 7h2kq-enxnx qn54k-zcp9j ");
+    expect(st).toMatchObject({ plan: "pro", active: true, licenseId: "L-9" });
+    expect(calls[0].url).toBe("https://uc.test/api/v1/license/redeem");
+    expect(calls[0].body).toMatchObject({ key: "wso 7h2kq-enxnx qn54k-zcp9j", device: deviceId(), product: "office" });
+    expect(calls[1].url).toBe("https://uc.test/api/v1/license/activate");
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("the server's refusals come back with their reason; offline says so", async () => {
+    const { pub } = keypair();
+    const refuse = (status: number, code: string, message: string) => (async () => new Response(JSON.stringify({ error: { code, message } }), { status })) as unknown as typeof fetch;
+    for (const [status, code, apiCode] of [[409, "LICENSE_SEATS_FULL", "forbidden_by_policy"], [403, "LICENSE_REVOKED", "forbidden_by_policy"], [404, "LICENSE_KEY_UNKNOWN", "bad_request"]] as const) {
+      const { s, dir } = store({ pub, fetcher: refuse(status, code, "said the server") });
+      await expect(s.activate(KEY)).rejects.toMatchObject({ code: apiCode, message: "said the server", detail: { reason: code } });
+      expect(s.status().plan).toBe("free");
+      rmSync(dir, { recursive: true, force: true });
+    }
+    const { s, dir } = store({ pub }); // the default fetcher throws: offline
+    await expect(s.activate(KEY)).rejects.toMatchObject({ code: "capability_unavailable", detail: { reason: "offline" } });
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("tells keys from licence text", async () => {
+    const { isActivationKey } = await import("../src/license");
+    expect(isActivationKey(KEY)).toBe(true);
+    expect(isActivationKey("ws0 7h2kq enxnx qn54k zcp9j")).toBe(true);
+    expect(isActivationKey("WSO-1234")).toBe(false);
+    expect(isActivationKey('{"v":1}')).toBe(false);
+  });
+});

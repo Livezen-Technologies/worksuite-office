@@ -21,6 +21,23 @@ export function canonicalJson(v: unknown): string {
   return "{" + Object.keys(o).filter((k) => o[k] !== undefined).sort().map((k) => JSON.stringify(k) + ":" + canonicalJson(o[k])).join(",") + "}";
 }
 
+/**
+ * The WorkSuite Office licence key(s) (raw 32-byte Ed25519 public keys, base64): the Update Center signs licences
+ * with its own licence key, never the release key (worksite-download OfficeLicenseService, config licenseKeyId), and
+ * publishes it at https://download.worksuitecloud.com/api/v1/license/keys. Release engineering pins the production
+ * key here; WS_AI_LICENSE_KEYS adds keys (a local Update Center in development, or a rotation's next key).
+ */
+export const BUILTIN_LICENSE_KEYS: string[] = [];
+
+export function licenseKeys(env = process.env): KeyObject[] {
+  const extra = (env.WS_AI_LICENSE_KEYS || "").split(",").map((s) => s.trim()).filter(Boolean);
+  const out: KeyObject[] = [];
+  for (const k of [...BUILTIN_LICENSE_KEYS, ...extra]) {
+    try { out.push(publicKeyFromRaw(k)); } catch { /* a malformed key is ignored */ }
+  }
+  return out;
+}
+
 export function publicKeyFromRaw(b64: string): KeyObject {
   const raw = Buffer.from(b64, "base64");
   if (raw.length !== 32) throw new Error("an Ed25519 public key is 32 bytes");

@@ -1,5 +1,22 @@
 # Change log
 
+## 10.1.114
+
+### New features
+
+#### WorkSuite Office Pro
+
+* An activation wizard in Settings › WorkSuite Office Pro: Welcome, Your
+  key, Activating, Done. Type the WSO-XXXXX-XXXXX-XXXXX-XXXXX key from your
+  purchase; WorkSuite Office checks it with WorkSuite, starting its AI
+  service by itself, and shows what Pro now unlocks. When a key cannot be
+  activated it says why: not a WorkSuite key, unknown, in use on all its
+  computers, cancelled, expired, or no internet.
+* Licences come from the WorkSuite licence server at
+  download.worksuitecloud.com, which issues the keys, counts the computers
+  each covers and lets you free one in your WorkSuite account. A pasted
+  .wslicense file still works.
+
 ## 10.1.113
 
 ### New features
