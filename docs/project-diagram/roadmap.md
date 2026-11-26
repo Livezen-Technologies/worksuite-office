@@ -97,9 +97,10 @@ in the file; double-clicking it opens it again.
 
 Online, in WorkSuite (worksuite repository): a desktop .wsdiagram opens in Drive in the online Diagram editor, for
 people to edit together, and is saved back into its file (Diagram 1.4.0); Visio drawings open there as an online
-copy (Diagram 1.5.0). A desktop .wsproj or a Microsoft Project XML plan opens as a project people work on together
-(Project 2.17.0), and its plan is saved back into the .wsproj (Project 2.18.0). Left: saving online edits back into
-Visio files, and a trial of all of it on a real server.
+copy (Diagram 1.5.0), are written as Visio (Diagram 1.6.0), and can save their online edits back into the Visio
+file they came from (Diagram 1.7.0). A desktop .wsproj or a Microsoft Project XML plan opens as a project people work
+on together (Project 2.17.0), and its plan is saved back into the .wsproj (Project 2.18.0). Left: a trial of all of
+it on a real server.
 
 Alongside (worksuite repository, `ops/document-server`): a terminal and a web setup wizard for the Document Server,
 and its admin panel and API (status, actions, logs, settings, secret rotation, fonts, users and roles,
