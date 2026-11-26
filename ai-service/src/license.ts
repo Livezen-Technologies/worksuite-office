@@ -161,6 +161,8 @@ export class LicenseStore {
   /** Activate from a pasted key or a .wslicense file's text. Verifies offline, stores, then tries the
    * online activation (non-fatal if offline). */
   async activate(keyText: string): Promise<LicenseStatus> {
+    // a typed activation key (WSO-XXXXX-…) is swapped at the Update Center for this computer's signed licence
+    if (isActivationKey(keyText)) keyText = await this.redeem(keyText);
     let doc: LicenseDoc;
     try { doc = parseLicense(keyText); } catch { throw new ApiError("bad_request", "This is not a valid license key"); }
     const v = this.verify(doc);
@@ -178,6 +180,28 @@ export class LicenseStore {
     }
     this.write(stored);
     return this.status();
+  }
+
+  /** The signed licence text for an activation key, from the Update Center; its refusals come back as they are. */
+  private async redeem(key: string): Promise<string> {
+    let res: Response;
+    try {
+      res = await this.fetcher(`${this.baseUrl}/redeem`, {
+        method: "POST",
+        headers: { "content-type": "application/json", accept: "application/json" },
+        body: JSON.stringify({ key: key.trim(), device: deviceId(), product: "office", version: this.env.WS_AI_VERSION || "" }),
+        signal: AbortSignal.timeout(15000),
+      });
+    } catch {
+      throw new ApiError("capability_unavailable", "The WorkSuite licence server could not be reached. Check the internet connection and try again.", { reason: "offline" });
+    }
+    const j = (await res.json().catch(() => ({}))) as { license?: string; error?: { code?: string; message?: string } };
+    if (!res.ok || typeof j.license !== "string") {
+      const code = j.error?.code || `HTTP_${res.status}`;
+      const message = j.error?.message || "The licence server could not activate this key.";
+      throw new ApiError(res.status === 409 || res.status === 403 ? "forbidden_by_policy" : "bad_request", message, { reason: code });
+    }
+    return j.license;
   }
 
   /** Online revalidation; updates the stored status and the grace clock. */
@@ -212,6 +236,11 @@ export class LicenseStore {
     const status: OnlineStatus = j.status === "active" || j.status === "revoked" || j.status === "expired" ? j.status : "unknown";
     return { status, license: typeof j.license === "string" ? j.license : undefined };
   }
+}
+
+/** True for an activation key as a customer types it: WSO and 20 more letters and digits, spaces and dashes aside. */
+export function isActivationKey(text: string): boolean {
+  return /^\s*WS[O0][\s-]*([0-9A-Za-z][\s-]*){20}$/i.test(text);
 }
 
 /** A license key is the signed JSON, optionally base64-wrapped and/or framed as a .wslicense file. */

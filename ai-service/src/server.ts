@@ -19,7 +19,7 @@ import { detectHardware, Hardware, Runner } from "./hardware";
 import { normalizePolicy, Policy, PolicyReader, systemPolicyReader } from "./policy";
 import { layout, Layout } from "./paths";
 import { SettingsStore } from "./settings";
-import { trustedKeys } from "./signing";
+import { trustedKeys, licenseKeys } from "./signing";
 import { LicenseStore } from "./license";
 import { Catalog, Fetcher } from "./catalog";
 import { EngineRegistry } from "./engines/registry";
@@ -106,7 +106,7 @@ export class Service {
     });
     this.runtime = new Runtime(this.models, this.engines, this.jobs, this.events, () => this.policy);
     this.versions = new VersionStore(join(o.dataDir, "versions"));
-    this.license = new LicenseStore(o.dataDir, keys, o.fetcher, this.env);
+    this.license = new LicenseStore(o.dataDir, () => licenseKeys(this.env), o.fetcher, this.env);
     this.ocrLanguages = new OcrLanguages(join(o.dataDir, "ocr", "lang"), o.fetcher);
     this.dict = new Dictionaries(this.paths.dictionariesDir, o.fetcher);
     this.text = new TextService(this.dict, this.models, this.runtime, () => this.policy, this.diag, this.env);
