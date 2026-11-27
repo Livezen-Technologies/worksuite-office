@@ -46,7 +46,7 @@ env:
   BUILD_TOOLS_SHA: cf4cac0846d03e2e00a6fec5d1ecd4e9463086d5
   # desktop-apps' v10 branch, the same commit as the Windows and Linux 10 builds
   DESKTOP_APPS_REF: 584fc2f63aa35b0b9518c28016c91c2852539cb1
-  PRODUCT_VERSION: 10.1.114
+  PRODUCT_VERSION: 10.1.115
   COMPANY_NAME: WorkSuite
   UPDATE_CENTER: https://download.worksuitecloud.com
   UPDATE_APP_ID: lk.worksuite.office
@@ -309,6 +309,7 @@ jobs:
       - name: Local AI service (worksuite-ai) in the app
         env:
           SIGN_IDENTITY: ${{ steps.identity.outputs.identity }}
+          WS_LICENSE_PUBLIC_KEYS: ${{ vars.WS_LICENSE_PUBLIC_KEYS }}
         run: |
           app="$GITHUB_WORKSPACE/oo/desktop-apps/macos/build/dd/Build/Products/Release/ONLYOFFICE.app"
           bash worksuite-office/build/v10/ai-service.sh "$GITHUB_WORKSPACE/worksuite-office" "$app/Contents/MacOS"

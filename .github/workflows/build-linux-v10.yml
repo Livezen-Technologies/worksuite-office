@@ -25,7 +25,7 @@ env:
   BUILD_TOOLS_REF: release/v9.4.0
   BUILD_TOOLS_SHA: cf4cac0846d03e2e00a6fec5d1ecd4e9463086d5
   DESKTOP_APPS_REF: 584fc2f63aa35b0b9518c28016c91c2852539cb1
-  PRODUCT_VERSION: 10.1.114
+  PRODUCT_VERSION: 10.1.115
   # depot_tools (V8) stays at the pinned commit: its self-update collides with build_tools' bootstrap edits
   DEPOT_TOOLS_UPDATE: '0'
 
@@ -129,6 +129,8 @@ jobs:
 
       - name: Local AI service (worksuite-ai) next to the app
         run: bash worksuite-office/build/v10/ai-service.sh "$GITHUB_WORKSPACE/worksuite-office" "$GITHUB_WORKSPACE/oo/build_tools/out/linux_64/onlyoffice/desktopeditors"
+        env:
+          WS_LICENSE_PUBLIC_KEYS: ${{ vars.WS_LICENSE_PUBLIC_KEYS }}
 
       - name: WorkSuite Project and Diagram (web apps) in the app
         run: bash worksuite-office/build/v10/apps.sh "$GITHUB_WORKSPACE/worksuite-office" "$GITHUB_WORKSPACE/oo/build_tools/out/linux_64/onlyoffice/desktopeditors"

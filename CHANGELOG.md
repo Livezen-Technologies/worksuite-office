@@ -1,5 +1,16 @@
 # Change log
 
+## 10.1.115
+
+### Fixes
+
+#### WorkSuite Office Pro
+
+* The WorkSuite licence key is built into the app from the build settings,
+  so activation works in release builds without extra setup. A build with a
+  malformed key stops instead of shipping an app that turns down every
+  licence.
+
 ## 10.1.114
 
 ### New features
