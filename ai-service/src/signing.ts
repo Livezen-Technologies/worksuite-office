@@ -24,13 +24,20 @@ export function canonicalJson(v: unknown): string {
 /**
  * The WorkSuite Office licence key(s) (raw 32-byte Ed25519 public keys, base64): the Update Center signs licences
  * with its own licence key, never the release key (worksite-download OfficeLicenseService, config licenseKeyId), and
- * publishes it at https://download.worksuitecloud.com/api/v1/license/keys. Release engineering pins the production
- * key here; WS_AI_LICENSE_KEYS adds keys (a local Update Center in development, or a rotation's next key).
+ * publishes it at https://download.worksuitecloud.com/api/v1/license/keys. The build pins the production key:
+ * the WS_LICENSE_PUBLIC_KEYS repository variable (comma-separated) is baked into the bundle by scripts/bundle.mjs,
+ * which fails the build on a malformed key. WS_AI_LICENSE_KEYS adds keys at run time (a local Update Center in
+ * development, or a rotation's next key).
  */
-export const BUILTIN_LICENSE_KEYS: string[] = [];
+declare const __WS_LICENSE_PUBLIC_KEYS__: string | undefined;
+export const BUILTIN_LICENSE_KEYS: string[] = splitKeys(typeof __WS_LICENSE_PUBLIC_KEYS__ === "string" ? __WS_LICENSE_PUBLIC_KEYS__ : "");
+
+export function splitKeys(list: string): string[] {
+  return list.split(",").map((s) => s.trim()).filter(Boolean);
+}
 
 export function licenseKeys(env = process.env): KeyObject[] {
-  const extra = (env.WS_AI_LICENSE_KEYS || "").split(",").map((s) => s.trim()).filter(Boolean);
+  const extra = splitKeys(env.WS_AI_LICENSE_KEYS || "");
   const out: KeyObject[] = [];
   for (const k of [...BUILTIN_LICENSE_KEYS, ...extra]) {
     try { out.push(publicKeyFromRaw(k)); } catch { /* a malformed key is ignored */ }
